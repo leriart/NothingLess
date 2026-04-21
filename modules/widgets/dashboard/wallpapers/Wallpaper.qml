@@ -219,6 +219,9 @@ PanelWindow {
     // -------------------------------------------------------------------
     function loadCustomPalette(filePath) {
         if (!filePath) return;
+        // Vaciar paleta actual para usar fallback mientras se carga la nueva
+        customPalette = [];
+        customPaletteSize = 0;
         var palettePath = getPalettePath(filePath);
         var xhr = new XMLHttpRequest();
         xhr.open("GET", "file://" + palettePath, true);
@@ -900,47 +903,30 @@ PanelWindow {
                 }
             }
 
-            Item {
-                id: mediaContainer
+            // Image with layer effect for tinting
+            Image {
+                id: rawImage
                 anchors.fill: parent
-                clip: true
+                source: staticImageRoot.sourceFile ? "file://" + staticImageRoot.sourceFile : ""
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                smooth: true
+                mipmap: true
+                visible: true
 
-                Image {
-                    id: rawImage
-                    anchors.fill: parent
-                    source: staticImageRoot.sourceFile ? "file://" + staticImageRoot.sourceFile : ""
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    smooth: true
-                    mipmap: true
-                    opacity: staticImageRoot.tint ? 0.0 : 1.0
-                    visible: true
-
-                    onStatusChanged: {
-                        if (status === Image.Ready) {
-                            console.log("rawImage ready, scheduling texture update");
-                            mediaTextureSource.scheduleUpdate();
-                        }
-                    }
-                }
-
-                ShaderEffectSource {
-                    id: mediaTextureSource
-                    sourceItem: rawImage
-                    hideSource: staticImageRoot.tint
-                    live: false
-                    smooth: true
-                    recursive: false
-                }
-
-                PaletteShaderEffect {
-                    anchors.fill: parent
-                    visible: staticImageRoot.tint && wallpaper.effectivePaletteSize > 0
-                    source: mediaTextureSource
+                // Layer effect for palette tinting
+                layer.enabled: staticImageRoot.tint && wallpaper.effectivePaletteSize > 0
+                layer.effect: PaletteShaderEffect {
                     paletteTexture: paletteTextureSource
                     paletteSize: wallpaper.effectivePaletteSize
-                    texWidth: Math.max(rawImage.width, 1)
-                    texHeight: Math.max(rawImage.height, 1)
+                    texWidth: rawImage.width
+                    texHeight: rawImage.height
+                }
+
+                onStatusChanged: {
+                    if (status === Image.Ready) {
+                        console.log("rawImage ready");
+                    }
                 }
             }
         }
@@ -1005,40 +991,23 @@ PanelWindow {
                 }
             }
 
-            Item {
-                id: mediaContainer
+            Video {
+                id: videoPlayer
                 anchors.fill: parent
-                clip: true
+                source: videoRoot.sourceFile ? "file://" + videoRoot.sourceFile : ""
+                loops: MediaPlayer.Infinite
+                autoPlay: true
+                muted: true
+                fillMode: VideoOutput.PreserveAspectCrop
+                visible: true
 
-                Video {
-                    id: videoPlayer
-                    anchors.fill: parent
-                    source: videoRoot.sourceFile ? "file://" + videoRoot.sourceFile : ""
-                    loops: MediaPlayer.Infinite
-                    autoPlay: true
-                    muted: true
-                    fillMode: VideoOutput.PreserveAspectCrop
-                    opacity: videoRoot.tint ? 0.0 : 1.0
-                    visible: true
-                }
-
-                ShaderEffectSource {
-                    id: mediaTextureSource
-                    sourceItem: videoPlayer
-                    hideSource: videoRoot.tint
-                    live: true
-                    smooth: true
-                    recursive: false
-                }
-
-                PaletteShaderEffect {
-                    anchors.fill: parent
-                    visible: videoRoot.tint && wallpaper.effectivePaletteSize > 0
-                    source: mediaTextureSource
+                // Layer effect for palette tinting
+                layer.enabled: videoRoot.tint && wallpaper.effectivePaletteSize > 0
+                layer.effect: PaletteShaderEffect {
                     paletteTexture: paletteTextureSource
                     paletteSize: wallpaper.effectivePaletteSize
-                    texWidth: Math.max(videoPlayer.width, 1)
-                    texHeight: Math.max(videoPlayer.height, 1)
+                    texWidth: videoPlayer.width
+                    texHeight: videoPlayer.height
                 }
             }
         }
@@ -1070,11 +1039,8 @@ PanelWindow {
 
             onSourceChanged: {
                 console.log("wallImageContainer source changed to:", source);
-                if (previousSource !== "" && source !== previousSource) {
-                    if (Config.animDuration > 0) transitionAnimation.restart();
-                }
-                previousSource = source;
                 if (source) wallpaper.loadCustomPalette(source);
+                // Animation will be triggered after loader finishes loading
             }
 
             SequentialAnimation {
@@ -1092,6 +1058,7 @@ PanelWindow {
             Loader {
                 id: wallImageLoader
                 anchors.fill: parent
+                asynchronous: true
                 sourceComponent: {
                     if (!wallImageContainer.source) return null;
                     var fileType = wallpaper.getFileType(wallImageContainer.source);
@@ -1103,7 +1070,16 @@ PanelWindow {
 
                 onLoaded: {
                     console.log("Loader: item loaded, assigning sourceFile =", wallImageContainer.source);
-                    if (item) item.sourceFile = wallImageContainer.source;
+                    if (item) {
+                        item.sourceFile = wallImageContainer.source;
+                    }
+                    // Trigger animation after new content is loaded
+                    if (wallImageContainer.previousSource !== "" && 
+                        wallImageContainer.source !== wallImageContainer.previousSource &&
+                        Config.animDuration > 0) {
+                        transitionAnimation.restart();
+                    }
+                    wallImageContainer.previousSource = wallImageContainer.source;
                 }
 
                 // Bind sourceFile directly to wallImageContainer.source
