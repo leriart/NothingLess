@@ -21,10 +21,10 @@ layout(std140, binding = 0) uniform buf {
 } ubuf;
 
 // Fast exp(-k*x) approximation: 1 / (1 + x + 0.5*x^2)
+// Slightly rewritten to minimize operations
 float fastExpWeight(float k, float distSq) {
     float x = k * distSq;
-    float x2 = x * x;
-    return 1.0 / (1.0 + x + 0.5 * x2);
+    return 1.0 / (1.0 + x * (1.0 + 0.5 * x));
 }
 
 void main() {
@@ -48,28 +48,31 @@ void main() {
     const float maxDistSq      = 0.3454;          // -ln(0.001)/20.0
     const float epsilon        = 1e-5;
 
-    vec3 accum  = vec3(0.0);
-    float sumW = 0.0;
+    // Use mediump for accumulators to save registers/cycles
+    mediump vec3 accum  = vec3(0.0);
+    mediump float sumW = 0.0;
 
-    float minDist = 1e10;
-    vec3  nearest = vec3(0.0);
+    mediump float minDist = 1e10;
+    lowp vec3  nearest = vec3(0.0);   // lowp sufficient for palette colors
 
     // Precompute stepping factors to avoid division inside loop
     float invSize = 1.0 / float(size);
     float uStep   = invSize;
     float uStart  = 0.5 * invSize;
 
+    // Hint to compiler to unroll the loop for better pipelining
+    #pragma unroll
     for (int i = 0; i < 128; ++i) {
         if (i >= size) break;
 
         float u = float(i) * uStep + uStart;
-        vec3 pColor = texture(paletteTexture, vec2(u, 0.5)).rgb;
+        // Use texelFetch instead of texture() – avoids UV filtering & derivative overhead
+        // Assumes paletteTexture is a 2D texture with height=1.
+        lowp vec3 pColor = texelFetch(paletteTexture, ivec2(i, 0), 0).rgb;
 
-        // Difference and squared distance (unrolled for clarity, compiler optimizes)
-        float dx = color.x - pColor.x;
-        float dy = color.y - pColor.y;
-        float dz = color.z - pColor.z;
-        float distSq = dx*dx + dy*dy + dz*dz;
+        // Difference and squared distance (dot product is hardware accelerated)
+        mediump vec3 diff = color - pColor;
+        mediump float distSq = dot(diff, diff);
 
         // Nearest neighbor tracking (for fallback)
         if (distSq < minDist) {
@@ -81,7 +84,7 @@ void main() {
         if (distSq > maxDistSq) continue;
 
         // Weight using fast approximation
-        float w = fastExpWeight(sharpness, distSq);
+        mediump float w = fastExpWeight(sharpness, distSq);
 
         accum += pColor * w;
         sumW += w;
