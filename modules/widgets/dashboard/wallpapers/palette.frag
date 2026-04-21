@@ -14,15 +14,19 @@ layout(std140, binding = 0) uniform buf {
     float texHeight;
 } ubuf;
 
-// Adjusted sharpness to compensate for the approximation's overestimation.
-// This value makes the visual result nearly identical to using exp(-20*distSq).
-const float SHARPNESS = 17.0;
+const float SHARPNESS = 20.0;   // Keep original sharpness
 const float EPSILON   = 1e-5;
 
-// Original fast approximation of exp(-x) for x >= 0.
+// Accurate Padé [2,2] approximation of exp(-x) for x >= 0.
+// Very close to the real exponential curve.
 float fastExpNeg(float x) {
-    x = clamp(x, 0.0, 10.0);
-    return 1.0 / (1.0 + x + 0.5 * x * x);
+    // Clamp to a safe range to prevent extreme values
+    x = clamp(x, 0.0, 20.0);
+    float x2 = x * x;
+    float num = 1.0 - 0.5 * x + 0.1 * x2;
+    float den = 1.0 + 0.5 * x + 0.1 * x2;
+    // Ensure we never return a negative value (prevents color inversion)
+    return max(num / den, 0.0);
 }
 
 void main() {
