@@ -1,4 +1,6 @@
-.qmlls.ini
-.ruff_cache/
-scripts/__pycache__
-.sisyphus
+scripts/LUT 3D/Cargo.lock
+/scripts/LUT 3D/target/release/.fingerprint
+/scripts/LUT 3D/target/release/deps
+/scripts/LUT 3D/target/release/build/zmij-cbe3f8201850d6e1
+/scripts/LUT 3D/target/release/build/av-scenechange-8559eb33c3ad0528
+scripts/LUT 3D/target/.rustc_info.json

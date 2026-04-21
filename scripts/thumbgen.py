@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Thumbnail Generator for Ambxst Wallpaper System
-Generates thumbnails for video files, images, and GIFs using FFmpeg and ImageMagick with multithreading.
+Thumbnail & Palette Generator for Ambxst Wallpaper System
+Generates thumbnails for video files, images, and GIFs using FFmpeg and ImageMagick.
+Also generates a dynamic color palette (dominant colors) for each media file.
+Uses only Python standard library + system tools (FFmpeg, ImageMagick).
 """
 
 import json
@@ -10,6 +12,7 @@ import subprocess
 import sys
 import threading
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -21,6 +24,11 @@ GIF_EXTENSIONS = {".gif"}
 
 # Default thumbnail size
 THUMBNAIL_SIZE = "140x140"
+
+# Palette sample size (resize image to this square before counting colors)
+PALETTE_SAMPLE_SIZE = 128
+# Maximum number of colors in the palette
+MAX_PALETTE_COLORS = 25
 
 
 class ThumbnailGenerator:
@@ -35,6 +43,7 @@ class ThumbnailGenerator:
         self.fallback_path = Path(fallback_path).expanduser() if fallback_path else None
         self.wall_path: Optional[Path] = None
         self.thumbnails_dir: Optional[Path] = None
+        self.palettes_dir: Optional[Path] = None
         self.files_to_process = []
         self.total_files = 0
         self.processed_count = 0
@@ -66,12 +75,16 @@ class ThumbnailGenerator:
                 print(f"ERROR: Wallpaper directory not found: {self.wall_path}")
                 return False
 
-            # Setup thumbnails directory using provided cache base
+            # Setup directories
             self.thumbnails_dir = self.cache_base_path / "thumbnails"
             self.thumbnails_dir.mkdir(parents=True, exist_ok=True)
 
+            self.palettes_dir = self.cache_base_path / "palettes"
+            self.palettes_dir.mkdir(parents=True, exist_ok=True)
+
             print(f"✓ Config loaded: {self.wall_path}")
             print(f"✓ Thumbnails cache: {self.thumbnails_dir}")
+            print(f"✓ Palettes cache: {self.palettes_dir}")
             return True
 
         except Exception as e:
@@ -87,7 +100,6 @@ class ThumbnailGenerator:
             return []
 
         try:
-            # Recursively find all files in wallpaper directory and subdirectories
             for file_path in self.wall_path.rglob("*"):
                 if file_path.is_file() and not file_path.name.startswith("."):
                     # Check if any parent directory is hidden
@@ -103,9 +115,7 @@ class ThumbnailGenerator:
                         ):
                             files.append(file_path)
 
-            # Sort for consistent ordering
             files.sort()
-
             print(f"✓ Found {len(files)} media files")
             return files
 
@@ -118,33 +128,54 @@ class ThumbnailGenerator:
         if self.wall_path is None or self.thumbnails_dir is None:
             raise RuntimeError("Paths not initialized")
 
-        # Get relative path from wall_path
         try:
             relative_path = file_path.relative_to(self.wall_path)
         except ValueError:
             raise ValueError(f"File {file_path} is not within {self.wall_path}")
 
-        # Create thumbnail name with .jpg extension
         thumbnail_name = file_path.name + ".jpg"
-
-        # Build the proxy path
         thumbnail_path = self.thumbnails_dir / relative_path.parent / thumbnail_name
-
         return thumbnail_path
+
+    def get_palette_path(self, file_path: Path) -> Path:
+        """Get palette JSON path for a media file."""
+        if self.wall_path is None or self.palettes_dir is None:
+            raise RuntimeError("Paths not initialized")
+
+        try:
+            relative_path = file_path.relative_to(self.wall_path)
+        except ValueError:
+            raise ValueError(f"File {file_path} is not within {self.wall_path}")
+
+        palette_name = file_path.name + ".json"
+        palette_path = self.palettes_dir / relative_path.parent / palette_name
+        return palette_path
 
     def needs_thumbnail(self, file_path: Path) -> bool:
         """Check if file needs thumbnail generation."""
         thumbnail_path = self.get_thumbnail_path(file_path)
 
-        # If thumbnail doesn't exist, needs generation
         if not thumbnail_path.exists():
             return True
 
-        # If file is newer than thumbnail, needs regeneration
         try:
             file_mtime = file_path.stat().st_mtime
             thumbnail_mtime = thumbnail_path.stat().st_mtime
             return file_mtime > thumbnail_mtime
+        except:
+            return True
+
+    def needs_palette(self, file_path: Path) -> bool:
+        """Check if file needs palette generation."""
+        palette_path = self.get_palette_path(file_path)
+
+        if not palette_path.exists():
+            return True
+
+        try:
+            file_mtime = file_path.stat().st_mtime
+            palette_mtime = palette_path.stat().st_mtime
+            return file_mtime > palette_mtime
         except:
             return True
 
@@ -153,34 +184,31 @@ class ThumbnailGenerator:
         thumbnail_path = self.get_thumbnail_path(video_path)
 
         try:
-            # Ensure parent directory exists
             thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # FFmpeg command for high-quality thumbnail
             cmd = [
                 "ffmpeg",
                 "-y",
                 "-i",
                 str(video_path),
                 "-ss",
-                "00:00:01",  # Skip first second to avoid black frames
+                "00:00:01",
                 "-vframes",
-                "1",  # Extract only 1 frame
+                "1",
                 "-vf",
                 f"scale=140:140:force_original_aspect_ratio=increase,crop=140:140",
                 "-q:v",
-                "2",  # High quality
+                "2",
                 "-f",
-                "image2",  # Force image format
+                "image2",
                 str(thumbnail_path),
             ]
 
-            # Run FFmpeg with error suppression
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=30,  # 30 second timeout per video
+                timeout=30,
             )
 
             if result.returncode == 0 and thumbnail_path.exists():
@@ -199,30 +227,27 @@ class ThumbnailGenerator:
         thumbnail_path = self.get_thumbnail_path(image_path)
 
         try:
-            # Ensure parent directory exists
             thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # ImageMagick command for high-quality thumbnail
             cmd = [
                 "convert",
                 str(image_path),
                 "-resize",
-                "140x140^",  # Force resize to exact dimensions
+                "140x140^",
                 "-gravity",
-                "center",  # Center the crop
+                "center",
                 "-extent",
-                "140x140",  # Crop to exact size
+                "140x140",
                 "-quality",
-                "85",  # High quality JPEG
+                "85",
                 str(thumbnail_path),
             ]
 
-            # Run ImageMagick
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=15,  # 15 second timeout per image
+                timeout=15,
             )
 
             if result.returncode == 0 and thumbnail_path.exists():
@@ -237,36 +262,33 @@ class ThumbnailGenerator:
             return False, str(e)
 
     def generate_gif_thumbnail(self, gif_path: Path) -> Tuple[bool, str]:
-        """Generate thumbnail for a GIF file using FFmpeg (extract first frame)."""
+        """Generate thumbnail for a GIF file using FFmpeg."""
         thumbnail_path = self.get_thumbnail_path(gif_path)
 
         try:
-            # Ensure parent directory exists
             thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # FFmpeg command to extract first frame from GIF
             cmd = [
                 "ffmpeg",
                 "-y",
                 "-i",
                 str(gif_path),
                 "-vframes",
-                "1",  # Extract only the first frame
+                "1",
                 "-vf",
                 f"scale=140:140:force_original_aspect_ratio=increase,crop=140:140",
                 "-q:v",
-                "2",  # High quality
+                "2",
                 "-f",
-                "image2",  # Force image format
+                "image2",
                 str(thumbnail_path),
             ]
 
-            # Run FFmpeg
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=15,  # 15 second timeout per GIF
+                timeout=15,
             )
 
             if result.returncode == 0 and thumbnail_path.exists():
@@ -274,6 +296,122 @@ class ThumbnailGenerator:
             else:
                 error_msg = result.stderr.strip() if result.stderr else "Unknown error"
                 return False, error_msg
+
+        except subprocess.TimeoutExpired:
+            return False, "Timeout"
+        except Exception as e:
+            return False, str(e)
+
+    def generate_palette(self, file_path: Path) -> Tuple[bool, str]:
+        """
+        Generate a color palette (dominant colors) for a media file.
+        Uses ImageMagick to create a small PPM image, then counts colors in pure Python.
+        Returns (success, message).
+        """
+        palette_path = self.get_palette_path(file_path)
+
+        try:
+            palette_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Step 1: Use ImageMagick to resize and convert to PPM (binary P6 format)
+            # PPM is simple to parse without external libraries.
+            # We'll request a sample size of PALETTE_SAMPLE_SIZE x PALETTE_SAMPLE_SIZE.
+            cmd = [
+                "convert",
+                str(file_path),
+                "-resize",
+                f"{PALETTE_SAMPLE_SIZE}x{PALETTE_SAMPLE_SIZE}^",
+                "-gravity",
+                "center",
+                "-extent",
+                f"{PALETTE_SAMPLE_SIZE}x{PALETTE_SAMPLE_SIZE}",
+                "-strip",           # Remove metadata
+                "ppm:-",            # Output PPM to stdout
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                timeout=20,
+            )
+
+            if result.returncode != 0:
+                error_msg = result.stderr.decode("utf-8", errors="ignore").strip()
+                return False, f"ImageMagick failed: {error_msg}"
+
+            ppm_data = result.stdout
+
+            # Step 2: Parse PPM P6 format
+            # Format: "P6\n<width> <height>\n<maxval>\n<binary RGB data>"
+            header_end = ppm_data.find(b"\n", 0, 100)  # first newline after magic
+            if header_end == -1 or not ppm_data.startswith(b"P6"):
+                return False, "Invalid PPM header (not P6)"
+
+            # Find second newline (dimensions)
+            dims_start = header_end + 1
+            dims_end = ppm_data.find(b"\n", dims_start, dims_start + 30)
+            if dims_end == -1:
+                return False, "Invalid PPM dimensions"
+
+            dims_line = ppm_data[dims_start:dims_end].decode("ascii")
+            try:
+                width_str, height_str = dims_line.split()
+                width = int(width_str)
+                height = int(height_str)
+            except:
+                return False, "Could not parse PPM dimensions"
+
+            # Maxval line
+            maxval_start = dims_end + 1
+            maxval_end = ppm_data.find(b"\n", maxval_start, maxval_start + 10)
+            if maxval_end == -1:
+                return False, "Invalid PPM maxval"
+
+            maxval_line = ppm_data[maxval_start:maxval_end].decode("ascii")
+            try:
+                maxval = int(maxval_line)
+            except:
+                return False, "Could not parse PPM maxval"
+
+            data_start = maxval_end + 1
+            expected_bytes = width * height * 3
+            if len(ppm_data) - data_start < expected_bytes:
+                return False, f"Incomplete PPM data: expected {expected_bytes}, got {len(ppm_data)-data_start}"
+
+            # Step 3: Read RGB triples and count frequencies
+            # We'll use a tuple (r,g,b) as key, but we can reduce bit depth to group similar colors.
+            # For simplicity, we'll use the raw 8-bit per channel (after scaling if maxval != 255).
+            pixel_data = ppm_data[data_start:data_start + expected_bytes]
+
+            # If maxval is not 255, we need to scale values to 0-255 range
+            scale = 255.0 / maxval if maxval != 255 else 1.0
+
+            color_counter = Counter()
+            idx = 0
+            for _ in range(width * height):
+                r = int(pixel_data[idx] * scale)
+                g = int(pixel_data[idx+1] * scale)
+                b = int(pixel_data[idx+2] * scale)
+                idx += 3
+                # Round to nearest integer and clamp
+                color_counter[(r, g, b)] += 1
+
+            # Step 4: Get most common colors up to MAX_PALETTE_COLORS
+            most_common = color_counter.most_common(MAX_PALETTE_COLORS)
+            palette_hex = []
+            for (r, g, b), _ in most_common:
+                hex_color = "#{:02x}{:02x}{:02x}".format(r, g, b)
+                palette_hex.append(hex_color)
+
+            # Step 5: Save as JSON
+            palette_data = {
+                "colors": palette_hex,
+                "size": len(palette_hex),
+            }
+            with open(palette_path, "w") as f:
+                json.dump(palette_data, f, indent=2)
+
+            return True, f"Palette generated with {len(palette_hex)} colors"
 
         except subprocess.TimeoutExpired:
             return False, "Timeout"
@@ -308,7 +446,7 @@ class ThumbnailGenerator:
             return False, str(e)
 
     def process_files(self, max_workers: int = 4) -> None:
-        """Process files with multithreading."""
+        """Process files with multithreading for both thumbnails and palettes."""
         all_files = self.files_to_process
 
         if not all_files:
@@ -319,73 +457,94 @@ class ThumbnailGenerator:
         start_time = time.time()
 
         failed_files = []
+        palette_failed = []
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            # Submit all jobs
+            # Submit thumbnail jobs
             future_to_file = {
                 executor.submit(self.generate_single_thumbnail, file_path): file_path
                 for file_path in all_files
             }
 
-            # Process completed jobs
+            # Also submit palette jobs (if needed)
+            palette_futures = {}
+            for file_path in all_files:
+                if self.needs_palette(file_path):
+                    future = executor.submit(self.generate_palette, file_path)
+                    palette_futures[future] = file_path
+
+            # Process thumbnail results
             for future in as_completed(future_to_file):
                 file_path = future_to_file[future]
                 try:
                     success, message = future.result()
                     if not success:
                         failed_files.append((file_path, message))
-
                 except Exception as e:
                     failed_files.append((file_path, str(e)))
 
+            # Process palette results
+            for future in as_completed(palette_futures):
+                file_path = palette_futures[future]
+                try:
+                    success, message = future.result()
+                    if not success:
+                        palette_failed.append((file_path, message))
+                except Exception as e:
+                    palette_failed.append((file_path, str(e)))
+
         elapsed = time.time() - start_time
-        success_count = self.total_files - len(failed_files)
+        total_files = len(all_files)
+        success_count = total_files - len(failed_files)
 
         print(f"\n🏁 Processing complete in {elapsed:.1f}s")
-        print(f"✅ Success: {success_count}/{self.total_files}")
+        print(f"✅ Thumbnails success: {success_count}/{total_files}")
 
         if failed_files:
-            print(f"❌ Failed: {len(failed_files)}")
-            for file_path, error in failed_files[:3]:  # Show first 3 errors
+            print(f"❌ Thumbnails failed: {len(failed_files)}")
+            for file_path, error in failed_files[:3]:
                 print(f"   • {file_path.name}: {error}")
             if len(failed_files) > 3:
                 print(f"   ... and {len(failed_files) - 3} more")
 
+        if palette_failed:
+            print(f"⚠️  Palettes failed: {len(palette_failed)}")
+            for file_path, error in palette_failed[:3]:
+                print(f"   • {file_path.name}: {error}")
+            if len(palette_failed) > 3:
+                print(f"   ... and {len(palette_failed) - 3} more")
+
     def run(self) -> int:
         """Main execution function."""
-        print("🖼️  Ambxst Thumbnail Generator")
+        print("🖼️  Ambxst Thumbnail & Palette Generator")
         print("=" * 40)
 
-        # Load configuration
         if not self.load_config():
             return 1
 
-        # Find all files
         files = self.find_files()
         if not files:
             print("ℹ️  No media files found")
             return 0
 
-        # Filter files that need thumbnails
+        # Filter files that need thumbnails OR palettes
         for file_path in files:
-            if self.needs_thumbnail(file_path):
+            if self.needs_thumbnail(file_path) or self.needs_palette(file_path):
                 self.files_to_process.append(file_path)
 
         self.total_files = len(self.files_to_process)
 
         if self.total_files == 0:
-            print("✓ All thumbnails are up to date")
+            print("✓ All thumbnails and palettes are up to date")
             return 0
 
-        print(f"📋 {self.total_files} files need thumbnail generation")
+        print(f"📋 {self.total_files} files need processing (thumbnails or palettes)")
 
-        # Determine optimal worker count
         max_workers = min(4, os.cpu_count() or 1, self.total_files)
 
-        # Process files
         try:
             self.process_files(max_workers)
-            print("🎉 Thumbnail generation complete!")
+            print("🎉 Generation complete!")
             return 0
         except KeyboardInterrupt:
             print("\n⚠️  Interrupted by user")
@@ -399,7 +558,7 @@ def main():
     """Entry point."""
     if len(sys.argv) < 3 or len(sys.argv) > 4:
         print(
-            "Usage: python3 generate_thumbnails.py <config_path> <cache_base_path> [fallback_wall_path]"
+            "Usage: python3 thumbgen.py <config_path> <cache_base_path> [fallback_wall_path]"
         )
         return 1
 
