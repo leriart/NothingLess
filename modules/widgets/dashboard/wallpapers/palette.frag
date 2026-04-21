@@ -1,4 +1,11 @@
 #version 440
+
+// Precision statement for ES compatibility (ignored by desktop GLSL)
+#ifdef GL_ES
+precision highp float;
+precision mediump int;
+#endif
+
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
 
@@ -13,11 +20,11 @@ layout(std140, binding = 0) uniform buf {
     float texHeight;
 } ubuf;
 
-// Fast exp(-k*x) approximation using Padé [1/2]
-// f(x) = 1 / (1 + x + 0.5*x^2) with x = k * distSq
+// Fast exp(-k*x) approximation: 1 / (1 + x + 0.5*x^2)
 float fastExpWeight(float k, float distSq) {
     float x = k * distSq;
-    return 1.0 / (1.0 + x * (1.0 + 0.5 * x));
+    float x2 = x * x;
+    return 1.0 / (1.0 + x + 0.5 * x2);
 }
 
 void main() {
@@ -36,55 +43,56 @@ void main() {
         return;
     }
 
-    const float distributionSharpness = 20.0;     // Same as original
-    const float weightThreshold = 0.001;          // Skip negligible contributions
-    // Precomputed max squared distance: -ln(threshold)/sharpness ≈ 0.3454
-    const float maxDistSq = 0.3454;
+    const float sharpness      = 20.0;
+    const float weightThresh   = 0.001;
+    const float maxDistSq      = 0.3454;          // -ln(0.001)/20.0
+    const float epsilon        = 1e-5;
 
-    vec3 accumulatedColor = vec3(0.0);
-    float totalWeight = 0.0;
+    vec3 accum  = vec3(0.0);
+    float sumW = 0.0;
 
-    // Nearest neighbor fallback for colors far from any palette entry
-    float minDistSq = 1e10;
-    vec3 closestColor = vec3(0.0);
+    float minDist = 1e10;
+    vec3  nearest = vec3(0.0);
 
+    // Precompute stepping factors to avoid division inside loop
     float invSize = 1.0 / float(size);
-    float halfInv = 0.5 * invSize;
+    float uStep   = invSize;
+    float uStart  = 0.5 * invSize;
 
-    for (int i = 0; i < 128; i++) {
+    for (int i = 0; i < 128; ++i) {
         if (i >= size) break;
 
-        float u = float(i) * invSize + halfInv;
+        float u = float(i) * uStep + uStart;
         vec3 pColor = texture(paletteTexture, vec2(u, 0.5)).rgb;
 
-        vec3 diff = color - pColor;
-        float distSq = diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
+        // Difference and squared distance (unrolled for clarity, compiler optimizes)
+        float dx = color.x - pColor.x;
+        float dy = color.y - pColor.y;
+        float dz = color.z - pColor.z;
+        float distSq = dx*dx + dy*dy + dz*dz;
 
-        // Track closest color (for fallback)
-        if (distSq < minDistSq) {
-            minDistSq = distSq;
-            closestColor = pColor;
+        // Nearest neighbor tracking (for fallback)
+        if (distSq < minDist) {
+            minDist = distSq;
+            nearest = pColor;
         }
 
-        // Skip if contribution would be below threshold
+        // Skip if contribution < threshold
         if (distSq > maxDistSq) continue;
 
-        // Use fast approximate Gaussian weight
-        float weight = fastExpWeight(distributionSharpness, distSq);
+        // Weight using fast approximation
+        float w = fastExpWeight(sharpness, distSq);
 
-        accumulatedColor += pColor * weight;
-        totalWeight += weight;
+        accum += pColor * w;
+        sumW += w;
     }
 
     vec3 finalColor;
-    // Fallback: if total weight is near zero, snap to nearest palette color
-    // Prevents bright saturated colors from becoming dark
-    if (totalWeight < 0.001) {
-        finalColor = closestColor;
+    if (sumW < weightThresh) {
+        finalColor = nearest;
     } else {
-        finalColor = accumulatedColor / (totalWeight + 0.00001);
+        finalColor = accum / (sumW + epsilon);
     }
 
-    // Pre-multiply alpha for proper blending in Qt Quick
     fragColor = vec4(finalColor * tex.a, tex.a) * ubuf.qt_Opacity;
 }
