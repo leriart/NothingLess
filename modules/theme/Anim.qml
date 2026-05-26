@@ -418,6 +418,33 @@ QtObject {
         }
     }
 
+    /*! Get Hyprland config file line for an animation type.
+        Unlike hyprAnimation() which outputs 'keyword ...' for runtime,
+        this outputs the hyprland.conf syntax (no 'keyword' prefix).
+        @param type: "windows" | "border" | "fade" | "workspaces"
+        @param orientation: "horizontal" | "vertical" (for workspaces)
+        @returns config file line like: 'animation = windows, 1, 4.0, nl-name, popin 80%' */
+    function hyprConfLine(type, orientation) {
+        const cfg = root.hyprConfig();
+        const speed = cfg.speed.toFixed(1);
+        const bezierName = cfg.name;
+        const enabled = root.animationsEnabled ? "1" : "0";
+
+        switch (type) {
+        case "windows":
+            return `animation = windows, ${enabled}, ${speed}, ${bezierName}, popin 80%`;
+        case "border":
+            return `animation = border, ${enabled}, ${speed}, ${bezierName}`;
+        case "fade":
+            return `animation = fade, ${enabled}, ${speed}, ${bezierName}`;
+        case "workspaces":
+            const anim = orientation === "vertical" ? "slidefadevert 20%" : "slidefade 20%";
+            return `animation = workspaces, ${enabled}, ${speed}, ${bezierName}, ${anim}`;
+        default:
+            return "";
+        }
+    }
+
     // ============================================
     // LOW-LEVEL PHYSICS — Spring, Bounce, and Custom Math
     // ============================================

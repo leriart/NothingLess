@@ -670,11 +670,17 @@ QtObject {
         const endMarker = "# === END ANIMATIONS ===";
         const styleName = Anim.styleName;
 
-        const bezierDef = Anim.hyprBezierDef();
-        const animWindows = Anim.hyprAnimation("windows");
-        const animBorder = Anim.hyprAnimation("border");
-        const animFade = Anim.hyprAnimation("fade");
-        const animWorkspaces = Anim.hyprAnimation("workspaces", root.getBarOrientation());
+        // Use hyprland.conf syntax (without 'keyword' prefix)
+        // Format: bezier = name, cx, cy, cx2, cy2
+        //         animation = type, enabled, speed, bezierName, style
+        const configBezier = Anim.hyprBezierDef().replace("bezier = ", "");
+        const animWindows = "animation = windows, 1, " + Anim.hyprConfig().speed.toFixed(1) + ", " + Anim.hyprConfig().name + ", popin 80%";
+        const animBorder = "animation = border, 1, " + Anim.hyprConfig().speed.toFixed(1) + ", " + Anim.hyprConfig().name;
+        const animFade = "animation = fade, 1, " + Anim.hyprConfig().speed.toFixed(1) + ", " + Anim.hyprConfig().name;
+        const orient = root.getBarOrientation();
+        const wsAnim = orient === "vertical" ? "slidefadevert 20%" : "slidefade 20%";
+        const animWorkspaces = "animation = workspaces, 1, " + Anim.hyprConfig().speed.toFixed(1) + ", " + Anim.hyprConfig().name + ", " + wsAnim;
+        const bezierDef = "bezier = " + configBezier;
 
         // Build the new animation block
         const animBlock = marker + "\n" +
