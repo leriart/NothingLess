@@ -171,16 +171,63 @@ Singleton {
         running: true
     }
 
+    property int _daemonRestartCount: 0
+    property bool _daemonOk: false
+
+    // Kill any lingering axctl daemon before starting fresh
+    property Process _killOldDaemon: Process {
+        command: ["sh", "-c", "pkill -f 'axctl.*daemon' 2>/dev/null; sleep 0.2"]
+        running: false
+        onExited: {
+            // Start fresh daemon after killing old one
+            root._daemonRestartCount = 0;
+            root._daemonOk = false;
+            Qt.callLater(() => { axctlProcess.running = true; });
+        }
+    }
+
     property Process axctlProcess: Process {
         command: ["axctl", "-c", root.configPath, "daemon"]
-        running: true
+        running: false
         stdout: SplitParser {
             onRead: (data) => {
-                // Daemon logs can be printed here if needed
+                if (data && data.toString().length > 0) {
+                    root._daemonOk = true;
+                    root._daemonRestartCount = 0;
+                }
             }
         }
+        onStarted: {
+            console.log("AxctlService: daemon started");
+            root._daemonOk = true;
+            root._daemonRestartCount = 0;
+            // Start subscribing after daemon starts
+            Qt.callLater(() => { subscribeDelay.running = true; });
+        }
         onExited: (code) => {
-            console.warn("axctl daemon exited with code:", code)
+            console.warn("axctl daemon exited with code:", code);
+            root._daemonOk = false;
+            // Auto-restart with backoff (max 10 retries)
+            if (root._daemonRestartCount < 10) {
+                const delay = Math.min(30000, 1000 * Math.pow(2, root._daemonRestartCount));
+                root._daemonRestartCount++;
+                console.log("AxctlService: restarting daemon in", delay/1000 + "s (attempt", root._daemonRestartCount + "/10)");
+                Qt.callLater(() => {
+                    root._killOldDaemon.running = true;
+                });
+            } else {
+                console.error("AxctlService: daemon failed to start after 10 attempts, giving up");
+            }
+        }
+    }
+
+    // Initial daemon start with old-daemon cleanup
+    Timer {
+        id: daemonStartTimer
+        interval: 300
+        running: true
+        onTriggered: {
+            root._killOldDaemon.running = true;
         }
     }
 
@@ -188,7 +235,7 @@ Singleton {
     Timer {
         id: subscribeDelay
         interval: 500
-        running: true
+        running: false
         onTriggered: axctlSubscribe.running = true
     }
 
