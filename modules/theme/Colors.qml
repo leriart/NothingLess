@@ -290,29 +290,60 @@ FileView {
         When enabled, overrides static palette with quantizer colors. */
     property bool dynamicColorEnabled: false
 
-    /*! Listen for wallpaper changes and re-quantize colors. */
+    /*! Connection to wallpaperManager: re-quantize when wallpaper changes.
+        Delayed 500ms to ensure wallpaperManager is available. */
+    property Timer _wallpaperInitTimer: Timer {
+        id: _wallpaperInitTimer
+        interval: 500
+        repeat: false
+        onTriggered: {
+            if (typeof GlobalStates !== "undefined" && GlobalStates.wallpaperManager) {
+                wallpaperWatcher.target = GlobalStates.wallpaperManager;
+                wallpaperQuantizer.source = GlobalStates.wallpaperManager.currentWallpaper || "";
+            } else {
+                // Retry later — services may not be initialized yet
+                _wallpaperInitTimer.restart();
+            }
+        }
+        Component.onCompleted: _wallpaperInitTimer.restart();
+    }
+
+    /*! Listen for wallpaper changes and re-quantize colors.
+        Target is set dynamically by _wallpaperInitTimer. */
     property Connections wallpaperWatcher: Connections {
-        target: GlobalStates.wallpaperManager
+        id: wallpaperWatcher
+        target: null
         function onCurrentWallpaperChanged() {
-            wallpaperQuantizer.source = GlobalStates.wallpaperManager.currentWallpaper || "";
+            if (wallpaperWatcher.target)
+                wallpaperQuantizer.source = wallpaperWatcher.target.currentWallpaper || "";
         }
     }
 
     /*! ColorQuantizer: extracts dominant colors from current wallpaper.
         Uses rescaleSize:10 (tiny downscale) for maximum performance.
-        Colors are available in wallpaperQuantizer.colors array. */
+        Colors are available in wallpaperQuantizer.colors array.
+        Falls back to adapter.sourceColor when wallpaper is unavailable. */
     property ColorQuantizer wallpaperQuantizer: ColorQuantizer {
         id: wallpaperQuantizer
         depth: 6
         rescaleSize: 10
-        source: GlobalStates.wallpaperManager ? GlobalStates.wallpaperManager.currentWallpaper || "" : ""
+        source: ""
         onColorsChanged: {
             if (wallpaperQuantizer.colors.length > 0) {
                 const c = wallpaperQuantizer.colors[0];
                 root.dominantColor = Qt.hsla(c.hslHue, c.hslSaturation, c.hslLightness, 1.0);
-                // Vibrancy: how saturated/bright the dominant color is
-                root.vibrancy = Math.min(1.0, (c.hslSaturation * 0.6 + (1.0 - Math.abs(c.hslLightness - 0.5) * 2.0) * 0.4));
-                console.log("DynamicColor: extracted", wallpaperQuantizer.colors.length, "colors, dominant:", root.dominantColor, "vibrancy:", root.vibrancy);
+                // Vibrancy: 0.0 (muted/greyscale) to 1.0 (vibrant/colorful)
+                // Formula: saturation contributes 60%, lightness contrast 40%
+                const sat = c.hslSaturation;
+                const lightContrast = 1.0 - Math.abs(c.hslLightness - 0.5) * 2.0;
+                root.vibrancy = Math.min(1.0, Math.max(0.0, sat * 0.6 + lightContrast * 0.4));
+                console.log("DynamicColor:", wallpaperQuantizer.colors.length, "colors,",
+                    "dominant:", root.dominantColor, "vibrancy:", root.vibrancy.toFixed(2));
+            }
+        }
+        onSourceChanged: {
+            if (source.toString().length > 0) {
+                console.log("DynamicColor: quantizing:", source);
             }
         }
     }
@@ -352,6 +383,105 @@ FileView {
     /*! Get the surface tint/primary color for elevation (same as surfaceTint). */
     function elevationTint(level) {
         return root.surfaceTint;
+    }
+
+    // ============================================
+    // M3 PALETTE GENERATION — from source/dominant color
+    // ============================================
+    // Generates a tonal palette from a source color using the M3 HCT
+    // (Hue-Chroma-Tone) approach. Since QML doesn't expose HCT natively,
+    // we approximate using HSL + fixed chroma offsets per tone.
+    //
+    // Usage:
+    //   const palette = Colors.generatePalette(Colors.dominantColor);
+    //   console.log(palette.primary, palette.primaryContainer);
+
+    /*! Generate a tonal M3 palette from a source color.
+        Returns { primary, primaryContainer, secondary, secondaryContainer,
+                  tertiary, tertiaryContainer, error, errorContainer,
+                  surface, surfaceContainer, ... }
+        Uses a simplified HCT approximation (HSL-based). */
+    function generatePalette(sourceColor) {
+        if (!sourceColor) {
+            console.warn("generatePalette: no source color, using adapter");
+            return null;
+        }
+
+        const h = sourceColor.hslHue;
+        const s = sourceColor.hslSaturation;
+        const l = sourceColor.hslLightness;
+
+        // Tonal keys (M3): primary uses highest chroma at tone 40/80
+        // Secondary:  lower chroma, same hue
+        // Tertiary:   hue shifted by ~60°, lower chroma
+        // Error:      fixed red hue
+        // Surface:    neutral greys with hue shift
+        const palette = {
+            // Primary — full saturation, medium-light
+            primary:           Qt.hsla(h, Math.min(1.0, s * 0.9), 0.50, 1.0),
+            primaryContainer:  Qt.hsla(h, Math.min(1.0, s * 0.5), 0.30, 1.0),
+            primaryFixed:      Qt.hsla(h, Math.min(1.0, s * 0.7), 0.85, 1.0),
+            primaryFixedDim:   Qt.hsla(h, Math.min(1.0, s * 0.6), 0.70, 1.0),
+            onPrimary:         Qt.hsla(h, 0.0, 0.95, 1.0),
+            onPrimaryContainer: Qt.hsla(h, 0.0, 0.85, 1.0),
+
+            // Secondary — desaturated, same hue
+            secondary:           Qt.hsla(h, s * 0.3, 0.55, 1.0),
+            secondaryContainer:  Qt.hsla(h, s * 0.2, 0.30, 1.0),
+            secondaryFixed:      Qt.hsla(h, s * 0.2, 0.85, 1.0),
+            secondaryFixedDim:   Qt.hsla(h, s * 0.15, 0.70, 1.0),
+            onSecondary:         Qt.hsla(h, 0.0, 0.95, 1.0),
+            onSecondaryContainer: Qt.hsla(h, 0.0, 0.85, 1.0),
+
+            // Tertiary — hue shifted +60°, desaturated
+            tertiary:           Qt.hsla((h + 0.17) % 1.0, s * 0.25, 0.60, 1.0),
+            tertiaryContainer:  Qt.hsla((h + 0.17) % 1.0, s * 0.15, 0.30, 1.0),
+            tertiaryFixed:      Qt.hsla((h + 0.17) % 1.0, s * 0.15, 0.85, 1.0),
+            tertiaryFixedDim:   Qt.hsla((h + 0.17) % 1.0, s * 0.10, 0.70, 1.0),
+            onTertiary:         Qt.hsla(0.0, 0.0, 0.95, 1.0),
+            onTertiaryContainer: Qt.hsla(0.0, 0.0, 0.85, 1.0),
+
+            // Error — fixed red hue
+            error:              Qt.hsla(0.0, 0.8, 0.55, 1.0),
+            errorContainer:     Qt.hsla(0.0, 0.6, 0.25, 1.0),
+            onError:            Qt.hsla(0.0, 0.0, 0.95, 1.0),
+            onErrorContainer:   Qt.hsla(0.0, 0.0, 0.85, 1.0),
+
+            // Surface hierarchy — neutral with subtle hue tint
+            surface:             Qt.hsla(h, 0.03, 0.10, 1.0),
+            surfaceDim:          Qt.hsla(h, 0.02, 0.06, 1.0),
+            surfaceBright:       Qt.hsla(h, 0.04, 0.25, 1.0),
+            surfaceContainer:        Qt.hsla(h, 0.03, 0.14, 1.0),
+            surfaceContainerLow:     Qt.hsla(h, 0.02, 0.12, 1.0),
+            surfaceContainerLowest:  Qt.hsla(h, 0.02, 0.08, 1.0),
+            surfaceContainerHigh:    Qt.hsla(h, 0.04, 0.18, 1.0),
+            surfaceContainerHighest: Qt.hsla(h, 0.05, 0.22, 1.0),
+            surfaceVariant:      Qt.hsla(h, 0.04, 0.30, 1.0),
+            surfaceTint:         Qt.hsla(h, Math.min(1.0, s * 0.9), 0.50, 1.0),
+
+            // On-surface and backgrounds
+            onBackground:        Qt.hsla(h, 0.02, 0.92, 1.0),
+            onSurface:           Qt.hsla(h, 0.02, 0.92, 1.0),
+            onSurfaceVariant:    Qt.hsla(h, 0.03, 0.80, 1.0),
+            background:          Qt.hsla(h, 0.02, 0.10, 1.0),
+            outline:             Qt.hsla(h, 0.04, 0.55, 1.0),
+            outlineVariant:      Qt.hsla(h, 0.03, 0.25, 1.0),
+            shadow:              Qt.hsla(0.0, 0.0, 0.0, 1.0),
+            scrim:               Qt.hsla(0.0, 0.0, 0.0, 0.6),
+
+            // Light-mode equivalents (for toggling)
+            light: {
+                primary:           Qt.hsla(h, Math.min(1.0, s * 0.9), 0.40, 1.0),
+                secondary:         Qt.hsla(h, s * 0.3, 0.45, 1.0),
+                tertiary:          Qt.hsla((h + 0.17) % 1.0, s * 0.25, 0.45, 1.0),
+                background:        Qt.hsla(h, 0.02, 0.95, 1.0),
+                surface:           Qt.hsla(h, 0.02, 0.93, 1.0),
+                onBackground:      Qt.hsla(h, 0.02, 0.08, 1.0),
+                onSurface:         Qt.hsla(h, 0.02, 0.08, 1.0)
+            }
+        };
+
+        return palette;
     }
 
     /*! Compute luminance of a color (0-1). Useful for dynamic contrast logic. */
