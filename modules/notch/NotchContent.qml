@@ -150,6 +150,9 @@ Item {
     readonly property bool screenNotchOpen: screenVisibilities ? (screenVisibilities.launcher || screenVisibilities.dashboard || screenVisibilities.powermenu || screenVisibilities.tools) : false
     readonly property bool hasActiveNotifications: Notifications.popupList.length > 0
 
+    // Pin state for island mode — when pinned, island stays visible
+    property bool notchPinned: true
+
     // Hover state with delay to prevent flickering
     property bool hoverActive: false
 
@@ -166,6 +169,9 @@ Item {
     // Includes button hover so island stays visible when interacting with buttons
     readonly property bool isMouseOverIsland: isMouseOverNotch || islandButtonsHovered
 
+    // Island mode auto-hide: pinned (always show) or auto (hide when idle)
+    readonly property bool islandAutoHide: !root.notchPinned && root.islandMergedWithBar
+
     // Reveal logic:
     readonly property bool reveal: {
         // If fullscreen and bar is NOT available on fullscreen, hard-hide
@@ -178,8 +184,14 @@ Item {
             return true;
         }
 
+        // Island mode: pinned = always show, otherwise show on interaction
+        if (root.islandMergedWithBar) {
+            if (root.notchPinned) return true;
+            return screenNotchOpen || hasActiveNotifications || hoverActive || barHoverActive;
+        }
+
         // If keepHidden is true and NOT merged with bar, ONLY show on interaction
-        if (((Config.notch && Config.notch.keepHidden !== undefined) ? Config.notch.keepHidden : false) && barPosition !== notchPosition && !root.islandMergedWithBar) {
+        if (((Config.notch && Config.notch.keepHidden !== undefined) ? Config.notch.keepHidden : false) && barPosition !== notchPosition) {
             return (screenNotchOpen || hasActiveNotifications || hoverActive || barHoverActive);
         }
 
@@ -335,29 +347,39 @@ Item {
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
         }
         Button {
+            id: islandPinBtn
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
             visible: Config.bar && Config.bar.showPinButton !== false && !Config.bar.hiddenIcons.includes("pin")
             background: StyledRect {
-                variant: "bg"; enableShadow: false
+                variant: root.notchPinned ? "primary" : "bg"; enableShadow: false
                 radius: Styling.radius(3)
                 Rectangle {
                     anchors.fill: parent
-                    color: Colors.overBackground
-                    opacity: parent.hovered ? 0.08 : 0
+                    color: Styling.srItem("overprimary") || Colors.overBackground
+                    opacity: root.notchPinned ? 0 : (islandPinBtn.hovered ? 0.12 : (islandPinBtn.pressed ? 0.20 : 0))
                     radius: parent.radius ?? 0
                     Behavior on opacity {
                         enabled: Anim.animationsEnabled
-                        NumberAnimation { duration: Anim.standardSmall }
+                        NumberAnimation { duration: Anim.standardSmall; easing.type: Easing.OutCubic }
                     }
                 }
             }
             contentItem: Text {
                 text: Icons.pin; font.family: Icons.font
                 font.pixelSize: Math.round(root.islandButtonSize * 0.5)
-                color: Styling.srItem("overprimary") || Colors.foreground
+                color: root.notchPinned ? Styling.srItem("primary") : (Styling.srItem("overprimary") || Colors.foreground)
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+                rotation: root.notchPinned ? 0 : 45
+                Behavior on rotation {
+                    enabled: Anim.animationsEnabled
+                    NumberAnimation { duration: Anim.standardSmall; easing.type: Easing.OutCubic }
+                }
+                Behavior on color {
+                    enabled: Anim.animationsEnabled
+                    ColorAnimation { duration: Anim.standardSmall }
+                }
             }
-            onClicked: { if (Config.bar) Config.bar.pinnedOnStartup = !(Config.bar.pinnedOnStartup !== false); }
+            onClicked: root.notchPinned = !root.notchPinned
             HoverHandler { cursorShape: Qt.PointingHandCursor }
         }
     }
@@ -393,8 +415,33 @@ Item {
         Repeater {
             model: root.islandDockEnabled && !Config.bar.hiddenIcons.includes("dock") && TaskbarApps.apps.length > 0 ? TaskbarApps.apps : []
             Rectangle {
+                id: dockAppBg
                 width: root.islandButtonSize; height: root.islandButtonSize
                 radius: Styling.radius(3); color: Colors.surfaceContainer
+                
+                // Hover overlay
+                Rectangle {
+                    anchors.fill: parent
+                    radius: parent.radius
+                    color: Colors.overBackground
+                    opacity: dockAppBgMa.containsMouse ? 0.12 : 0
+                    Behavior on opacity {
+                        enabled: Anim.animationsEnabled
+                        NumberAnimation { duration: Anim.standardSmall; easing.type: Easing.OutCubic }
+                    }
+                }
+                
+                MouseArea {
+                    id: dockAppBgMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        var v = Visibilities.getForScreen(root.screen.name);
+                        if (v && !v.dashboard) v.dashboard = true;
+                    }
+                }
+                
                 IntegratedDockAppButton {
                     anchors.centerIn: parent
                     appToplevel: modelData; orientation: "horizontal"

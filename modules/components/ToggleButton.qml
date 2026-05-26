@@ -42,6 +42,18 @@ Button {
         bottomLeftRadius: root.vertical ? root.endRadius : root.startRadius
         bottomRightRadius: root.vertical ? root.endRadius : root.endRadius
 
+        // Enhanced hover overlay (more visible than StateLayer's subtle 0.08)
+        Rectangle {
+            anchors.fill: parent
+            color: Styling.srItem("overprimary") || Colors.overBackground
+            opacity: root.pressed ? 0.20 : (root.hovered ? 0.12 : 0)
+            radius: parent.radius ?? 0
+            Behavior on opacity {
+                enabled: Anim.animationsEnabled
+                NumberAnimation { duration: Anim.standardSmall; easing.type: Easing.OutCubic }
+            }
+        }
+
         // M3 StateLayer for hover/press/focus feedback + ripple
         StateLayer {
             anchors.fill: parent
@@ -53,7 +65,21 @@ Button {
         }
     }
 
-
+    // Press animation: spring scale
+    transform: Scale {
+        origin.x: root.width / 2
+        origin.y: root.height / 2
+        xScale: root.pressed ? 0.88 : 1.0
+        yScale: root.pressed ? 0.88 : 1.0
+        Behavior on xScale {
+            enabled: Anim.animationsEnabled
+            NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.springSnappy().type; easing.bezierCurve: Anim.springSnappy().bezierCurve }
+        }
+        Behavior on yScale {
+            enabled: Anim.animationsEnabled
+            NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.springSnappy().type; easing.bezierCurve: Anim.springSnappy().bezierCurve }
+        }
+    }
 
     // HoverHandler for cursor
     HoverHandler {
