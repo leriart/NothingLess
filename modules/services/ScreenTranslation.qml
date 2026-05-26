@@ -4,7 +4,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import qs.modules.services
 
 /*!
     ScreenTranslation.qml — Screen translation service.
@@ -28,12 +27,13 @@ Singleton {
     function translateText(text, toLang, fromLang) {
         if (!text || text.trim() === "") return;
 
-        if (hasTranslateShell()) {
-            translateShellProcess.command = [
-                "translate", "-t", toLang,
-                fromLang ? "-f", fromLang : "",
-                text
-            ].filter(a => a !== "");
+        if (root._hasTranslateShell) {
+            var args = ["translate", "-t", toLang];
+            if (fromLang) {
+                args.push("-f", fromLang);
+            }
+            args.push(text);
+            translateShellProcess.command = args;
             translateShellProcess.running = true;
         } else {
             // Fallback: Google Translate API via curl
