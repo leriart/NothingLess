@@ -6,7 +6,6 @@ import QtQuick.Layouts
 import Quickshell
 import qs.modules.theme
 import qs.modules.components
-import qs.modules.services
 import Quickshell.Services.SystemTray
 import qs.modules.globals
 import qs.modules.services
@@ -1821,36 +1820,9 @@ Item {
                         }
 
                         ActionButton {
-                            text: "About NothingLess"
+                            text: "About NothingLess " + Config.version
                             icon: Icons.info
                             onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/Leriart/NothingLess"])
-                        }
-
-                        ActionButton {
-                            id: checkUpdatesBtn
-                            text: {
-                                if (UpdateService.isChecking) return "Checking for updates..."
-                                if (UpdateService.updateAvailable) {
-                                    const local = UpdateService.localCommit ? " (local: " + UpdateService.localCommit + ")" : ""
-                                    return "Update available: " + UpdateService.latestVersion + local
-                                }
-                                if (UpdateService.lastCheckTime > 0) {
-                                    const local = UpdateService.localCommit ? " (" + UpdateService.localCommit + ")" : ""
-                                    return "Check Updates (Up to date)" + local
-                                }
-                                return "Check Updates"
-                            }
-                            icon: UpdateService.isChecking ? Icons.circleNotch : (UpdateService.updateAvailable ? Icons.arrowFatLinesDown : Icons.arrowCounterClockwise)
-                            onClicked: UpdateService.checkUpdates()
-                        }
-
-                        ActionButton {
-                            visible: UpdateService.updateAvailable
-                            text: "Update Now"
-                            icon: Icons.arrowFatLinesDown
-                            onClicked: {
-                                Quickshell.execDetached(["bash", "-c", "curl -sL https://github.com/Leriart/NothingLess/raw/main/install.sh | sh"]);
-                            }
                         }
 
 

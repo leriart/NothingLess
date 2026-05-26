@@ -3,9 +3,7 @@
   <br><br>
   A high-performance, deeply customizable Wayland shell built with Quickshell.
   <br><br>
-  <i>Inspired by the Nothing Phone — less is more.</i>
-  <br><br>
-  <b>Fork of <a href="https://github.com/Axenide/Ambxst">Ambxst</a></b>
+  <i>Forked from <a href="https://github.com/Axenide/Ambxst">Ambxst</a> — less is more.</i>
 </p>
 
 <p align="center">
@@ -73,18 +71,18 @@ Supported on **Arch**, **Fedora**, and **NixOS** (requires Hyprland).
 ### CLI
 
 ```bash
-nothingless                      # Start NothingLess shell
-nothingless update               # Update NothingLess
-nothingless reload               # Reload NothingLess
-nothingless quit                 # Quit NothingLess
-nothingless lock                 # Activate lockscreen
-nothingless run <command>        # Run a NothingLess module
-nothingless brightness <0-100>   # Set brightness
-nothingless brightness +/-<delta> # Adjust brightness
-nothingless brightness -s        # Save current brightness
-nothingless brightness -r        # Restore saved brightness
-nothingless screen on|off        # Control display power
-nothingless suspend              # Suspend system
+nothingless                          # Start NothingLess shell
+nothingless update                   # Update NothingLess
+nothingless reload                   # Reload NothingLess
+nothingless quit                     # Quit NothingLess
+nothingless lock                     # Activate lockscreen
+nothingless run <command>            # Run a NothingLess module
+nothingless brightness <0-100>       # Set brightness
+nothingless brightness +/-<delta>    # Adjust brightness
+nothingless brightness -s            # Save current brightness
+nothingless brightness -r            # Restore saved brightness
+nothingless screen on|off            # Control display power
+nothingless suspend                  # Suspend system
 ```
 
 ### Module Commands
@@ -133,21 +131,21 @@ nothingless suspend              # Suspend system
 
 ---
 
-## FPS Monitoring (`nothingless-fps`)
+## FPS Monitoring (`nothing-fps`)
 
 NothingLess includes a modified MangoHud that captures FPS data and displays it in the notch metrics overlay.
 
 ```bash
 # Launch a game with FPS monitoring
-nothingless-fps ./my-game
+nothing-fps ./my-game
 
 # Steam launch options (right-click game > Properties > Launch Options)
-nothingless-fps %command%
+nothing-fps %command%
 ```
 
 **How it works:**
 
-1. `nothingless-fps` sets up a modified MangoHud (`libMangoHud_shim.so`) via `LD_PRELOAD`
+1. `nothing-fps` sets up a modified MangoHud (`libMangoHud_shim.so`) via `LD_PRELOAD`
 2. MangoHud hooks Vulkan/OpenGL to capture frame-present events
 3. Calculated FPS is written to `/dev/shm/nothingless_fps`
 4. NothingLess reads this file in real-time and displays FPS in the notch
@@ -162,41 +160,52 @@ Requires: `meson`, `ninja`, `gcc`, `glslang`, `python-mako`.
 
 ---
 
-## Performance
+## Differences from Ambxst
 
-| Area | Improvement |
-|------|-------------|
-| Video wallpaper | QtMultimedia + FFmpeg (hardware-accelerated, lower overhead vs mpv) |
-| Rendering backend | Configurable OpenGL (default) or Vulkan with threaded render loop |
-| GPU optimization | NVIDIA env vars, GPU texture caching (`GradientCache`) |
-| GLSL shaders | Optimized (reduced draw calls, shared GPU textures) |
-| FPS monitoring | Custom MangoHud integration with real-time notch display |
+### Architecture
 
-## Features
+| Area | Ambxst | NothingLess |
+|------|--------|-------------|
+| Compositor settings | ~40 options (border, shadow, blur) | 130+ options across 11 categories |
+| Config reload handling | Basic | `configreloaded` event detection with instant bind/settings recovery |
 
-| Area | Enhancement |
-|------|-------------|
-| Compositor settings | 130+ options across 11 categories |
-| Config reload | `configreloaded` event detection with instant bind/settings recovery |
-| Installer | Lua/conf dual mode for Hyprland |
-| Tasktray | Dynamic systray with expansion animation |
-| Monitors | Per-monitor positioning via `monitors_writer.py` |
-| Battery alerts | Low battery notifications |
-| Presets | Nothing Phone aesthetic theme |
+### Performance
+
+| Area | Ambxst | NothingLess |
+|------|--------|-------------|
+| Video wallpaper | mpv-based | QtMultimedia + FFmpeg (hardware-accelerated, lower overhead) |
+| Rendering backend | Default | Configurable: OpenGL (default) or Vulkan with threaded render loop |
+| GPU optimization | Standard | NVIDIA env vars, GPU texture caching (`GradientCache`) |
+| GLSL shaders | Original set | Optimized (reduced draw calls, shared GPU textures) |
+| FPS monitoring | Not available | Custom MangoHud integration with real-time notch display |
+
+
+### Design
+
+| Area | Ambxst | NothingLess |
+|------|--------|-------------|
+| Typography | Roboto, varied | Ndot (dot-matrix), monospace-first |
+| Color scheme | Vibrant themes | Monochrome with subtle red accents |
+| Animations | Heavy, ornate | Minimal, functional |
+| Branding | Color glyphs | Red + white dot-matrix |
 
 ---
 
 ## Credits
 
-- **Leriart** — creator of NothingLess
-- **Axenide** — original [Ambxst](https://github.com/Axenide/Ambxst) creator (NothingLess is a fork of Ambxst)
-- **Zack** ([@zackytodearena](https://bsky.app/profile/zackytodearena.bsky.social)) — logo & animation design
-- **outfoxxed** — creator of [Quickshell](https://git.outfoxxed.me/outfoxxed/quickshell)
-- **end-4** — inspiration from [dots-hyprland](https://github.com/end-4/dots-hyprland)
+- **Leriart** -- fork maintainer and NothingLess developer
+- **Axenide** -- original [Ambxst](https://github.com/Axenide/Ambxst) creator
+- **Zack** ([@zackytodearena](https://bsky.app/profile/zackytodearena.bsky.social)) -- logo & animation design
+- **outfoxxed** -- creator of [Quickshell](https://git.outfoxxed.me/outfoxxed/quickshell)
+- **end-4** -- inspiration from [dots-hyprland](https://github.com/end-4/dots-hyprland)
+- **DankMaterialShell** -- design reference from [DMS](https://github.com/AvengeMedia/DankMaterialShell)
+- **Noctalia** -- reference from [noctalia-shell](https://github.com/noctalia-dev/noctalia-shell)
 
 ---
 
 ## License
 
-- NothingLess is based on Ambxst and is provided under the same license terms.
-- See [LICENSE](./LICENSE) for details.
+- NothingLess modifications are provided under the same license as the upstream.
+- Ambxst and the Ambxst logo are trademarks of Adriano Tisera (Axenide).
+- See [LICENSE](./LICENSE) and [TRADEMARK.md](./assets/nothingless/TRADEMARK.md) for details.
+
