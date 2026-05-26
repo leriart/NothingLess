@@ -378,7 +378,15 @@ FileView {
         }
         onSourceChanged: {
             if (source.toString().length > 0) {
-                console.log("DynamicColor: quantizing:", source);
+                const src = source.toString();
+                const ext = src.split(".").pop().toLowerCase();
+                if (["mp4", "webm", "mov", "avi", "mkv", "gif"].indexOf(ext) >= 0) {
+                    console.log("DynamicColor: skipping video (safety):", ext);
+                    // Clear the source to prevent the quantizer from trying to load it
+                    wallpaperQuantizer.source = "";
+                    return;
+                }
+                console.log("DynamicColor: quantizing:", src);
             }
         }
     }

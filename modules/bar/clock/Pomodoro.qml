@@ -348,7 +348,7 @@ Item {
                 
                 Rectangle {
                     height: parent.height
-                    width: (root.visualProgress || 0) * parent.width
+                    width: parent ? (root.visualProgress || 0) * parent.width : 0
                     radius: parent.radius
                     color: Styling.srItem("overprimary")
                 }

@@ -798,7 +798,7 @@ help | --help | -h)
 	fi
 	# Try Vulkan first, fall back to OpenGL
 	if [ "$RHI_BACKEND" = "opengl" ] && ! ls /usr/lib/qt6/plugins/scenegraph/*opengl* 2>/dev/null 2>&1; then
-		if ls /usr/lib/qt6/plugins/scenegraph/*vulkan* 2>/dev/null 2>&1; then
+		if ls /usr/lib/qt6/plugins/scenegraph/ 2>/dev/null | grep -q vulkan 2>/dev/null 2>&1; then
 			RHI_BACKEND="vulkan"
 		fi
 	fi
