@@ -88,19 +88,21 @@ ShellRoot {
             ReservationWindows {
                 screen: screenShellContainer.modelData
 
+                // Island mode detection
+                readonly property bool _islandActive: (Config.bar && Config.bar.barMode === "dynamic") && (Config.notchTheme || "default") === "island" && unifiedPanel.barPosition === (Config.notchPosition || "top")
+
                 // Bar status for reservations
                 barEnabled: {
                     const list = (Config.bar && Config.bar.screenList !== undefined ? Config.bar.screenList : []);
                     const isOnList = !list || list.length === 0 || list.indexOf(screen.name) !== -1;
                     // In island mode: only reserve if island is pinned
-                    const islandActive = (Config.bar && Config.bar.barMode === "dynamic") && (Config.notchTheme || "default") === "island" && unifiedPanel.barPosition === (Config.notchPosition || "top");
-                    if (islandActive) return isOnList && unifiedPanel.notchPinned;
+                    if (_islandActive) return isOnList && unifiedPanel.notchPinned;
                     return isOnList;
                 }
                 barPosition: unifiedPanel.barPosition
-                barPinned: unifiedPanel.pinned
-                barSize: (unifiedPanel.barPosition === "left" || unifiedPanel.barPosition === "right") ? unifiedPanel.barTargetWidth : unifiedPanel.barTargetHeight
-                barOuterMargin: unifiedPanel.barOuterMargin
+                barPinned: _islandActive ? unifiedPanel.notchPinned : unifiedPanel.pinned
+                barSize: _islandActive ? 44 : (unifiedPanel.barPosition === "left" || unifiedPanel.barPosition === "right") ? unifiedPanel.barTargetWidth : unifiedPanel.barTargetHeight
+                barOuterMargin: _islandActive ? 0 : unifiedPanel.barOuterMargin
 
                 // Dock status for reservations
                 dockEnabled: {
@@ -108,8 +110,7 @@ ShellRoot {
                         return false;
 
                     // In island mode: only reserve dock space if island is pinned
-                    const islandActive = (Config.bar && Config.bar.barMode === "dynamic") && (Config.notchTheme || "default") === "island" && unifiedPanel.barPosition === (Config.notchPosition || "top");
-                    if (islandActive) {
+                    if (_islandActive) {
                         if (!unifiedPanel.notchPinned) return false;
                         const dp = (Config.dock && Config.dock.position) || "center";
                         if (dp === "center" || dp === unifiedPanel.barPosition) return false;
