@@ -659,6 +659,62 @@ QtObject {
         }
     }
 
+    // ============================================
+    // ANIMATION CONFIG FILE WRITER
+    // Writes bezier curves + animation keywords to hyprland.conf
+    // so Hyprland natively detects the current animation style.
+    // ============================================
+    function writeAnimationConfig() {
+        const confPath = Quickshell.env("HOME") + "/.local/share/nothingless/hyprland.conf";
+        const marker = "# === NOTHINGLESS ANIMATIONS ===";
+        const endMarker = "# === END ANIMATIONS ===";
+        const styleName = Anim.styleName;
+
+        const bezierDef = Anim.hyprBezierDef();
+        const animWindows = Anim.hyprAnimation("windows");
+        const animBorder = Anim.hyprAnimation("border");
+        const animFade = Anim.hyprAnimation("fade");
+        const animWorkspaces = Anim.hyprAnimation("workspaces", root.getBarOrientation());
+
+        // Build the new animation block
+        const animBlock = marker + "\n" +
+            "# Applied by NothingLess: " + styleName + "\n" +
+            bezierDef + "\n" +
+            animWindows + "\n" +
+            animBorder + "\n" +
+            animFade + "\n" +
+            animWorkspaces + "\n" +
+            endMarker;
+
+        // Build shell command: read file, remove old animation section, append new one
+        const cmd = "grep -q '" + marker + "' " + confPath +
+            " && sed -i '/" + marker + "/,/" + endMarker + "/d' " + confPath +
+            " || true; echo -e \"" + animBlock + "\" >> " + confPath;
+
+        writeAnimProcess.command = ["sh", "-c", cmd];
+        writeAnimProcess.running = true;
+    }
+
+    property Process writeAnimProcess: Process {
+        id: writeAnimProcess
+        running: false
+        onExited: (code) => {
+            if (code === 0) {
+                console.log("Animation config written to hyprland.conf");
+            } else {
+                console.error("Failed to write animation config, code:", code);
+            }
+        }
+    }
+
+    // Trigger write when animations are applied
+    property Connections _animStyleTrigger: Connections {
+        target: Config.theme
+        function onAnimStyleChanged() {
+            root.writeAnimationConfig();
+        }
+    }
+
     // Re-apply settings when Hyprland config is reloaded (user edits hyprland.conf)
     property Connections axctlConnections: Connections {
         target: AxctlService
