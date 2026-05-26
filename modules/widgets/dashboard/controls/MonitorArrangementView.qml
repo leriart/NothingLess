@@ -89,12 +89,14 @@ StyledRect {
 
             // Grid & origin
             Repeater {
+                id: gridWRep
                 model: Math.floor(root.viewBounds_.spanW / 500) + 2
-                Rectangle { x: root.realToCanvasX(root.viewBounds_.minX + index * 500); y: 0; width: 1; height: scrollBox.height; color: Qt.rgba(Colors.outlineVariant.r, Colors.outlineVariant.g, Colors.outlineVariant.b, 0.06) }
+                Rectangle { x: root.realToCanvasX(root.viewBounds_.minX + gridWRep.index * 500); y: 0; width: 1; height: scrollBox.height; color: Qt.rgba(Colors.outlineVariant.r, Colors.outlineVariant.g, Colors.outlineVariant.b, 0.06) }
             }
             Repeater {
+                id: gridHRep
                 model: Math.floor(root.viewBounds_.spanH / 500) + 2
-                Rectangle { x: 0; y: root.realToCanvasY(root.viewBounds_.minY + index * 500); width: scrollBox.width; height: 1; color: Qt.rgba(Colors.outlineVariant.r, Colors.outlineVariant.g, Colors.outlineVariant.b, 0.06) }
+                Rectangle { x: 0; y: root.realToCanvasY(root.viewBounds_.minY + gridHRep.index * 500); width: scrollBox.width; height: 1; color: Qt.rgba(Colors.outlineVariant.r, Colors.outlineVariant.g, Colors.outlineVariant.b, 0.06) }
             }
             StyledRect { x: root.realToCanvasX(0) - 4; y: root.realToCanvasY(0) - 4; width: 8; height: 8; radius: 4; variant: "primary"; opacity: 0.6 }
 

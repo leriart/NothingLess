@@ -240,6 +240,16 @@ FileView {
     property color overSecondaryFixedVariant: adapter.overSecondaryFixedVariant
     property color overSurface: adapter.overSurface
     property color overSurfaceVariant: adapter.overSurfaceVariant
+    property color onSurface: overBackground  // alias for M3 compatibility
+    property color onSurfaceVariant: overSurfaceVariant  // alias for M3 compatibility
+    property color onPrimaryContainer: overPrimaryContainer
+    property color onSecondaryContainer: overSecondaryContainer
+    property color onTertiaryContainer: overTertiaryContainer
+    property color onErrorContainer: overErrorContainer
+    property color onPrimary: overPrimary
+    property color onSecondary: overSecondary
+    property color onTertiary: overTertiary
+    property color onError: overError
     property color overTertiary: adapter.overTertiary
     property color overTertiaryContainer: adapter.overTertiaryContainer
     property color overTertiaryFixed: adapter.overTertiaryFixed
@@ -321,13 +331,22 @@ FileView {
     }
 
     /*! Listen for wallpaper changes and re-quantize colors.
-        Target is set dynamically by _wallpaperInitTimer. */
+        Target is set dynamically by _wallpaperInitTimer.
+        Skips video files (mp4, webm, gif) since ColorQuantizer only handles images. */
     property Connections wallpaperWatcher: Connections {
         id: wallpaperWatcher
         target: null
         function onCurrentWallpaperChanged() {
-            if (wallpaperWatcher.target)
-                wallpaperQuantizer.source = wallpaperWatcher.target.currentWallpaper || "";
+            if (wallpaperWatcher.target) {
+                const path = wallpaperWatcher.target.currentWallpaper || "";
+                // Skip video files — ColorQuantizer only handles images
+                const ext = path.split(".").pop().toLowerCase();
+                if (["mp4", "webm", "mov", "avi", "mkv", "gif"].indexOf(ext) >= 0) {
+                    console.log("DynamicColor: skipping video wallpaper:", ext);
+                    return;
+                }
+                wallpaperQuantizer.source = path;
+            }
         }
     }
 
