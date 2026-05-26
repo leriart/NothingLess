@@ -127,6 +127,8 @@ Rectangle {
         property string searchText: GlobalStates.launcherSearchText
         property bool showResults: searchText.length > 0
         property int selectedIndex: GlobalStates.launcherSelectedIndex
+        property string calcResult: ""
+        property bool isMathQuery: false
 
         // Options menu state (expandable list)
         property int expandedItemIndex: -1
@@ -173,8 +175,17 @@ Rectangle {
         function updateFilteredApps() {
             if (searchText.length > 0) {
                 filteredApps = AppSearch.fuzzyQuery(searchText);
+                // Check if query looks like a math expression
+                const mathRegex = /^[0-9+\-*/.()%\^ ]+$/;
+                root.isMathQuery = searchText.length > 1 && mathRegex.test(searchText.trim());
+                if (root.isMathQuery && typeof Calculator !== "undefined" && Calculator.isAvailable) {
+                    Calculator.evaluate(searchText.trim());
+                } else {
+                    root.calcResult = "";
+                }
             } else {
                 filteredApps = AppSearch.getAllApps();
+                root.calcResult = "";
             }
         }
 
@@ -237,6 +248,45 @@ Rectangle {
             }
         }
 
+        // Calculator result header
+        Item {
+            id: calcHeader
+            width: parent.width
+            height: root.calcResult ? 40 : 0
+            visible: root.calcResult && root.isMathQuery
+            clip: true
+
+            Behavior on height {
+                enabled: Anim.animationsEnabled
+                NumberAnimation { duration: Anim.standardSmall }
+            }
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                spacing: 8
+                visible: parent.visible
+
+                Text {
+                    text: "="
+                    font.family: Config.theme.font
+                    font.pixelSize: 14
+                    font.weight: Font.Bold
+                    color: Colors.primary
+                }
+
+                Text {
+                    text: root.calcResult
+                    font.family: Config.theme.monoFont
+                    font.pixelSize: 14
+                    color: Colors.overBackground
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                }
+            }
+        }
+
         ListModel {
             id: appsModel
         }
@@ -252,6 +302,21 @@ Rectangle {
                      appLauncher.updateFilteredApps();
                 }
             });
+        }
+
+        // Calculator result handler
+        Connections {
+            target: typeof Calculator !== "undefined" ? Calculator : null
+            function onResultReady(expression, result) {
+                if (expression === appLauncher.searchText.trim()) {
+                    appLauncher.calcResult = result;
+                }
+            }
+            function onError(expression, error) {
+                if (expression === appLauncher.searchText.trim()) {
+                    appLauncher.calcResult = "";
+                }
+            }
         }
 
         Timer {
@@ -384,10 +449,11 @@ Rectangle {
         }
 
         Behavior on height {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: Easing.OutQuart
+                duration: Anim.standardNormal
+                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 
@@ -600,10 +666,11 @@ Rectangle {
                 property bool enableScrollAnimation: true
 
                 Behavior on contentY {
-                    enabled: Config.animDuration > 0 && resultsList.enableScrollAnimation && !resultsList.moving
+                    enabled: Anim.animationsEnabled && resultsList.enableScrollAnimation && !resultsList.moving
                     NumberAnimation {
-                        duration: Config.animDuration / 2
-                        easing.type: Easing.OutCubic
+                        duration: Anim.standardSmall
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
 
@@ -669,10 +736,11 @@ Rectangle {
                     radius: 16
 
                     Behavior on height {
-                        enabled: Config.animDuration > 0
+                        enabled: Anim.animationsEnabled
                         NumberAnimation {
-                            duration: Config.animDuration
-                            easing.type: Easing.OutQuart
+                            duration: Anim.standardNormal
+                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
 
@@ -779,10 +847,11 @@ Rectangle {
                                 elide: Text.ElideRight
 
                                 Behavior on color {
-                                    enabled: Config.animDuration > 0
+                                    enabled: Anim.animationsEnabled
                                     ColorAnimation {
-                                        duration: Config.animDuration / 2
-                                        easing.type: Easing.OutCubic
+                                        duration: Anim.standardSmall
+                                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                     }
                                 }
                             }
@@ -805,10 +874,11 @@ Rectangle {
                                 visible: text !== ""
 
                                 Behavior on color {
-                                    enabled: Config.animDuration > 0
+                                    enabled: Anim.animationsEnabled
                                     ColorAnimation {
-                                        duration: Config.animDuration / 2
-                                        easing.type: Easing.OutCubic
+                                        duration: Anim.standardSmall
+                                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                     }
                                 }
                             }
@@ -828,10 +898,11 @@ Rectangle {
                         opacity: isExpanded ? 1 : 0
 
                         Behavior on opacity {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: Config.animDuration
-                                easing.type: Easing.OutQuart
+                                duration: Anim.standardNormal
+                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                             }
                         }
 
@@ -950,10 +1021,11 @@ Rectangle {
                                                 }
 
                                                 Behavior on color {
-                                                    enabled: Config.animDuration > 0
+                                                    enabled: Anim.animationsEnabled
                                                     ColorAnimation {
-                                                        duration: Config.animDuration / 2
-                                                        easing.type: Easing.OutQuart
+                                                        duration: Anim.standardSmall
+                                                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                     }
                                                 }
                                             }
@@ -974,10 +1046,11 @@ Rectangle {
                                                 maximumLineCount: 1
 
                                                 Behavior on color {
-                                                    enabled: Config.animDuration > 0
+                                                    enabled: Anim.animationsEnabled
                                                     ColorAnimation {
-                                                        duration: Config.animDuration / 2
-                                                        easing.type: Easing.OutQuart
+                                                        duration: Anim.standardSmall
+                                                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                     }
                                                 }
                                             }
@@ -1033,18 +1106,20 @@ Rectangle {
                     }
 
                     Behavior on y {
-                        enabled: Config.animDuration > 0
+                        enabled: Anim.animationsEnabled
                         NumberAnimation {
-                            duration: Config.animDuration / 2
-                            easing.type: Easing.OutCubic
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
 
                     Behavior on height {
-                        enabled: Config.animDuration > 0
+                        enabled: Anim.animationsEnabled
                         NumberAnimation {
-                            duration: Config.animDuration
-                            easing.type: Easing.OutQuart
+                            duration: Anim.standardNormal
+                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
 
