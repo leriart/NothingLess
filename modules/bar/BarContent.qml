@@ -178,7 +178,10 @@ Item {
             id: barHoverHandler
             enabled: !bar.islandModeActive
             onHoveredChanged: {
-                root.isMouseOverBar = barHoverHandler.hovered;
+                // Don't change hover state when island mode is active
+                if (!bar.islandModeActive) {
+                    root.isMouseOverBar = barHoverHandler.hovered;
+                }
             }
         }
         // Size includes margins
@@ -267,6 +270,7 @@ Item {
             // Opacity — hide bar when island mode is active (notch IS the bar)
             readonly property bool islandModeActive: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island" && root.barPosition === (Config.notchPosition || "top")
             opacity: islandModeActive ? 0 : (root.reveal ? 1 : 0)
+            enabled: !islandModeActive
             Behavior on opacity {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
@@ -366,12 +370,19 @@ Item {
 
                         Loader {
                             id: inlineIslandLoader
-                            active: false
                             visible: active
                             Layout.alignment: Qt.AlignVCenter
                             asynchronous: true
                             source: Qt.resolvedUrl("IslandContent.qml")
                             z: 0 // Same level as bar elements
+
+                            // Reactive binding to island mode conditions
+                            readonly property string _notchTheme: Config.notchTheme || "default"
+                            readonly property string _notchPosition: Config.notchPosition || "top"
+                            readonly property string _barMode: root.barMode
+                            readonly property string _barPosition: root.barPosition
+                            readonly property bool _islandCondition: _barMode === "dynamic" && _notchTheme === "island" && _barPosition === _notchPosition
+                            active: _islandCondition
 
                             opacity: active ? 1 : 0
                             scale: active ? 1 : 0.9
@@ -404,15 +415,6 @@ Item {
                         }
 
                         Item { Layout.fillWidth: true; visible: inlineIslandLoader.active }
-
-                        Timer {
-                            interval: 2000
-                            running: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
-                            repeat: false
-                            onTriggered: {
-                                inlineIslandLoader.active = true;
-                            }
-                        }
 
                         LauncherButton {
                             id: launcherButton

@@ -76,7 +76,7 @@ Item {
     // Bar position for merging island with bar
     readonly property string barPosition: (Config.bar && Config.bar.position !== undefined) ? Config.bar.position : "top"
     // When island theme and same position as bar, offset from bar edge instead of screen edge
-    readonly property bool mergeWithBar: Config.notchTheme === "island" && root.position === root.barPosition
+    readonly property bool mergeWithBar: Config.notchTheme === "island" && root.position === root.barPosition && (Config.bar && Config.bar.barMode === "dynamic")
 
     // Corner size calculation for dynamic width (only for default theme)
     readonly property int cornerSize: Config.roundness > 0 ? Config.roundness + 4 : 0

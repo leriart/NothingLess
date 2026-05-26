@@ -725,6 +725,46 @@ Item {
                             }
                         }
 
+                        Separator {
+                            Layout.fillWidth: true
+                        }
+
+                        Text {
+                            text: "Bar Mode"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-1)
+                            font.weight: Font.Medium
+                            color: Colors.overSurfaceVariant
+                            Layout.bottomMargin: -4
+                        }
+
+                        SelectorRow {
+                            label: ""
+                            options: [
+                                {
+                                    label: "Extended",
+                                    value: "extended",
+                                    icon: Icons.alignJustify
+                                },
+                                {
+                                    label: "Dynamic",
+                                    value: "dynamic",
+                                    icon: Icons.alignCenter
+                                }
+                            ]
+                            value: Config.bar.barMode ?? "extended"
+                            onValueSelected: newValue => {
+                                if (newValue !== Config.bar.barMode) {
+                                    GlobalStates.markShellChanged();
+                                    Config.bar.barMode = newValue;
+                                }
+                            }
+                        }
+
+                        Separator {
+                            Layout.fillWidth: true
+                        }
+
                         TextInputRow {
                             label: "Launcher Icon"
                             value: Config.bar.launcherIcon ?? ""

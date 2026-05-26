@@ -44,7 +44,8 @@ Item {
     readonly property bool islandMergedWithBar: {
         const theme = Config.notchTheme || "default";
         const bp = root.barPosition;
-        return theme === "island" && root.notchPosition === bp;
+        const barMode = (Config.bar && Config.bar.barMode) || "extended";
+        return theme === "island" && root.notchPosition === bp && barMode === "dynamic";
     }
     
     // Frame offset for positioning

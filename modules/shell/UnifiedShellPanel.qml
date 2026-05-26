@@ -76,6 +76,11 @@ PanelWindow {
     readonly property alias dockFullscreen: dockContent.activeWindowFullscreen
     readonly property int dockHeight: dockContent.dockSize + dockContent.totalMargin
 
+    // Hide dock when island mode is active and dock shares the same position
+    readonly property bool _islandActive: (Config.bar && Config.bar.barMode === "dynamic") && (Config.notchTheme || "default") === "island" && barContent.barPosition === (Config.notchPosition || "top")
+    readonly property bool _dockHiddenByIsland: _islandActive && (dockContent.position === barContent.barPosition || (dockContent.position === "center" && (barContent.barPosition === "top" || barContent.barPosition === "bottom")))
+    readonly property bool dockActuallyVisible: dockEnabled && !_dockHiddenByIsland
+
     readonly property alias notchHoverActive: notchContent.hoverActive
     readonly property alias notchOpen: notchContent.screenNotchOpen
     readonly property alias notchReveal: notchContent.reveal
@@ -159,7 +164,7 @@ PanelWindow {
             },
             Region {
                 // Only include the dock hitbox if the dock is actually enabled and visible on this screen.
-                item: dockContent.visible ? dockContent.dockHitbox : null
+                item: unifiedPanel.dockActuallyVisible ? dockContent.dockHitbox : null
             },
             Region {
                 item: (assistantSidebar.active || assistantSidebar.hitbox.visible) ? assistantSidebar.hitbox : null
@@ -241,7 +246,7 @@ PanelWindow {
             anchors.fill: parent
             screen: unifiedPanel.targetScreen
             z: 3
-            visible: unifiedPanel.dockEnabled
+            visible: unifiedPanel.dockActuallyVisible
         }
 
         NotchContent {
