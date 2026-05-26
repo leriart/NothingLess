@@ -5,6 +5,7 @@ import Quickshell
 import qs.modules.services
 import qs.modules.theme
 import qs.modules.globals
+import qs.modules.components
 import qs.config
 
 Button {
@@ -41,28 +42,22 @@ Button {
         bottomLeftRadius: root.vertical ? root.endRadius : root.startRadius
         bottomRightRadius: root.vertical ? root.endRadius : root.endRadius
 
-        Rectangle {
+        // M3 StateLayer for hover/press/focus feedback + ripple
+        StateLayer {
             anchors.fill: parent
-            color: Styling.srItem("overprimary")
-            opacity: root.pressed ? 0.5 : (root.btnHovered ? 0.25 : 0)
-            radius: parent.radius ?? 0
-
-            Behavior on opacity {
-                enabled: (Config.animDuration ?? 0) > 0
-                NumberAnimation {
-                    duration: (Config.animDuration ?? 0) / 2
-                }
-            }
+            interactive: root.enabled
+            color: Styling.srItem("overprimary") || Colors.overBackground
+            enableOverlay: true
+            enableRipple: true
+            onClicked: root.onToggle()
         }
     }
 
 
 
-    // HoverHandler for cursor and hover detection
-    property bool btnHovered: false
+    // HoverHandler for cursor
     HoverHandler {
         id: btnHover
-        onHoveredChanged: root.btnHovered = btnHover.hovered
         cursorShape: Qt.PointingHandCursor
     }
 
@@ -107,7 +102,7 @@ Button {
         }
     }
 
-    onClicked: root.onToggle()
+    onClicked: root.onToggle() // StateLayer handles visual feedback
 
     ToolTip.visible: false
     ToolTip.text: root.tooltipText

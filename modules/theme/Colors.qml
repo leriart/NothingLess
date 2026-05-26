@@ -169,10 +169,17 @@ FileView {
         property color sourceColor: "#7f2424"
     }
 
+    // ============================================
+    // DYNAMIC SURFACE OPACITY — adjusted by wallpaper vibrancy
+    // More vibrant wallpapers → more transparent (show more wallpaper)
+    // Muted wallpapers → more opaque (better readability)
+    // ============================================
+    readonly property real _vibrancyAlpha: 0.5 + (1.0 - root.vibrancy) * 0.5 // 0.5 (vibrant) → 1.0 (muted)
+
     property color background: Config.oledMode ? "#000000" : adapter.background
 
-    property color surface: Qt.tint(background, Qt.rgba(adapter.overBackground.r, adapter.overBackground.g, adapter.overBackground.b, 0.1))
-    property color surfaceBright: Qt.tint(background, Qt.rgba(adapter.overBackground.r, adapter.overBackground.g, adapter.overBackground.b, 0.2))
+    property color surface: Qt.tint(background, Qt.rgba(adapter.overBackground.r, adapter.overBackground.g, adapter.overBackground.b, 0.1 * root._vibrancyAlpha))
+    property color surfaceBright: Qt.tint(background, Qt.rgba(adapter.overBackground.r, adapter.overBackground.g, adapter.overBackground.b, 0.2 * root._vibrancyAlpha))
     property color surfaceContainer: adapter.surfaceContainer
     property color surfaceContainerHigh: adapter.surfaceContainerHigh
     property color surfaceContainerHighest: adapter.surfaceContainerHighest
