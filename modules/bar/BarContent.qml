@@ -371,8 +371,10 @@ Item {
                             endRadius: root.innerRadius
                         }
 
-                        // Dynamic Island inside the bar — lazy loaded via URL
-                        // Uses source URL so the type isn't resolved at compile time
+                        // Flexible spacer before island (centers island on screen)
+                        Item { Layout.fillWidth: true; visible: inlineIslandLoader.active }
+
+                        // Dynamic Island inside the bar — centered on screen
                         Loader {
                             id: inlineIslandLoader
                             active: false
@@ -380,7 +382,27 @@ Item {
                             Layout.alignment: Qt.AlignVCenter
                             asynchronous: true
                             source: Qt.resolvedUrl("IslandContent.qml")
+
+                            // Forward notch opening to the loader's content
+                            property bool notchActive: false
+
+                            // Click handler: open notch stack
+                            MouseArea {
+                                anchors.fill: parent
+                                anchors.margins: -4 // Slightly larger hit area
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    var v = Visibilities.getForScreen(root.screen.name);
+                                    if (v) {
+                                        // Toggle launcher
+                                        v.launcher = !v.launcher;
+                                    }
+                                }
+                            }
                         }
+
+                        // Flexible spacer after island (centers island on screen)
+                        Item { Layout.fillWidth: true; visible: inlineIslandLoader.active }
 
                         Timer {
                             interval: 2000
