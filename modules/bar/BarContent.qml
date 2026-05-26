@@ -344,39 +344,7 @@ Item {
                     }
                 }
             ]
-            // Centered Dynamic Island — positioned at bar level, centered on screen
-            Loader {
-                id: inlineIslandLoader
-                active: false
-                visible: active
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.verticalCenter: parent.verticalCenter
-                asynchronous: true
-                source: Qt.resolvedUrl("IslandContent.qml")
-                z: 10
 
-                // Click handler: open notch stack
-                MouseArea {
-                    anchors.fill: parent
-                    anchors.margins: -4
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        var v = Visibilities.getForScreen(root.screen.name);
-                        if (v) {
-                            v.launcher = !v.launcher;
-                        }
-                    }
-                }
-            }
-
-            Timer {
-                interval: 2000
-                running: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
-                repeat: false
-                onTriggered: {
-                    inlineIslandLoader.active = true;
-                }
-            }
 
             BarBg {
                 id: barBg
@@ -390,6 +358,41 @@ Item {
                         spacing: 4
                         // Obtener referencia al notch de esta pantalla
                         readonly property var notchContainer: Visibilities.getNotchForScreen(root.screen.name)
+                        // Centered Dynamic Island inside the bar layout
+                        // Spacers push it to center without overlapping other elements
+                        Item { Layout.fillWidth: true; visible: inlineIslandLoader.active }
+
+                        Loader {
+                            id: inlineIslandLoader
+                            active: false
+                            visible: active
+                            Layout.alignment: Qt.AlignVCenter
+                            asynchronous: true
+                            source: Qt.resolvedUrl("IslandContent.qml")
+                            z: 0 // Same level as bar elements
+
+                            MouseArea {
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    var v = Visibilities.getForScreen(root.screen.name);
+                                    if (v) v.launcher = !v.launcher;
+                                }
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true; visible: inlineIslandLoader.active }
+
+                        Timer {
+                            interval: 2000
+                            running: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
+                            repeat: false
+                            onTriggered: {
+                                inlineIslandLoader.active = true;
+                            }
+                        }
+
                         LauncherButton {
                             id: launcherButton
                             startRadius: root.outerRadius
