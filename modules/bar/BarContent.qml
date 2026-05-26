@@ -8,6 +8,7 @@ import qs.modules.bar.workspaces
 import qs.modules.theme
 import qs.modules.bar.clock
 import qs.modules.bar.systray
+import qs.modules.widgets.defaultview
 import qs.modules.bar.tasktray
 import qs.modules.widgets.overview
 import qs.modules.widgets.dashboard
@@ -368,6 +369,32 @@ Item {
                             }
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                        }
+
+                        // Dynamic Island inside the bar — the actual compact notch content
+                        Loader {
+                            id: inlineIslandLoader
+                            active: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
+                            visible: active
+                            Layout.alignment: Qt.AlignVCenter
+
+                            sourceComponent: Item {
+                                id: inlineIsland
+                                implicitWidth: islandContent.width
+                                implicitHeight: root.barTargetHeight - 6
+
+                                // Copy of the notch's DefaultView compact content
+                                Loader {
+                                    id: islandContent
+                                    anchors.centerIn: parent
+                                    sourceComponent: DefaultView {
+                                        currentScreen: root.screen
+                                        notchHovered: false
+                                        parentHoverActive: false
+                                    }
+                                    active: true
+                                }
+                            }
                         }
 
                         LayoutSelectorButton {
