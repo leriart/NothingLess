@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.modules.services
 
 Singleton {
     id: root
@@ -32,6 +33,12 @@ Singleton {
     property string configPath: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/nothingless/axctl.toml"
 
     function dispatch(command) {
+        // Use IpcPool to coalesce rapid dispatches
+        IpcPool.dispatch(command);
+    }
+
+    function dispatchImmediate(command) {
+        // Original immediate dispatch (used for urgent commands)
         if (!command) return;
 
         let spaceIdx = command.indexOf(' ');
