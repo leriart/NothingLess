@@ -585,10 +585,12 @@ Item {
                                         rightPadding: 8
                                         text: {
                                             const idx = animStyleCombo.currentIndex;
-                                            return idx >= 0 ? animStyleCombo.textAt(idx) || "" : "";
+                                            if (idx >= 0 && animStyleCombo.model && idx < animStyleCombo.model.count) {
+                                                return animStyleCombo.model.get(idx).text || "";
+                                            }
+                                            return "Select style";
                                         }
-                                        font.family: Config.theme && Config.theme.font ? Config.theme.font : "sans-serif"
-                                        font.pixelSize: Styling.fontSize(-1)
+                                        // font inherited from ComboBox
                                         color: Colors.overBackground
                                         verticalAlignment: Text.AlignVCenter
                                         elide: Text.ElideRight
@@ -603,26 +605,7 @@ Item {
                                         color: Colors.overSurfaceVariant
                                     }
 
-                                    popup: Popup {
-                                        y: animStyleCombo.height + 2
-                                        width: animStyleCombo.width
-                                        implicitHeight: contentItem.implicitHeight + 16
-                                        padding: 8
 
-                                        background: StyledRect {
-                                            variant: "popup"
-                                            radius: Styling.radius(4)
-                                            enableShadow: true
-                                        }
-
-                                        contentItem: ListView {
-                                            clip: true
-                                            implicitHeight: contentHeight
-                                            model: animStyleCombo.delegateModel
-                                            currentIndex: animStyleCombo.currentIndex
-                                            interactive: contentHeight > 300
-                                        }
-                                    }
 
                                     model: ListModel {
                                         ListElement { text: "M3 (Material 3)"; key: "m3" }
