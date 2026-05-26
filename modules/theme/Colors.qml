@@ -321,7 +321,11 @@ FileView {
         onTriggered: {
             if (typeof GlobalStates !== "undefined" && GlobalStates.wallpaperManager) {
                 wallpaperWatcher.target = GlobalStates.wallpaperManager;
-                wallpaperQuantizer.source = GlobalStates.wallpaperManager.currentWallpaper || "";
+                const path = GlobalStates.wallpaperManager.currentWallpaper || "";
+                const ext = path.split(".").pop().toLowerCase();
+                if (["mp4", "webm", "mov", "avi", "mkv", "gif"].indexOf(ext) < 0) {
+                    wallpaperQuantizer.source = path;
+                }
             } else {
                 // Retry later — services may not be initialized yet
                 _wallpaperInitTimer.restart();

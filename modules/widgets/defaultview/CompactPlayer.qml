@@ -146,10 +146,11 @@ Item {
             z: 5
 
             Behavior on opacity {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardNormal
+                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
         }
@@ -178,12 +179,13 @@ Item {
                 blurMax: 32
                 blur: 0.75
                 autoPaddingEnabled: false
-                opacity: (hasArtwork || wallpaperPath !== "") ? 1.0 : 0.0
+                opacity: (hasArtwork || (wallpaperPath || "") !== "") ? 1.0 : 0.0
                 Behavior on opacity {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
             }
@@ -191,13 +193,14 @@ Item {
             StyledRect {
                 anchors.fill: parent
                 variant: "internalbg"
-                opacity: (hasArtwork || wallpaperPath !== "") ? 0.5 : 0.0
+                opacity: (hasArtwork || (wallpaperPath || "") !== "") ? 0.5 : 0.0
                 radius: Styling.radius(-4)
                 Behavior on opacity {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
             }
@@ -213,17 +216,19 @@ Item {
             opacity: (compactPlayer.notchHovered && compactPlayer.player) ? 1.0 : 0.0
             visible: opacity > 0
             Behavior on opacity {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardNormal
+                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
             Behavior on spacing {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardNormal
+                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
 
@@ -250,15 +255,16 @@ Item {
                         anchors.fill: parent
                         source: artworkImage
                         // Only enable blur when there's content to blur (saves GPU)
-                        blurEnabled: (hasArtwork || wallpaperPath !== "") && compactPlayer.notchHovered
+                        blurEnabled: (hasArtwork || (wallpaperPath || "") !== "") && compactPlayer.notchHovered
                         blurMax: 32
                         blur: 0.75
-                        opacity: (hasArtwork || wallpaperPath !== "") ? 1.0 : 0.0 // Simplificado
+                        opacity: (hasArtwork || (wallpaperPath || "") !== "") ? 1.0 : 0.0 // Simplificado
                         Behavior on opacity {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: Config.animDuration
-                                easing.type: Easing.OutQuart
+                                duration: Anim.standardNormal
+                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                             }
                         }
                     }
@@ -266,13 +272,14 @@ Item {
                     StyledRect {
                         anchors.fill: parent
                         variant: "internalbg"
-                        opacity: ((hasArtwork || wallpaperPath !== "") && compactPlayer.notchHovered) ? 0.5 : 0.0
+                        opacity: ((hasArtwork || (wallpaperPath || "") !== "") && compactPlayer.notchHovered) ? 0.5 : 0.0
                         radius: parent.radius
                         Behavior on opacity {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: Config.animDuration
-                                easing.type: Easing.OutQuart
+                                duration: Anim.standardNormal
+                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                             }
                         }
                     }
@@ -282,7 +289,7 @@ Item {
                         anchors.centerIn: parent
                         text: compactPlayer.isPlaying ? Icons.pause : Icons.play
                         textFormat: Text.RichText
-                        color: playPauseHover.hovered ? ((hasArtwork || wallpaperPath !== "") ? Styling.srItem("overprimary") : Styling.srItem("overprimary")) : ((hasArtwork || wallpaperPath !== "") ? Colors.overBackground : Colors.overBackground)
+                        color: playPauseHover.hovered ? ((hasArtwork || (wallpaperPath || "") !== "") ? Styling.srItem("overprimary") : Styling.srItem("overprimary")) : ((hasArtwork || (wallpaperPath || "") !== "") ? Colors.overBackground : Colors.overBackground)
                         font.pixelSize: 16
                         font.family: Icons.font
                         opacity: (compactPlayer.player?.canPause ?? false) && compactPlayer.notchHovered ? 1.0 : 0.0
@@ -291,25 +298,27 @@ Item {
                         layer.effect: BgShadow {}
                         visible: opacity > 0
                         Behavior on opacity {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: Config.animDuration
-                                easing.type: Easing.OutQuart
+                                duration: Anim.standardNormal
+                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                             }
                         }
                         Behavior on color {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             ColorAnimation {
-                                duration: Config.animDuration
-                                easing.type: Easing.OutQuart
+                                duration: Anim.standardNormal
+                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                             }
                         }
                         Behavior on scale {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: Config.animDuration
-                                easing.type: Easing.OutBack
-                                easing.overshoot: 1.5
+                                duration: Anim.standardNormal
+                                easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                             }
                         }
                         HoverHandler {
@@ -339,7 +348,7 @@ Item {
                 id: previousBtn
                 text: Icons.previous
                 textFormat: Text.RichText
-                color: previousHover.hovered ? ((hasArtwork || wallpaperPath !== "") ? Styling.srItem("overprimary") : Styling.srItem("overprimary")) : Colors.overBackground
+                color: previousHover.hovered ? ((hasArtwork || (wallpaperPath || "") !== "") ? Styling.srItem("overprimary") : Styling.srItem("overprimary")) : Colors.overBackground
                 font.pixelSize: 16
                 font.family: Icons.font
                 opacity: compactPlayer.player?.canGoPrevious ?? false ? 1.0 : 0.3
@@ -349,25 +358,27 @@ Item {
                 readonly property real naturalWidth: implicitWidth
                 Layout.preferredWidth: (compactPlayer.player !== null && compactPlayer.notchHovered) ? naturalWidth : 0
                 Behavior on Layout.preferredWidth {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
                 Behavior on color {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     ColorAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
                 Behavior on scale {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                     }
                 }
                 HoverHandler {
@@ -406,7 +417,7 @@ Item {
                 id: nextBtn
                 text: Icons.next
                 textFormat: Text.RichText
-                color: nextHover.hovered ? ((hasArtwork || wallpaperPath !== "") ? Styling.srItem("overprimary") : Styling.srItem("overprimary")) : Colors.overBackground
+                color: nextHover.hovered ? ((hasArtwork || (wallpaperPath || "") !== "") ? Styling.srItem("overprimary") : Styling.srItem("overprimary")) : Colors.overBackground
                 font.pixelSize: 16
                 font.family: Icons.font
                 opacity: compactPlayer.player?.canGoNext ?? false ? 1.0 : 0.3
@@ -416,25 +427,27 @@ Item {
                 readonly property real naturalWidth: implicitWidth
                 Layout.preferredWidth: (compactPlayer.player !== null && compactPlayer.notchHovered) ? naturalWidth : 0
                 Behavior on Layout.preferredWidth {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
                 Behavior on color {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     ColorAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
                 Behavior on scale {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                     }
                 }
                 HoverHandler {
@@ -473,7 +486,7 @@ Item {
                     }
                 }
                 textFormat: Text.RichText
-                color: modeBtn.modeHover.hovered ? ((hasArtwork || wallpaperPath !== "") ? Styling.srItem("overprimary") : Styling.srItem("overprimary")) : Colors.overBackground
+                color: modeBtn.modeHover.hovered ? ((hasArtwork || (wallpaperPath || "") !== "") ? Styling.srItem("overprimary") : Styling.srItem("overprimary")) : Colors.overBackground
                 property alias modeHover: modeHover
                 font.pixelSize: 16
                 font.family: Icons.font
@@ -490,25 +503,27 @@ Item {
                 readonly property real naturalWidth: implicitWidth
                 Layout.preferredWidth: (compactPlayer.player !== null && compactPlayer.notchHovered) ? naturalWidth : 0
                 Behavior on Layout.preferredWidth {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
                 Behavior on color {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     ColorAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
                 Behavior on scale {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutBack
-                        easing.overshoot: 1.5
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                     }
                 }
                 HoverHandler {
@@ -545,7 +560,7 @@ Item {
                 id: playerIcon
                 text: compactPlayer.getPlayerIcon(compactPlayer.player)
                 textFormat: Text.RichText
-                color: playerIconHover.hovered ? ((hasArtwork || wallpaperPath !== "") ? Styling.srItem("overprimary") : Styling.srItem("overprimary")) : Colors.overBackground
+                color: playerIconHover.hovered ? ((hasArtwork || (wallpaperPath || "") !== "") ? Styling.srItem("overprimary") : Styling.srItem("overprimary")) : Colors.overBackground
                 font.pixelSize: 20
                 font.family: Icons.font
                 verticalAlignment: Text.AlignVCenter
@@ -553,24 +568,27 @@ Item {
                 Layout.preferredWidth: (compactPlayer.player !== null && compactPlayer.notchHovered) ? implicitWidth : 0
                 Layout.rightMargin: (compactPlayer.player !== null && compactPlayer.notchHovered) ? 4 : 0
                 Behavior on Layout.preferredWidth {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
                 Behavior on Layout.rightMargin {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
                 Behavior on color {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     ColorAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
                 HoverHandler {

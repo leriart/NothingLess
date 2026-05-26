@@ -21,7 +21,7 @@ Item {
     
     // --- IPC & Notifications ---
     IpcHandler {
-        target: "nothingless-pomodoro"
+        target: "nothingless-pomodoro-clock"
         function check() {
             root.requestPopupOpen();
         }
@@ -348,7 +348,7 @@ Item {
                 
                 Rectangle {
                     height: parent.height
-                    width: root.visualProgress * parent.width
+                    width: (root.visualProgress || 0) * parent.width
                     radius: parent.radius
                     color: Styling.srItem("overprimary")
                 }
