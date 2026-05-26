@@ -389,7 +389,7 @@ Item {
                                 RowLayout {
                                     id: islandContent
                                     anchors.centerIn: parent
-                                    spacing: 6""
+                                    spacing: 6
 
                                     Text {
                                         text: inlineIsland._timeText
