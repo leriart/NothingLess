@@ -92,9 +92,10 @@ ShellRoot {
                 barEnabled: {
                     const list = (Config.bar && Config.bar.screenList !== undefined ? Config.bar.screenList : []);
                     const isOnList = !list || list.length === 0 || list.indexOf(screen.name) !== -1;
-                    // Disable bar reservation when island mode is active (notch replaces bar)
+                    // In island mode: only reserve if island is pinned
                     const islandActive = (Config.bar && Config.bar.barMode === "dynamic") && (Config.notchTheme || "default") === "island" && unifiedPanel.barPosition === (Config.notchPosition || "top");
-                    return isOnList && !islandActive;
+                    if (islandActive) return isOnList && unifiedPanel.notchPinned;
+                    return isOnList;
                 }
                 barPosition: unifiedPanel.barPosition
                 barPinned: unifiedPanel.pinned
@@ -106,9 +107,10 @@ ShellRoot {
                     if (!((Config.dock && Config.dock.enabled !== undefined ? Config.dock.enabled : false)) || (Config.dock && Config.dock.theme !== undefined ? Config.dock.theme : "default") === "integrated")
                         return false;
 
-                    // Hide dock reservation when island mode is active and dock shares position
+                    // In island mode: only reserve dock space if island is pinned
                     const islandActive = (Config.bar && Config.bar.barMode === "dynamic") && (Config.notchTheme || "default") === "island" && unifiedPanel.barPosition === (Config.notchPosition || "top");
                     if (islandActive) {
+                        if (!unifiedPanel.notchPinned) return false;
                         const dp = (Config.dock && Config.dock.position) || "center";
                         if (dp === "center" || dp === unifiedPanel.barPosition) return false;
                     }
