@@ -670,17 +670,28 @@ QtObject {
         const endMarker = "# === END ANIMATIONS ===";
         const styleName = Anim.styleName;
 
-        // Use hyprland.conf syntax (without 'keyword' prefix)
+        // Calculate Hyprland speed from user's animDuration override
+        // Hyprland speed is inversely proportional to animDuration:
+        //   default 300ms → profile speed (1x)
+        //   faster 150ms → 2x profile speed
+        //   slower 600ms → 0.5x profile speed
+        const profileSpeed = Anim.hyprConfig().speed;
+        const userDuration = Math.max(10, Config.theme.animDuration || 300);
+        const speedScale = 300.0 / userDuration;
+        const hyprSpeed = Math.max(0.5, Math.min(50.0, profileSpeed * speedScale)).toFixed(1);
+
+        // Build hyprland.conf animation section
         // Format: bezier = name, cx, cy, cx2, cy2
         //         animation = type, enabled, speed, bezierName, style
         const configBezier = Anim.hyprBezierDef().replace("bezier = ", "");
-        const animWindows = "animation = windows, 1, " + Anim.hyprConfig().speed.toFixed(1) + ", " + Anim.hyprConfig().name + ", popin 80%";
-        const animBorder = "animation = border, 1, " + Anim.hyprConfig().speed.toFixed(1) + ", " + Anim.hyprConfig().name;
-        const animFade = "animation = fade, 1, " + Anim.hyprConfig().speed.toFixed(1) + ", " + Anim.hyprConfig().name;
+        const bezierDef = "bezier = " + configBezier;
+        const bezierName = Anim.hyprConfig().name;
+        const animWindows = "animation = windows, 1, " + hyprSpeed + ", " + bezierName + ", popin 80%";
+        const animBorder = "animation = border, 1, " + hyprSpeed + ", " + bezierName;
+        const animFade = "animation = fade, 1, " + hyprSpeed + ", " + bezierName;
         const orient = root.getBarOrientation();
         const wsAnim = orient === "vertical" ? "slidefadevert 20%" : "slidefade 20%";
-        const animWorkspaces = "animation = workspaces, 1, " + Anim.hyprConfig().speed.toFixed(1) + ", " + Anim.hyprConfig().name + ", " + wsAnim;
-        const bezierDef = "bezier = " + configBezier;
+        const animWorkspaces = "animation = workspaces, 1, " + hyprSpeed + ", " + bezierName + ", " + wsAnim;
 
         // Build the new animation block
         const animBlock = marker + "\n" +
@@ -713,10 +724,13 @@ QtObject {
         }
     }
 
-    // Trigger write when animations are applied
+    // Trigger write when animation style or speed changes
     property Connections _animStyleTrigger: Connections {
         target: Config.theme
         function onAnimStyleChanged() {
+            root.writeAnimationConfig();
+        }
+        function onAnimDurationChanged() {
             root.writeAnimationConfig();
         }
     }
