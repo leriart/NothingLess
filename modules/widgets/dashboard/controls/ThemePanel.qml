@@ -6,6 +6,7 @@ import QtQuick.Layouts
 import qs.modules.theme
 import qs.modules.components
 import qs.modules.globals
+import qs.modules.services
 import Quickshell
 import Quickshell.Io
 import qs.config
@@ -629,6 +630,8 @@ Item {
                                         ListElement { text: "Mac OS Classic"; key: "mac-classic" }
                                         ListElement { text: "Mac OS X"; key: "mac-legacy" }
                                         ListElement { text: "macOS (Modern)"; key: "mac-modern" }
+                                        ListElement { text: "── Hyprland ──"; key: "" }
+                                        ListElement { text: "Hyprland (Native)"; key: "hyprland" }
                                         ListElement { text: "── Android ──"; key: "" }
                                         ListElement { text: "Android (Legacy)"; key: "android-legacy" }
                                         ListElement { text: "Android Material"; key: "android-material" }
@@ -660,7 +663,28 @@ Item {
                                         if (typeof Config === "undefined" || !Config.theme) return;
                                         const key = animStyleCombo.currentKey;
                                         if (key && key !== (Config.theme.animStyle || "m3")) {
+                                            // Save current speed for the old style
+                                            const oldKey = Config.theme.animStyle || "m3";
+                                            const savedSpeeds = StateService.get("animStyleSpeeds", {});
+                                            savedSpeeds[oldKey] = Config.theme.animDuration;
+                                            StateService.set("animStyleSpeeds", savedSpeeds);
+                                            
+                                            // Apply new style
                                             Config.theme.animStyle = key;
+                                            
+                                            // Restore saved speed for new style, or use default
+                                            const styleDefaults = {
+                                                "m3": 300, "windows-classic": 100, "windows-xp": 200,
+                                                "windows-7": 250, "mac-classic": 80, "mac-legacy": 350,
+                                                "mac-modern": 300, "hyprland": 120, "android-legacy": 150,
+                                                "android-material": 200, "android-you": 300
+                                            };
+                                            const savedSpeed = savedSpeeds[key];
+                                            if (savedSpeed !== undefined) {
+                                                Config.theme.animDuration = savedSpeed;
+                                            } else if (styleDefaults[key] !== undefined) {
+                                                Config.theme.animDuration = styleDefaults[key];
+                                            }
                                             GlobalStates.markThemeChanged();
                                         }
                                     }
@@ -736,6 +760,11 @@ Item {
                                         if (newDuration !== Config.theme.animDuration) {
                                             GlobalStates.markThemeChanged();
                                             Config.theme.animDuration = newDuration;
+                                            // Save user preference for this style
+                                            const key = Config.theme.animStyle || "m3";
+                                            const savedSpeeds = StateService.get("animStyleSpeeds", {});
+                                            savedSpeeds[key] = newDuration;
+                                            StateService.set("animStyleSpeeds", savedSpeeds);
                                         }
                                     }
                                 }

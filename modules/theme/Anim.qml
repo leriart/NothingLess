@@ -366,6 +366,7 @@ QtObject {
         // macOS Modern — natural spring: slight bounce, organic
         "mac-modern":       { curve: [0.34, 0.6, 0.12, 0.8], speed: 2.5, name: "nl-natural" },
         // Android Legacy — simple ease-in-out
+        "hyprland":         { curve: [0.2, 0.0, 0.1, 1.0], speed: 4.0, name: "nl-hyprland" },
         "android-legacy":   { curve: [0.4, 0.0, 0.6, 1.0], speed: 1.5, name: "nl-android-legacy" },
         // Android Material — FastOutSlowIn: immediate, then smooth
         "android-material": { curve: [0.4, 0.0, 0.2, 1.0], speed: 2.0, name: "nl-material" },
