@@ -382,15 +382,14 @@ Item {
                                 radius: Math.min(implicitHeight / 2, 20)
                                 enableBorder: false
 
+                                property string _timeText: ""
                                 property bool _hovered: false
 
                                 // Show clock + system info as compact pill
                                 RowLayout {
                                     id: islandContent
                                     anchors.centerIn: parent
-                                    spacing: 6
-
-                                    property string _timeText: ""
+                                    spacing: 6""
 
                                     Text {
                                         text: inlineIsland._timeText

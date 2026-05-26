@@ -33,9 +33,7 @@
   "shadowScale": 1.0,
   "shadowRange": 12,
   "shadowRenderPower": 3,
-  "shadowColor": [
-    "shadow"
-  ],
+  "shadowColor": "shadow",
   "shadowOpacity": 0.4,
   "shadowOffset": [
     0,
