@@ -364,9 +364,15 @@ Item {
                         spacing: 4
                         // Obtener referencia al notch de esta pantalla
                         readonly property var notchContainer: Visibilities.getNotchForScreen(root.screen.name)
-                        // Centered Dynamic Island inside the bar layout
-                        // Spacers push it to center without overlapping other elements
-                        Item { Layout.fillWidth: true; visible: inlineIslandLoader.active }
+                        // Island condition for inline loader
+                        readonly property bool _islandCondition: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island" && root.barPosition === (Config.notchPosition || "top")
+                        
+                        // Spacers and island only in island mode — use Item with width: 0 when inactive
+                        Item {
+                            Layout.fillWidth: _islandCondition
+                            Layout.preferredWidth: _islandCondition ? -1 : 0
+                            visible: _islandCondition
+                        }
 
                         Loader {
                             id: inlineIslandLoader
@@ -374,14 +380,7 @@ Item {
                             Layout.alignment: Qt.AlignVCenter
                             asynchronous: true
                             source: Qt.resolvedUrl("IslandContent.qml")
-                            z: 0 // Same level as bar elements
-
-                            // Reactive binding to island mode conditions
-                            readonly property string _notchTheme: Config.notchTheme || "default"
-                            readonly property string _notchPosition: Config.notchPosition || "top"
-                            readonly property string _barMode: root.barMode
-                            readonly property string _barPosition: root.barPosition
-                            readonly property bool _islandCondition: _barMode === "dynamic" && _notchTheme === "island" && _barPosition === _notchPosition
+                            z: 0
                             active: _islandCondition
 
                             opacity: active ? 1 : 0
@@ -414,7 +413,11 @@ Item {
                             }
                         }
 
-                        Item { Layout.fillWidth: true; visible: inlineIslandLoader.active }
+                        Item {
+                            Layout.fillWidth: _islandCondition
+                            Layout.preferredWidth: _islandCondition ? -1 : 0
+                            visible: _islandCondition
+                        }
 
                         LauncherButton {
                             id: launcherButton
