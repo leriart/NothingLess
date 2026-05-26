@@ -635,6 +635,9 @@ Item {
                                         ListElement { text: "Android 12+ (You)"; key: "android-you" }
                                     }
 
+                                    // Guard to prevent marking unsaved changes during init
+                                    property bool _initialized: false
+
                                     property string currentKey: {
                                         const idx = animStyleCombo.currentIndex;
                                         return idx >= 0 ? animStyleCombo.model.get(idx).key : "m3";
@@ -648,9 +651,12 @@ Item {
                                                 break;
                                             }
                                         }
+                                        // Mark as initialized AFTER setting the index
+                                        Qt.callLater(() => animStyleCombo._initialized = true);
                                     }
 
                                     onCurrentKeyChanged: {
+                                        if (!animStyleCombo._initialized) return;
                                         if (typeof Config === "undefined" || !Config.theme) return;
                                         const key = animStyleCombo.currentKey;
                                         if (key && key !== (Config.theme.animStyle || "m3")) {
