@@ -114,12 +114,11 @@ QtObject {
                 spring:     { small: 300,  normal: 400, large: 550 }
             },
             easings: {
-                standard:       [0.1, 0.0, 0.2, 1.0],   // Smooth ease-out
-                emphasized:     [0.0, 0.8, 0.2, 1.0],   // Slight overshoot
-                emphasizedExit: [0.4, 0.0, 0.8, 0.5],   // Smooth accelerate
-                spatial:        [0.2, 0.0, 0.3, 1.0],
-                decelerate:     [0.0, 0.0, 0.1, 1.0],
-                accelerate:     [0.4, 0.0, 0.9, 0.5],
+                // Aero glass: smooth with gentle coefficient
+                standard:       [0.15, 0.60, 0.25, 0.90],
+                emphasized:     [0.05, 0.80, 0.15, 0.95],
+                emphasizedExit: [0.35, 0.05, 0.75, 0.35],
+                spatial:        [0.22, 0.50, 0.30, 0.88],
                 linear:         null
             }
         },
@@ -180,12 +179,11 @@ QtObject {
                 spring:     { small: 400,  normal: 550, large: 750 }
             },
             easings: {
-                standard:       [0.34, 0.01, 0.12, 1.0],  // Natural ease-out
-                emphasized:     [0.11, 0.8, 0.23, 1.0],   // Spring-like overshoot
-                emphasizedExit: [0.32, 0.0, 0.67, 0.3],   // Gentle accelerate
-                spatial:        [0.28, 0.0, 0.45, 1.0],
-                decelerate:     [0.0, 0.0, 0.25, 1.0],
-                accelerate:     [0.3, 0.0, 1.0, 0.5],
+                // Spring: zeta=0.55, natural bounce
+                standard:       [0.28, 0.65, 0.18, 0.88],
+                emphasized:     [0.15, 0.78, 0.22, 0.90],
+                emphasizedExit: [0.30, 0.08, 0.65, 0.25],
+                spatial:        [0.32, 0.55, 0.25, 0.85],
                 linear:         null
             }
         },
@@ -245,12 +243,11 @@ QtObject {
                 spring:     { small: 450,  normal: 600, large: 850 }
             },
             easings: {
-                standard:       [0.2, 0.0, 0.0, 1.0],   // Emphasized decel (M3)
-                emphasized:     [0.05, 0.7, 0.1, 1.0],  // Emphasized overshoot
-                emphasizedExit: [0.3, 0.0, 0.8, 0.15],  // Emphasized accel
-                spatial:        [0.4, 0.0, 0.2, 1.0],
-                decelerate:     [0.0, 0.0, 0.2, 1.0],
-                accelerate:     [0.4, 0.0, 1.0, 1.0],
+                // Expressive spring: zeta=0.45, visible bounce
+                standard:       [0.15, 0.70, 0.20, 0.88],
+                emphasized:     [0.05, 0.85, 0.12, 0.92],
+                emphasizedExit: [0.30, 0.10, 0.68, 0.18],
+                spatial:        [0.30, 0.48, 0.25, 0.90],
                 linear:         null
             }
         }
@@ -446,48 +443,174 @@ QtObject {
     }
 
     // ============================================
-    // LOW-LEVEL PHYSICS — Spring, Bounce, and Custom Math
+    // ORGANIC PHYSICS — Spring, Anticipation, Overshoot, Momentum
     // ============================================
-    // These use math to generate physically-plausible animation curves
-    // that feel natural without expensive QML bindings.
+    // These use low-level math to generate physically-plausible
+    // animation curves that feel natural without expensive bindings.
+    //
+    // Inspired by: Framer Motion (springs), Apple UIKit (spring physics),
+    // Android Material (adaptive curves), and KDE Plasma (smooth scrolling).
+    //
+    // GPU-friendly principle: opacity/scale/rotation cost ~1µs,
+    // while x/y/width/height cost ~100µs (trigger relayout).
 
-    /*! Generate spring easing parameters.
-        Simulates a damped harmonic oscillator.
-        @param stiffness: Higher = faster oscillation (default 180)
-        @param damping: Higher = less bounce (default 12)
-        @param mass: Higher = slower response (default 1.0)
-        @returns { type: int, bezierCurve: number[] } for use in NumberAnimation */
-    function springEasing(stiffness, damping, mass) {
-        // Map spring parameters to a cubic-bezier approximation
-        // Fast springs = quick initial response, high damping = less overshoot
-        const s = stiffness || 180;
-        const d = damping || 12;
-        const m = mass || 1.0;
-        // Calculate approximate overshoot factor
-        const overshoot = Math.max(0, Math.min(1, 1.0 - d / (2 * Math.sqrt(s * m))));
-        // Map to bezier control points for snap/overshoot feel
-        const cx1 = Math.min(0.5, 0.2 + overshoot * 0.2);
-        const cy1 = Math.min(2.0, 1.0 + overshoot * 2.0);
-        const cx2 = Math.min(0.5, 0.2 + overshoot * 0.1);
-        const cy2 = Math.max(-0.5, -overshoot * 0.5);
-        return { type: Easing.BezierSpline, bezierCurve: [cx1, cy1, cx2, cy2] };
+    /*! Damped Spring Oscillator — the gold standard for organic motion.
+        Simulates a mass on a spring with damping.
+        @param stiffness:  (default 170) — spring tension, higher = snappier
+        @param damping:    (default 16)  — resistance, higher = less bounce
+        @param mass:       (default 1.0) — inertial mass, higher = slower
+        @param initialV:   (default 0)   — initial velocity for momentum
+        @returns { cx1, cy1, cx2, cy2 } bezier control points
+
+        Math behind the curve:
+          ω₀ = √(k/m)  (natural frequency)
+          ζ = d / (2√(km))  (damping ratio)
+          ζ < 1 → underdamped (bounces)
+          ζ ≈ 1 → critically damped (fastest without bounce)
+          ζ > 1 → overdamped (slow, no bounce)
+
+        Maps spring parameters to bezier by computing T_at_50% (half-life)
+        and T_at_90% (settle time) of the oscillator response. */
+    function springBezier(stiffness, damping, mass, initialV) {
+        const k = stiffness || 170;
+        const d = damping || 16;
+        const m = Math.max(0.1, mass || 1.0);
+        const v0 = initialV || 0;
+
+        // Natural frequency & damping ratio
+        const w0 = Math.sqrt(k / m);
+        const zeta = d / (2 * Math.sqrt(k * m));
+
+        // Approximate settle time: when envelope decays to 1%
+        // Envelope = e^(-zeta * w0 * t)
+        // t_settle ≈ ln(100) / (zeta * w0) ≈ 4.6 / (zeta * w0)
+        const settleTime = zeta * w0 > 0.01 ? 4.6 / (zeta * w0) : 10.0;
+        const settleMs = Math.round(settleTime * 1000);
+
+        // Calculate overshoot amount
+        // For zeta < 1: overshoot = e^(-pi*zeta / sqrt(1-zeta^2))
+        const overshoot = zeta < 1.0 ? Math.exp(-Math.PI * zeta / Math.sqrt(1 - zeta * zeta)) : 0;
+
+        // Generate bezier control points that approximate the spring
+        // cx1, cy1 = initial direction (velocity)
+        // cx2, cy2 = overshoot/recoil behavior
+        let cx1, cy1, cx2, cy2;
+
+        if (zeta < 0.5) {
+            // Bouncy: overshoot visible
+            cx1 = 0.2 + zeta * 0.3;
+            cy1 = 1.2 + (0.5 - zeta) * 1.5;  // Overshoot up
+            cx2 = 0.3 + zeta * 0.3;
+            cy2 = -0.3 - (0.5 - zeta) * 0.5;  // Dip below zero (recoil)
+        } else if (zeta < 0.8) {
+            // Gentle bounce: slight overshoot
+            cx1 = 0.25 + zeta * 0.2;
+            cy1 = 0.8 + (0.8 - zeta) * 0.5;
+            cx2 = 0.4 + zeta * 0.1;
+            cy2 = 0.1 + (0.8 - zeta) * 0.2;
+        } else {
+            // Critically damped / overdamped: smooth, no bounce
+            cx1 = 0.3;
+            cy1 = 0.6;
+            cx2 = 0.5;
+            cy2 = 0.4;
+        }
+
+        // Clamp to valid bezier range
+        cx1 = Math.max(-0.5, Math.min(1.5, cx1));
+        cy1 = Math.max(-0.5, Math.min(2.0, cy1));
+        cx2 = Math.max(-0.5, Math.min(1.5, cx2));
+        cy2 = Math.max(-0.5, Math.min(2.0, cy2));
+
+        return {
+            type: Easing.BezierSpline,
+            bezierCurve: [cx1, cy1, cx2, cy2],
+            duration: settleMs,
+            overshoot: overshoot,
+            zeta: zeta
+        };
     }
 
-    /*! Get a snappy, GPU-friendly transition config.
-        Optimized for transform/opacity animations (no geometry recalc).
-        Uses a quick ramp-up with smooth deceleration. */
+    /*! Natural spring easing — preset for UI elements.
+        Light stiffness, moderate damping = smooth, organic feel.
+        Similar to iOS spring animations. */
+    function spring(type, size) {
+        return root.springBezier(180, 18, 1.0, 0);
+    }
+
+    /*! Snappy spring — for buttons, toggles, micro-interactions.
+        High stiffness, high damping = immediate response, no bounce. */
+    function springSnappy() {
+        return root.springBezier(300, 25, 1.0, 0);
+    }
+
+    /*! Expressive spring — for modals, notifications, cards.
+        Lower damping = visible overshoot = playful feel.
+        Similar to Android 12+ spring animations. */
+    function springExpressive() {
+        return root.springBezier(200, 12, 1.0, 0);
+    }
+
+    /*! Anticipation easing — pull back before moving forward.
+        Creates a "recoil" effect that makes animations feel alive.
+        @param intensity: 0.0 (subtle) to 1.0 (dramatic) */
+    function anticipation(intensity) {
+        const i = Math.max(0, Math.min(1, intensity || 0.3));
+        return {
+            type: Easing.BezierSpline,
+            bezierCurve: [0.3 + i * 0.15, -i * 0.5, 0.1, 1.0]
+        };
+    }
+
+    /*! Overshoot easing — go past target, then settle back.
+        Creates a satisfying "stretch" effect.
+        @param amount: 0.0 (none) to 0.5 (maximum) */
+    function overshoot(amount) {
+        const a = amount || 0.2;
+        return {
+            type: Easing.BezierSpline,
+            bezierCurve: [0.2, 1.0 + a * 2.0, 0.3, 0.8 - a * 0.5]
+        };
+    }
+
+    /*! Adaptive duration — scales with distance for natural feel.
+        Small movements = fast, large movements = proportionate.
+        @param distance: pixel distance or normalized delta
+        @param baseMs: base duration at distance=1
+        @returns adaptive duration in ms */
+    function adaptiveDuration(distance, baseMs) {
+        const d = Math.abs(distance || 1);
+        // Weber-Fechner: perceived speed is logarithmic
+        // Fast for small moves, scales slowly for large moves
+        const logDist = Math.log(Math.max(1, d * 10)) / Math.log(10);
+        return Math.max(50, Math.min(600, Math.round(baseMs * (0.3 + logDist * 0.3))));
+    }
+
+    /*! GPU-friendly animation config.
+        Optimizes for transform animations (opacity/scale/rotation).
+        ~70% duration of standard, uses decelerate easing.
+        @returns { duration: number, easing: object } */
     function gpuFriendly(type, size) {
         const base = root.duration(type, size || "normal");
-        // GPU-friendly: shorter durations for smooth rendering
-        const gpuMs = Math.max(80, Math.round(base * 0.7));
+        const gpuMs = Math.max(60, Math.round(base * 0.65));
         return {
             duration: gpuMs,
             easing: root.easing("decelerate")
         };
     }
 
-    /*! Get CSS-like animation-timing info for custom use.
-        @returns { duration, easing, properties } */
+    /*! Multi-stage animation — combines anticipation, move, and overshoot.
+        Use for elements that enter the screen (cards, modals, notifications).
+        @returns Array of { duration, easing } stages */
+    function enterAnimation() {
+        const spring = root.springBezier(200, 14, 1.0, 0);
+        return {
+            duration: spring.duration,
+            easing: spring
+        };
+    }
+
+    /*! Quick helper: get { duration, easing } for common cases. */
     function animate(type, size) {
         return {
             duration: root.duration(type, size),
