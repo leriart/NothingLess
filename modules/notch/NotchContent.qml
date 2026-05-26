@@ -33,9 +33,23 @@ Item {
     // Check if there are any windows on the current monitor and workspace
     readonly property bool hasWindows: toplevels.length > 0
 
+    // Check if notch island is merged with bar (same position + island theme)
+    readonly property bool islandMergedWithBar: {
+        const theme = Config.notchTheme || "default";
+        const bp = root.barPosition;
+        return theme === "island" && root.notchPosition === bp;
+    }
+    
+    // When merged with bar, hide overlay unless notch is open (expanded stack)
+    readonly property bool _mergedHidden: root.islandMergedWithBar && !root.screenNotchOpen && !root.hasActiveNotifications
+    opacity: root._mergedHidden ? 0.0 : 1.0
+    enabled: !root._mergedHidden
+    
     // Get the bar position for this screen
-    readonly property string barPosition: (Config.bar && Config.bar.position !== undefined) ? Config.bar.position : "top"
-    readonly property string notchPosition: Config.notchPosition !== undefined ? Config.notchPosition : "top"
+    readonly property string barPosition: PerMonitorConfig.resolve(screen.name, "bar", "position",
+        (Config.bar && Config.bar.position !== undefined) ? Config.bar.position : "top")
+    readonly property string notchPosition: PerMonitorConfig.resolve(screen.name, "notch", "position",
+        Config.notchPosition !== undefined ? Config.notchPosition : "top")
 
     // Get the bar panel for this screen to check its state
     readonly property var barPanelRef: Visibilities.barPanels[screen.name]
@@ -206,10 +220,11 @@ Item {
         y: root.notchPosition === "top" ? 0 : parent.height - height
 
         Behavior on height {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration / 4
-                easing.type: Easing.OutCubic
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 
@@ -248,10 +263,11 @@ Item {
             // Opacity animation
             opacity: root.reveal ? 1 : 0
             Behavior on opacity {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration / 2
-                    easing.type: Easing.OutCubic
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
 
@@ -265,10 +281,11 @@ Item {
                         return (Math.max(notchContainer.height, 50) + 16);
                 }
                 Behavior on y {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration / 2
-                        easing.type: Easing.OutCubic
+                        duration: Anim.spatialFast
+                        easing.type: Anim.easing("spatial").type
+                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
                     }
                 }
             }
@@ -328,10 +345,11 @@ Item {
             // Apply same reveal animation as notch
             opacity: root.reveal ? 1 : 0
             Behavior on opacity {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration / 2
-                    easing.type: Easing.OutCubic
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
 
@@ -344,10 +362,11 @@ Item {
                         return (notchContainer.height + 16);
                 }
                 Behavior on y {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration / 2
-                        easing.type: Easing.OutCubic
+                        duration: Anim.spatialFast
+                        easing.type: Anim.easing("spatial").type
+                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
                     }
                 }
             }
@@ -372,19 +391,20 @@ Item {
             }
 
             Behavior on width {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: Easing.OutBack
-                    easing.overshoot: 1.2
+                    duration: Anim.emphasizedNormal
+                    easing.type: Anim.easing("emphasized").type
+                    easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                 }
             }
 
             Behavior on height {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardNormal
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
 
@@ -406,10 +426,11 @@ Item {
                 notchHovered: notificationPopupContainer.popupHovered
 
                 Behavior on opacity {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
             }

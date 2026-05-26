@@ -369,6 +369,72 @@ Item {
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
                         }
+                        // Inline island notch when merged with dynamic bar
+                        Loader {
+                            active: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
+                            visible: active
+                            Layout.alignment: Qt.AlignVCenter
+                            sourceComponent: StyledRect {
+                                id: inlineIsland
+                                variant: "barBg"
+                                implicitWidth: islandContent.implicitWidth + 16
+                                implicitHeight: root.barTargetHeight - 8
+                                radius: Math.min(implicitHeight / 2, 20)
+                                enableBorder: false
+
+                                property bool _hovered: false
+
+                                // Show clock + system info as compact pill
+                                RowLayout {
+                                    id: islandContent
+                                    anchors.centerIn: parent
+                                    spacing: 6
+
+                                    property string _timeText: ""
+
+                                    Text {
+                                        text: inlineIsland._timeText
+                                        font.family: Config.theme.font
+                                        font.pixelSize: Styling.fontSize(0)
+                                        color: Colors.overBackground
+                                    }
+
+                                    Text {
+                                        text: Icons.caretDown // quick indicator
+                                        font.family: Icons.font
+                                        font.pixelSize: 10
+                                        color: Colors.overSurfaceVariant
+                                    }
+
+                                    Timer {
+                                        interval: 10000
+                                        running: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
+                                        repeat: true
+                                        onTriggered: {
+                                            inlineIsland._timeText = new Date().toLocaleTimeString(Qt.locale(), Locale.ShortFormat);
+                                        }
+                                        Component.onCompleted: {
+                                            inlineIsland._timeText = new Date().toLocaleTimeString(Qt.locale(), Locale.ShortFormat);
+                                        }
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onEntered: parent._hovered = true
+                                    onExited: parent._hovered = false
+                                    onClicked: {
+                                        // Open the notch stack (launcher/dashboard)
+                                        var v = Visibilities.getForScreen(root.screen.name);
+                                        if (v) {
+                                            v.launcher = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
                         LayoutSelectorButton {
             visible: !Config.bar.hiddenIcons.includes("layout")
                             id: layoutSelectorButton

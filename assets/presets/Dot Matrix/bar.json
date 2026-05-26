@@ -1,6 +1,6 @@
 {
   "position": "top",
-  "launcherIcon": "/home/leo/Imágenes/Iconos/Nothing.png",
+  "launcherIcon": "/home/leo/Im\u00e1genes/Iconos/Nothing.png",
   "launcherIconTint": true,
   "launcherIconFullTint": true,
   "launcherIconSize": 22,
@@ -23,5 +23,6 @@
   "use12hFormat": true,
   "containBar": false,
   "keepBarShadow": false,
-  "keepBarBorder": false
+  "keepBarBorder": false,
+  "barMode": "extended"
 }
