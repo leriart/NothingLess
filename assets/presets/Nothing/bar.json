@@ -36,5 +36,6 @@
   "taskTrayShowToggle": true,
   "taskTrayAlwaysVisible": false,
   "showWorkspaces": true,
-  "showActiveWindow": false
+  "showActiveWindow": false,
+  "barMode": "extended"
 }

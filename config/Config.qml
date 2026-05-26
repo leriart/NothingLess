@@ -539,6 +539,7 @@ Singleton {
 
         adapter: JsonAdapter {
             property string position: "top"
+            property string barMode: "extended"
             property string launcherIcon: ""
             property bool launcherIconTint: true
             property bool launcherIconFullTint: true

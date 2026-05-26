@@ -23,7 +23,11 @@ import "." as Bar
 Item {
     id: root
     required property ShellScreen screen
-    property string barPosition: (Config.bar && Config.bar.position !== undefined && ["top", "bottom", "left", "right"].includes(Config.bar.position) ? Config.bar.position : "top")
+    property string barPosition: {
+        const global = (Config.bar && Config.bar.position !== undefined && ["top", "bottom", "left", "right"].includes(Config.bar.position) ? Config.bar.position : "top");
+        return PerMonitorConfig.resolve(screen.name, "bar", "position", global);
+    }
+    property string barMode: (Config.bar && Config.bar.barMode) || "extended"
     property string orientation: barPosition === "left" || barPosition === "right" ? "vertical" : "horizontal"
     // Auto-hide properties
     onPinnedChanged: {
@@ -176,43 +180,65 @@ Item {
             }
         }
         // Size includes margins
-        width: root.orientation === "horizontal" ? root.width : (root.reveal ? root.totalBarWidth : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset)
-        height: root.orientation === "vertical" ? root.height : (root.reveal ? root.totalBarHeight : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset)
+        width: {
+            if (root.orientation === "vertical") return root.reveal ? root.totalBarWidth : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset;
+            // Dynamic mode: wrap content, don't fill full width
+            if (root.barMode === "dynamic") return (root.reveal ? (root.contentImplicitWidth + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2)) : root.width);
+            return root.width; // extended mode: full width
+        }
+        height: {
+            if (root.orientation === "horizontal") return root.reveal ? root.totalBarHeight : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset;
+            // Dynamic mode: wrap content, don't fill full height
+            if (root.barMode === "dynamic") return (root.reveal ? (root.contentImplicitHeight + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2)) : root.height);
+            return root.height; // extended mode: full height
+        }
         // Position using x/y
         x: {
+            if (root.barMode === "dynamic" && root.orientation === "horizontal") {
+                // Dynamic horizontal: center in parent
+                return (parent.width - width) / 2;
+            }
             if (root.barPosition === "right") return parent.width - width;
             return 0;
         }
         y: {
+            if (root.barMode === "dynamic" && root.orientation === "vertical") {
+                // Dynamic vertical: center in parent
+                return (parent.height - height) / 2;
+            }
             if (root.barPosition === "bottom") return parent.height - height;
             return 0;
         }
         Behavior on x {
-            enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0 && root.orientation === "vertical"
+            enabled: Anim.animationsEnabled && root.orientation === "vertical"
             NumberAnimation {
-                duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 4
-                easing.type: Easing.OutCubic
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
         Behavior on y {
-            enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0 && root.orientation === "horizontal"
+            enabled: Anim.animationsEnabled && root.orientation === "horizontal"
             NumberAnimation {
-                duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 4
-                easing.type: Easing.OutCubic
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
         Behavior on width {
-            enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0 && root.orientation === "vertical"
+            enabled: Anim.animationsEnabled && root.orientation === "vertical"
             NumberAnimation {
-                duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 4
-                easing.type: Easing.OutCubic
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
         Behavior on height {
-            enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0 && root.orientation === "horizontal"
+            enabled: Anim.animationsEnabled && root.orientation === "horizontal"
             NumberAnimation {
-                duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 4
-                easing.type: Easing.OutCubic
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
         // Bar content inside MouseArea (clicks pass through to children)
@@ -233,10 +259,11 @@ Item {
             // Opacity animation
             opacity: root.reveal ? 1 : 0
             Behavior on opacity {
-                enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
-                    easing.type: Easing.OutCubic
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
             // Slide animation
@@ -260,17 +287,19 @@ Item {
                     return 0;
                 }
                 Behavior on x {
-                    enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
-                        easing.type: Easing.OutCubic
+                        duration: Anim.spatialFast
+                        easing.type: Anim.easing("spatial").type
+                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
                     }
                 }
                 Behavior on y {
-                    enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
-                        easing.type: Easing.OutCubic
+                        duration: Anim.spatialFast
+                        easing.type: Anim.easing("spatial").type
+                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
                     }
                 }
             }
@@ -368,9 +397,9 @@ Item {
                                         opacity: root.pinned ? 0 : (pinButton.pressed ? 0.5 : (pinButton.hovered ? 0.25 : 0))
                                         radius: (parent.radius !== undefined ? parent.radius : 0)
                                         Behavior on opacity {
-                                            enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                            enabled: Anim.animationsEnabled
                                             NumberAnimation {
-                                                duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                                duration: Anim.standardSmall
                                             }
                                         }
                                     }
@@ -384,15 +413,15 @@ Item {
                                     verticalAlignment: Text.AlignVCenter
                                     rotation: root.pinned ? 0 : 45
                                     Behavior on rotation {
-                                        enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                        enabled: Anim.animationsEnabled
                                         NumberAnimation {
-                                            duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                            duration: Anim.standardSmall
                                         }
                                     }
                                     Behavior on color {
-                                        enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                        enabled: Anim.animationsEnabled
                                         ColorAnimation {
-                                            duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                            duration: Anim.standardSmall
                                         }
                                     }
                                 }
@@ -595,9 +624,9 @@ Item {
                                                 opacity: root.pinned ? 0 : (pinButtonV.pressed ? 0.5 : (pinButtonV.hovered ? 0.25 : 0))
                                                 radius: (parent.radius !== undefined ? parent.radius : 0)
                                                 Behavior on opacity {
-                                                    enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                                    enabled: Anim.animationsEnabled
                                                     NumberAnimation {
-                                                        duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                                        duration: Anim.standardSmall
                                                     }
                                                 }
                                             }
@@ -611,15 +640,15 @@ Item {
                                             verticalAlignment: Text.AlignVCenter
                                             rotation: root.pinned ? 0 : 45
                                             Behavior on rotation {
-                                                enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                                enabled: Anim.animationsEnabled
                                                 NumberAnimation {
-                                                    duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                                    duration: Anim.standardSmall
                                                 }
                                             }
                                             Behavior on color {
-                                                enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                                enabled: Anim.animationsEnabled
                                                 ColorAnimation {
-                                                    duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                                    duration: Anim.standardSmall
                                                 }
                                             }
                                         }
