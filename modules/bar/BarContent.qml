@@ -607,6 +607,7 @@ Item {
                             id: launcherButtonVert
                             visible: !Config.bar.hiddenIcons.includes("launcher")
                             Layout.preferredHeight: 36
+                            Layout.fillWidth: true
                             startRadius: root.outerRadius
                             endRadius: root.innerRadius
                             vertical: true
@@ -618,12 +619,16 @@ Item {
                             enableShadow: root.shadowsEnabled
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                            Layout.preferredHeight: 36
+                            Layout.fillWidth: true
                         }
                         TaskTray {
                             visible: !Config.bar.hiddenIcons.includes("tasktray")
                             bar: root
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                            Layout.preferredHeight: 36
+                            Layout.fillWidth: true
                         }
                         ToolsButton {
                             id: toolsButtonVert
@@ -632,6 +637,8 @@ Item {
                             endRadius: root.innerRadius
                             vertical: true
                             enableShadow: root.shadowsEnabled
+                            Layout.preferredHeight: 36
+                            Layout.fillWidth: true
                         }
                         PresetsButton {
                             id: presetsButtonVert
@@ -640,6 +647,8 @@ Item {
                             endRadius: root.outerRadius
                             vertical: true
                             enableShadow: root.shadowsEnabled
+                            Layout.preferredHeight: 36
+                            Layout.fillWidth: true
                         }
                         // Center Group Container
                         Item {
@@ -762,6 +771,7 @@ Item {
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.outerRadius
                             endRadius: root.innerRadius
+                            Layout.fillWidth: true
                         }
                         Bar.BatteryIndicator {
             visible: !Config.bar.hiddenIcons.includes("battery")
@@ -770,6 +780,7 @@ Item {
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                            Layout.fillWidth: true
                         }
                         Clock {
                             id: clockComponentVert
@@ -778,11 +789,13 @@ Item {
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                            Layout.fillWidth: true
                         }
                         PowerButton {
                             id: powerButtonVert
                             visible: !Config.bar.hiddenIcons.includes("power")
                             Layout.preferredHeight: 36
+                            Layout.fillWidth: true
                             startRadius: root.innerRadius
                             endRadius: root.outerRadius
                             vertical: true

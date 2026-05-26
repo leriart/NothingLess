@@ -53,6 +53,7 @@ import qs.modules.components
     // Ajustes de tamaño dinámicos según orientación
     height: vertical ? implicitHeight : parent.height
     Layout.preferredWidth: hasItems ? ((vertical ? columnLayout.implicitWidth : rowLayout.implicitWidth) + 16) : 0
+    Layout.preferredHeight: vertical ? (hasItems ? (columnLayout.implicitHeight + 16) : 0) : 36
     implicitWidth: hasItems ? ((vertical ? columnLayout.implicitWidth : rowLayout.implicitWidth) + 16) : 0
     implicitHeight: hasItems ? ((vertical ? columnLayout.implicitHeight : rowLayout.implicitHeight) + 16) : 0
 
