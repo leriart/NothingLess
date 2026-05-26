@@ -81,10 +81,21 @@ Item {
     // Island theme: centered on the bar like Dynamic Island
     anchors.horizontalCenter: Config.notchTheme === "island" ? parent.horizontalCenter : undefined
 
-    implicitWidth: screenNotchOpen ? Math.max(stackContainer.width + totalCornerWidth, 290) : stackContainer.width + totalCornerWidth
+    implicitWidth: {
+        let w = screenNotchOpen ? Math.max(stackContainer.width + totalCornerWidth, 290) : stackContainer.width + totalCornerWidth;
+        // When merged with bar, cap width to not overflow bar bounds
+        if (root.mergeWithBar && root.maxIslandWidth > 0) {
+            w = Math.min(w, root.maxIslandWidth);
+        }
+        return w;
+    }
     implicitHeight: Config.notchTheme === "default" ? defaultHeight : (Config.notchTheme === "island" ? islandHeight : defaultHeight)
-    // When merged with bar, position at bar's edge
-    y: root.mergeWithBar && Config.notchTheme === "island" ? (root.position === "top" ? 0 : parent.height - root.implicitHeight) : 0
+    // When island merges with bar: notch sits AT bar level
+    // Compact state: sits on the bar (y=top), expanded state: grows away from bar
+    y: root.mergeWithBar ? (root.position === "top" ? 0 : parent.height - root.implicitHeight) : 0
+    // Limit max expansion width when merged with bar to not overflow bar bounds
+    // In dynamic bar mode, the bar is already content-sized, so notch fits within it
+    readonly property int maxIslandWidth: parent ? Math.min(parent.width * 0.85, 600) : 600
 
     Behavior on implicitWidth {
         enabled: (screenNotchOpen || stackViewInternal.busy) && Anim.animationsEnabled
