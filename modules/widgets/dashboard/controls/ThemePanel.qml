@@ -673,19 +673,23 @@ Item {
                                         contentItem: Text {
                                             text: model.text
                                             font: parent.font
-                                            color: model.key === "" ? Colors.overSurfaceVariant : (parent.highlighted ? Colors.primary : Colors.overBackground)
-                                            opacity: model.key === "" ? 0.6 : 1.0
+                                            // Highlighted: bright primary on dark bg, otherwise normal
+                                            color: model.key === "" ? Colors.overSurfaceVariant : (parent.highlighted ? Qt.rgba(1, 1, 1, 1) : Colors.overBackground)
+                                            opacity: model.key === "" ? 0.5 : (parent.highlighted ? 1.0 : 0.85)
                                             elide: Text.ElideRight
                                             leftPadding: parent.leftPadding
                                             verticalAlignment: Text.AlignVCenter
+                                            font.weight: parent.highlighted ? Font.DemiBold : Font.Normal
                                         }
                                         background: Rectangle {
                                             color: {
-                                                if (parent.highlighted) return Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.2);
-                                                if (parent.hovered) return Qt.rgba(Colors.overBackground.r, Colors.overBackground.g, Colors.overBackground.b, 0.08);
+                                                if (parent.highlighted) return Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.45);
+                                                if (parent.hovered) return Qt.rgba(Colors.overBackground.r, Colors.overBackground.g, Colors.overBackground.b, 0.12);
                                                 return "transparent";
                                             }
-                                            radius: Styling.radius(1)
+                                            radius: Styling.radius(2)
+                                            border.color: parent.highlighted ? Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.6) : "transparent"
+                                            border.width: parent.highlighted ? 1 : 0
                                         }
                                     }
                                 }

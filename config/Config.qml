@@ -150,6 +150,7 @@ Singleton {
             property int monoFontSize: 14
             property bool tintIcons: false
             property bool enableCorners: true
+            property bool dynamicColor: false
             property int animDuration: 300
             property real animScale: 1.0
             property string animStyle: "m3"

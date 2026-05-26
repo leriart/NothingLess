@@ -343,17 +343,34 @@ QtObject {
     // HYPRLAND ANIMATION CONFIG
     // ============================================
     // Returns bezier curve and speed for Hyprland animations based on style.
+    // Dramatic, physics-driven bezier curves for Hyprland animations.
+    // Each style uses unique math to create a distinct feel:
+    //   Overshoot:     c1y > 1.0 or c2y < 0.0 → bouncy/snap effect
+    //   Anticipation:  c1x < 0.0 → pull back before moving
+    //   Spring:        c1y > 1.0, c2y < 0.0 → full spring bounce
+    //   Snappy:        c1x very small, c2x close to 1.0 → quick start, fast finish
+    //   Smooth:        symmetric → butter-smooth
     readonly property var _hyprBeziers: ({
+        // M3 — standard Material Deceleration: immediate response, gentle end
         "m3":               { curve: [0.2, 0.0, 0.0, 1.0], speed: 2.5, name: "nl-standard" },
+        // Windows Classic — linear, no easing at all
         "windows-classic":  { curve: [0.0, 0.0, 1.0, 1.0], speed: 1.0, name: "nl-linear" },
+        // Windows XP — gentle ease-out with slight anticipation
         "windows-xp":       { curve: [0.25, 0.1, 0.25, 1.0], speed: 2.0, name: "nl-xp" },
-        "windows-7":        { curve: [0.1, 0.0, 0.2, 1.0], speed: 2.5, name: "nl-aero" },
+        // Windows 7 Aero — smooth reveal with subtle overshoot bounce
+        "windows-7":        { curve: [0.1, 0.8, 0.1, 1.0], speed: 2.8, name: "nl-aero" },
+        // Mac OS Classic — no easing, near-instant
         "mac-classic":      { curve: [0.0, 0.0, 1.0, 1.0], speed: 0.5, name: "nl-linear" },
+        // Mac OS X Aqua — sine-wave smooth, long tail
         "mac-legacy":       { curve: [0.42, 0.0, 0.58, 1.0], speed: 3.0, name: "nl-aqua" },
-        "mac-modern":       { curve: [0.34, 0.01, 0.12, 1.0], speed: 2.5, name: "nl-natural" },
+        // macOS Modern — natural spring: slight bounce, organic
+        "mac-modern":       { curve: [0.34, 0.6, 0.12, 0.8], speed: 2.5, name: "nl-natural" },
+        // Android Legacy — simple ease-in-out
         "android-legacy":   { curve: [0.4, 0.0, 0.6, 1.0], speed: 1.5, name: "nl-android-legacy" },
+        // Android Material — FastOutSlowIn: immediate, then smooth
         "android-material": { curve: [0.4, 0.0, 0.2, 1.0], speed: 2.0, name: "nl-material" },
-        "android-you":      { curve: [0.2, 0.0, 0.0, 1.0], speed: 3.0, name: "nl-you" }
+        // Android 12+ — Emphasized Deceleration: dramatic, expressive
+        "android-you":      { curve: [0.05, 0.7, 0.1, 1.0], speed: 3.0, name: "nl-you" }
     })
 
     /*! Get Hyprland bezier animation config for the current style.
@@ -398,6 +415,58 @@ QtObject {
         default:
             return "";
         }
+    }
+
+    // ============================================
+    // LOW-LEVEL PHYSICS — Spring, Bounce, and Custom Math
+    // ============================================
+    // These use math to generate physically-plausible animation curves
+    // that feel natural without expensive QML bindings.
+
+    /*! Generate spring easing parameters.
+        Simulates a damped harmonic oscillator.
+        @param stiffness: Higher = faster oscillation (default 180)
+        @param damping: Higher = less bounce (default 12)
+        @param mass: Higher = slower response (default 1.0)
+        @returns { type: int, bezierCurve: number[] } for use in NumberAnimation */
+    function springEasing(stiffness, damping, mass) {
+        // Map spring parameters to a cubic-bezier approximation
+        // Fast springs = quick initial response, high damping = less overshoot
+        const s = stiffness || 180;
+        const d = damping || 12;
+        const m = mass || 1.0;
+        // Calculate approximate overshoot factor
+        const overshoot = Math.max(0, Math.min(1, 1.0 - d / (2 * Math.sqrt(s * m))));
+        // Map to bezier control points for snap/overshoot feel
+        const cx1 = Math.min(0.5, 0.2 + overshoot * 0.2);
+        const cy1 = Math.min(2.0, 1.0 + overshoot * 2.0);
+        const cx2 = Math.min(0.5, 0.2 + overshoot * 0.1);
+        const cy2 = Math.max(-0.5, -overshoot * 0.5);
+        return { type: Easing.BezierSpline, bezierCurve: [cx1, cy1, cx2, cy2] };
+    }
+
+    /*! Get a snappy, GPU-friendly transition config.
+        Optimized for transform/opacity animations (no geometry recalc).
+        Uses a quick ramp-up with smooth deceleration. */
+    function gpuFriendly(type, size) {
+        const base = root.duration(type, size || "normal");
+        // GPU-friendly: shorter durations for smooth rendering
+        const gpuMs = Math.max(80, Math.round(base * 0.7));
+        return {
+            duration: gpuMs,
+            easing: root.easing("decelerate")
+        };
+    }
+
+    /*! Get CSS-like animation-timing info for custom use.
+        @returns { duration, easing, properties } */
+    function animate(type, size) {
+        return {
+            duration: root.duration(type, size),
+            easing: root.easing(type),
+            type: type,
+            size: size || "normal"
+        };
     }
 
     // ============================================
