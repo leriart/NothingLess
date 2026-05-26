@@ -622,7 +622,7 @@ Item {
 
                                         contentItem: ListView {
                                             clip: true
- implicitHeight: contentHeight
+                                            implicitHeight: contentHeight
                                             model: animStyleCombo.delegateModel
                                             currentIndex: animStyleCombo.currentIndex
                                             interactive: contentHeight > 300
