@@ -349,10 +349,22 @@ Item {
         Button {
             id: islandPinBtn
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
-            visible: Config.bar && Config.bar.showPinButton !== false && !Config.bar.hiddenIcons.includes("pin")
+            visible: root.islandMergedWithBar
             background: StyledRect {
-                variant: root.notchPinned ? "primary" : "bg"; enableShadow: false
+                variant: "bg"; enableShadow: false
                 radius: Styling.radius(3)
+                // Filled background when pinned
+                Rectangle {
+                    anchors.fill: parent
+                    color: Colors.primary
+                    radius: parent.radius ?? 0
+                    opacity: root.notchPinned ? 0.15 : 0
+                    Behavior on opacity {
+                        enabled: Anim.animationsEnabled
+                        NumberAnimation { duration: Anim.standardSmall; easing.type: Easing.OutCubic }
+                    }
+                }
+                // Hover overlay
                 Rectangle {
                     anchors.fill: parent
                     color: Styling.srItem("overprimary") || Colors.overBackground
@@ -367,7 +379,7 @@ Item {
             contentItem: Text {
                 text: Icons.pin; font.family: Icons.font
                 font.pixelSize: Math.round(root.islandButtonSize * 0.5)
-                color: root.notchPinned ? Styling.srItem("primary") : (Styling.srItem("overprimary") || Colors.foreground)
+                color: root.notchPinned ? Colors.primary : (Styling.srItem("overprimary") || Colors.foreground)
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
                 rotation: root.notchPinned ? 0 : 45
                 Behavior on rotation {
