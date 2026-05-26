@@ -26,10 +26,11 @@ Item {
 
     property real animScale: screenNotchOpen ? 1.0 : 0.9
     Behavior on animScale {
-        enabled: Config.animDuration > 0
+        enabled: Anim.animationsEnabled
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: Easing.OutQuart
+            duration: Anim.standardNormal
+            easing.type: Anim.easing("standard").type
+            easing.bezierCurve: Anim.easing("standard").bezierCurve
         }
     }
 
@@ -73,24 +74,29 @@ Item {
     readonly property int cornerSize: Config.roundness > 0 ? Config.roundness + 4 : 0
     readonly property int totalCornerWidth: Config.notchTheme === "default" ? cornerSize * 2 : 0
 
+    // Island theme: centered on the bar like Dynamic Island
+    anchors.horizontalCenter: Config.notchTheme === "island" ? parent.horizontalCenter : undefined
+
     implicitWidth: screenNotchOpen ? Math.max(stackContainer.width + totalCornerWidth, 290) : stackContainer.width + totalCornerWidth
     implicitHeight: Config.notchTheme === "default" ? defaultHeight : (Config.notchTheme === "island" ? islandHeight : defaultHeight)
 
     Behavior on implicitWidth {
-        enabled: (screenNotchOpen || stackViewInternal.busy) && Config.animDuration > 0
+        enabled: (screenNotchOpen || stackViewInternal.busy) && Anim.animationsEnabled
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: isExpanded ? Easing.OutBack : Easing.OutQuart
-            easing.overshoot: isExpanded ? 1.2 : 1.0
+            property var _ease: isExpanded ? Anim.easing("emphasized") : Anim.easing("standard")
+            duration: isExpanded ? Anim.emphasizedNormal : Anim.standardNormal
+            easing.type: _ease.type
+            easing.bezierCurve: _ease.bezierCurve
         }
     }
 
     Behavior on implicitHeight {
-        enabled: (screenNotchOpen || stackViewInternal.busy) && Config.animDuration > 0
+        enabled: (screenNotchOpen || stackViewInternal.busy) && Anim.animationsEnabled
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: isExpanded ? Easing.OutBack : Easing.OutQuart
-            easing.overshoot: isExpanded ? 1.2 : 1.0
+            property var _ease: isExpanded ? Anim.easing("emphasized") : Anim.easing("standard")
+            duration: isExpanded ? Anim.emphasizedNormal : Anim.standardNormal
+            easing.type: _ease.type
+            easing.bezierCurve: _ease.bezierCurve
         }
     }
 
@@ -114,38 +120,42 @@ Item {
         bottomRightRadius: notchContainer.position === "top" ? defaultRadius : 0
 
         Behavior on bottomLeftRadius {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: screenNotchOpen || hasActiveNotifications ? Easing.OutBack : Easing.OutQuart
-                easing.overshoot: screenNotchOpen || hasActiveNotifications ? 1.2 : 1.0
+                property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                duration: Anim.standardNormal
+                easing.type: _ease.type
+                easing.bezierCurve: _ease.bezierCurve
             }
         }
 
         Behavior on bottomRightRadius {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: screenNotchOpen || hasActiveNotifications ? Easing.OutBack : Easing.OutQuart
-                easing.overshoot: screenNotchOpen || hasActiveNotifications ? 1.2 : 1.0
+                property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                duration: Anim.standardNormal
+                easing.type: _ease.type
+                easing.bezierCurve: _ease.bezierCurve
             }
         }
 
         Behavior on topLeftRadius {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: screenNotchOpen || hasActiveNotifications ? Easing.OutBack : Easing.OutQuart
-                easing.overshoot: screenNotchOpen || hasActiveNotifications ? 1.2 : 1.0
+                property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                duration: Anim.standardNormal
+                easing.type: _ease.type
+                easing.bezierCurve: _ease.bezierCurve
             }
         }
 
         Behavior on topRightRadius {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: screenNotchOpen || hasActiveNotifications ? Easing.OutBack : Easing.OutQuart
-                easing.overshoot: screenNotchOpen || hasActiveNotifications ? 1.2 : 1.0
+                property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                duration: Anim.standardNormal
+                easing.type: _ease.type
+                easing.bezierCurve: _ease.bezierCurve
             }
         }
 
@@ -267,38 +277,42 @@ Item {
             bottomRightRadius: parent.bottomRightRadius
 
             Behavior on topLeftRadius {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: screenNotchOpen || hasActiveNotifications ? Easing.OutBack : Easing.OutQuart
-                    easing.overshoot: screenNotchOpen || hasActiveNotifications ? 1.2 : 1.0
+                    property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                    duration: Anim.standardNormal
+                    easing.type: _ease.type
+                    easing.bezierCurve: _ease.bezierCurve
                 }
             }
 
             Behavior on topRightRadius {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: screenNotchOpen || hasActiveNotifications ? Easing.OutBack : Easing.OutQuart
-                    easing.overshoot: screenNotchOpen || hasActiveNotifications ? 1.2 : 1.0
+                    property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                    duration: Anim.standardNormal
+                    easing.type: _ease.type
+                    easing.bezierCurve: _ease.bezierCurve
                 }
             }
 
             Behavior on bottomLeftRadius {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: screenNotchOpen || hasActiveNotifications ? Easing.OutBack : Easing.OutQuart
-                    easing.overshoot: screenNotchOpen || hasActiveNotifications ? 1.2 : 1.0
+                    property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                    duration: Anim.standardNormal
+                    easing.type: _ease.type
+                    easing.bezierCurve: _ease.bezierCurve
                 }
             }
 
             Behavior on bottomRightRadius {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: screenNotchOpen || hasActiveNotifications ? Easing.OutBack : Easing.OutQuart
-                    easing.overshoot: screenNotchOpen || hasActiveNotifications ? 1.2 : 1.0
+                    property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                    duration: Anim.standardNormal
+                    easing.type: _ease.type
+                    easing.bezierCurve: _ease.bezierCurve
                 }
             }
         }
@@ -319,18 +333,20 @@ Item {
             color: "transparent"
             radius: Config.roundness > 0 ? (screenNotchOpen || hasActiveNotifications ? Config.roundness + 20 : Config.roundness + 4) : 0
             Behavior on radius {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardNormal
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
             property real animMargin: screenNotchOpen ? 16 : 0
             Behavior on animMargin {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardNormal
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
             width: stackViewInternal.currentItem ? stackViewInternal.currentItem.implicitWidth + animMargin * 2 : animMargin * 2
@@ -355,8 +371,9 @@ Item {
                 property: "transitionBlur"
                 from: 1.0
                 to: 0.0
-                duration: Config.animDuration
-                easing.type: Easing.OutQuart
+                duration: Anim.standardNormal
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
 
             StackView {
@@ -387,16 +404,17 @@ Item {
                         property: "opacity"
                         from: 0
                         to: 1
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                     PropertyAnimation {
                         property: "scale"
                         from: 0.8
                         to: 1
-                        duration: Config.animDuration
-                        easing.type: Easing.OutBack
-                        easing.overshoot: 1.2
+                        duration: Anim.emphasizedNormal
+                        easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                     }
                 }
 
@@ -405,15 +423,17 @@ Item {
                         property: "opacity"
                         from: 1
                         to: 0
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                     PropertyAnimation {
                         property: "scale"
                         from: 1
                         to: 1.05
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
 
@@ -422,15 +442,17 @@ Item {
                         property: "opacity"
                         from: 0
                         to: 1
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                     PropertyAnimation {
                         property: "scale"
                         from: 1.05
                         to: 1
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
 
@@ -439,15 +461,17 @@ Item {
                         property: "opacity"
                         from: 1
                         to: 0
-                        duration: Math.max(Config.animDuration * 1.5, 300)
-                        easing.type: Easing.OutCubic
+                        duration: Anim.emphasizedLarge
+                        easing.type: Anim.easing("emphasized", "exit").type
+                        easing.bezierCurve: Anim.easing("emphasized", "exit").bezierCurve
                     }
                     PropertyAnimation {
                         property: "scale"
                         from: 1
                         to: 0.93
-                        duration: Math.max(Config.animDuration * 1.5, 300)
-                        easing.type: Easing.OutCubic
+                        duration: Anim.emphasizedLarge
+                        easing.type: Anim.easing("emphasized", "exit").type
+                        easing.bezierCurve: Anim.easing("emphasized", "exit").bezierCurve
                     }
                 }
 
@@ -456,16 +480,17 @@ Item {
                         property: "opacity"
                         from: 0
                         to: 1
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                     PropertyAnimation {
                         property: "scale"
                         from: 0.8
                         to: 1
-                        duration: Config.animDuration
-                        easing.type: Easing.OutBack
-                        easing.overshoot: 1.2
+                        duration: Anim.emphasizedNormal
+                        easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                     }
                 }
 
@@ -474,15 +499,17 @@ Item {
                         property: "opacity"
                         from: 1
                         to: 0
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                     PropertyAnimation {
                         property: "scale"
                         from: 1
                         to: 1.05
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
             }
