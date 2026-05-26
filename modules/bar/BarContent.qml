@@ -369,71 +369,7 @@ Item {
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
                         }
-                        // Inline island notch when merged with dynamic bar
-                        Loader {
-                            active: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
-                            visible: active
-                            Layout.alignment: Qt.AlignVCenter
-                            sourceComponent: StyledRect {
-                                id: inlineIsland
-                                variant: "barBg"
-                                implicitWidth: islandContent.implicitWidth + 16
-                                implicitHeight: root.barTargetHeight - 8
-                                radius: Math.min(implicitHeight / 2, 20)
-                                enableBorder: false
 
-                                property bool _hovered: false
-
-                                // Centered Dynamic Island inside the bar
-                                // Compact pill showing minimal indicator
-                                // Click to open notch stack (launcher/dashboard)
-                                Item {
-                                    id: islandContent
-                                    anchors.centerIn: parent
-                                    width: 48
-                                    height: parent.height - 4
-
-                                    // Pill background
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        radius: height / 2
-                                        color: Qt.rgba(Colors.surfaceContainerHighest.r, Colors.surfaceContainerHighest.g, Colors.surfaceContainerHighest.b, 0.5 + (inlineIsland._hovered ? 0.2 : 0))
-                                        border.color: Colors.surfaceBright
-                                        border.width: 0.5
-
-                                        Behavior on color {
-                                            enabled: Anim.animationsEnabled
-                                            ColorAnimation { duration: Anim.standardSmall }
-                                        }
-                                    }
-
-                                    // Small dot indicator
-                                    Rectangle {
-                                        anchors.centerIn: parent
-                                        width: 8
-                                        height: 8
-                                        radius: 4
-                                        color: Colors.primary
-                                        opacity: 0.8
-                                    }
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onEntered: inlineIsland._hovered = true
-                                    onExited: inlineIsland._hovered = false
-                                    onClicked: {
-                                        // Open the notch stack (launcher/dashboard)
-                                        var v = Visibilities.getForScreen(root.screen.name);
-                                        if (v) {
-                                            v.launcher = true;
-                                        }
-                                    }
-                                }
-                            }
-                        }
                         LayoutSelectorButton {
             visible: !Config.bar.hiddenIcons.includes("layout")
                             id: layoutSelectorButton

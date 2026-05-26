@@ -40,15 +40,13 @@ Item {
         return theme === "island" && root.notchPosition === bp;
     }
     
-    // When merged with dynamic bar at same position: no separate notch at all
-    // The island lives inside the bar's layout. NotchContent only shows the
-    // expanded stack (launcher/dashboard) when the island is clicked.
-    readonly property bool _mergedHidden: root.islandMergedWithBar && !root.screenNotchOpen && !root.hasActiveNotifications
-    opacity: root._mergedHidden ? 0.0 : 1.0
-    enabled: !root._mergedHidden
-    // Don't intercept any mouse events when merged (bar handles them)
-    // Only the expanded stack views should receive input
-    readonly property bool _integratedMode: root.islandMergedWithBar
+    // When merged with bar: notch IS the Dynamic Island inside the bar
+    // Keep it visible but positioned at bar level. Only hide the expanded
+    // overlay when collapsed (prevents blocking bar buttons).
+    // The notch container (Notch.qml) handles its own positioning via mergeWithBar
+    readonly property bool _mergedHidden: false // Always visible - notch sits inside bar
+    // Expanded stack views still need to overlay for launcher/dashboard
+    // But collapsed island lives within the bar
     
     // Get the bar position for this screen
     readonly property string barPosition: PerMonitorConfig.resolve(screen.name, "bar", "position",
