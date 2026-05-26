@@ -57,11 +57,11 @@ Item {
     property real mainRowMargin: 16
 
     Behavior on mainRowMargin {
-        enabled: Config.animDuration > 0
+        enabled: Anim.animationsEnabled
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: Easing.OutBack
-            easing.overshoot: 1.2
+            duration: Anim.standardNormal
+            easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
         }
     }
 
@@ -164,11 +164,11 @@ Item {
     implicitHeight: hasActiveNotifications ? mainRowHeight + notificationContainerHeight : mainRowHeight
 
     Behavior on implicitWidth {
-        enabled: Config.animDuration > 0
+        enabled: Anim.animationsEnabled
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: Easing.OutBack
-            easing.overshoot: 1.2
+            duration: Anim.standardNormal
+            easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
         }
     }
 
@@ -216,11 +216,14 @@ Item {
 
     Item {
         anchors.fill: parent
+        clip: true
 
         // Metrics mode content (replaces mainRow when showMetrics is active)
         Row {
             id: metricsModeRow
             visible: metricsActive
+            // In island mode, cap metrics width so island stays compact
+            readonly property int maxWidth: Config.notchTheme === "island" ? 300 : 600
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             height: mainRowHeight
@@ -352,10 +355,11 @@ Item {
                 onIsNavigatingChanged: root.isNavigating = isNavigating
 
                 Behavior on opacity {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
             }
