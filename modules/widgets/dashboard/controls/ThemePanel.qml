@@ -690,20 +690,19 @@ Item {
                                     }
 
                                     delegate: ItemDelegate {
+                                        required property var modelData
                                         width: animStyleCombo.width
-                                        height: key === "" ? 22 : 32
-                                        enabled: key !== ""
+                                        height: modelData.key === "" ? 22 : 32
+                                        enabled: modelData.key !== ""
                                         font.family: Config.theme.font
-                                        font.pixelSize: key === "" ? Styling.fontSize(-2) : Styling.fontSize(-1)
-                                        font.weight: key === "" ? Font.Normal : (parent && parent.highlighted ? Font.Bold : Font.DemiBold)
-                                        leftPadding: key === "" ? 8 : 16
-                                        highlighted: animStyleCombo.currentIndex === index
+                                        font.pixelSize: modelData.key === "" ? Styling.fontSize(-2) : Styling.fontSize(-1)
+                                        font.weight: modelData.key === "" ? Font.Normal : Font.Medium
+                                        leftPadding: modelData.key === "" ? 8 : 16
                                         contentItem: Text {
-                                            text: text
+                                            text: modelData.text
                                             font: parent.font
-                                            // Highlighted: bright primary on dark bg, otherwise normal
-                                            color: key === "" ? Colors.overSurfaceVariant : (parent.highlighted ? Qt.rgba(1, 1, 1, 1) : Colors.overBackground)
-                                            opacity: key === "" ? 0.5 : (parent.highlighted ? 1.0 : 0.85)
+                                            color: modelData.key === "" ? Colors.overSurfaceVariant : (parent.highlighted ? Qt.rgba(1, 1, 1, 1) : Colors.overBackground)
+                                            opacity: modelData.key === "" ? 0.5 : (parent.highlighted ? 1.0 : 0.85)
                                             elide: Text.ElideRight
                                             leftPadding: parent.leftPadding
                                             verticalAlignment: Text.AlignVCenter
