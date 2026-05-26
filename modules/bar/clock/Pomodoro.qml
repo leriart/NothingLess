@@ -21,7 +21,7 @@ Item {
     
     // --- IPC & Notifications ---
     IpcHandler {
-        target: "pomodoro"
+        target: "nothingless-pomodoro"
         function check() {
             root.requestPopupOpen();
         }

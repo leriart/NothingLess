@@ -48,11 +48,27 @@ Commands:
     update                            Update NothingLess
     refresh                           Refresh local/dev profile (for developers)
     lock                              Activate lockscreen
+    reload                            Restart NothingLess
+    quit                              Stop NothingLess
+    screen [on|off]                   Turn screen on/off
+    suspend                           Suspend the system
+
     brightness <percent> [monitor]    Set brightness (0-100)
     brightness +/-<delta> [monitor]   Adjust brightness relatively
     brightness -s [monitor]           Save current brightness
     brightness -r [monitor]           Restore saved brightness
     brightness -l                     List monitors and their brightness
+
+    volume-up                         Increase volume
+    volume-down                       Decrease volume
+    volume-mute                       Toggle volume mute
+    mic-mute                          Toggle microphone mute
+    caffeine                          Toggle caffeine (idle inhibition)
+    gamemode                          Toggle game mode
+    nightlight                        Toggle night light
+
+    run <command>                     Run any IPC command (launcher, dashboard, overview, etc.)
+
     help                              Show this help message
     version, -v, --version            Show NothingLess version
     goodbye                           Uninstall NothingLess :(
@@ -354,6 +370,17 @@ suspend)
 		# Fallback to D-Bus
 		dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager.Suspend boolean:true
 	fi
+	;;
+volume-up|volume-down|volume-mute|mic-mute|caffeine|gamemode|nightlight)
+	PID=$(find_nothingless_pid_cached)
+	if [ -z "$PID" ]; then
+		echo "Error: NothingLess is not running"
+		exit 1
+	fi
+	qs ipc --pid "$PID" call nothingless run "$1" 2>/dev/null || {
+		echo "Error: Could not run command '$1'"
+		exit 1
+	}
 	;;
 brightness)
 	PID=$(find_nothingless_pid_cached)
@@ -769,8 +796,17 @@ help | --help | -h)
 	else
 		RHI_BACKEND="opengl"
 	fi
+	# Try Vulkan first, fall back to OpenGL, then software
+	if [ "$RHI_BACKEND" = "opengl" ] && ! ls /usr/lib/qt6/plugins/scenegraph/*opengl* 2>/dev/null; then
+		if ls /usr/lib/qt6/plugins/scenegraph/*vulkan* 2>/dev/null; then
+			RHI_BACKEND="vulkan"
+		else
+			RHI_BACKEND="software"
+		fi
+	fi
 	export QSG_RHI_BACKEND="$RHI_BACKEND"
 	export QSG_RENDER_LOOP="threaded"
+	export QML_XHR_ALLOW_FILE_READ=1
 
 	# Cache this script's PID before exec (for fast PID lookups in future CLI calls)
 	echo $$ >/tmp/nothingless.pid
