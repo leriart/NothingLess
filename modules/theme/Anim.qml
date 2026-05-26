@@ -337,6 +337,67 @@ QtObject {
     }
 
     // ============================================
+    // HYPRLAND ANIMATION CONFIG
+    // ============================================
+    // Returns bezier curve and speed for Hyprland animations based on style.
+    readonly property var _hyprBeziers: ({
+        "m3":               { curve: [0.2, 0.0, 0.0, 1.0], speed: 2.5, name: "nl-standard" },
+        "windows-classic":  { curve: [0.0, 0.0, 1.0, 1.0], speed: 1.0, name: "nl-linear" },
+        "windows-xp":       { curve: [0.25, 0.1, 0.25, 1.0], speed: 2.0, name: "nl-xp" },
+        "windows-7":        { curve: [0.1, 0.0, 0.2, 1.0], speed: 2.5, name: "nl-aero" },
+        "mac-classic":      { curve: [0.0, 0.0, 1.0, 1.0], speed: 0.5, name: "nl-linear" },
+        "mac-legacy":       { curve: [0.42, 0.0, 0.58, 1.0], speed: 3.0, name: "nl-aqua" },
+        "mac-modern":       { curve: [0.34, 0.01, 0.12, 1.0], speed: 2.5, name: "nl-natural" },
+        "android-legacy":   { curve: [0.4, 0.0, 0.6, 1.0], speed: 1.5, name: "nl-android-legacy" },
+        "android-material": { curve: [0.4, 0.0, 0.2, 1.0], speed: 2.0, name: "nl-material" },
+        "android-you":      { curve: [0.2, 0.0, 0.0, 1.0], speed: 3.0, name: "nl-you" }
+    })
+
+    /*! Get Hyprland bezier animation config for the current style.
+        @returns { curve: number[], speed: number, name: string }
+        - curve: bezier control points for Hyprland's bezier keyword
+        - speed: animation speed multiplier for Hyprland
+        - name: unique bezier name to use in animation keywords */
+    function hyprConfig() {
+        const cfg = root._hyprBeziers[root._styleKey];
+        if (!cfg) return root._hyprBeziers["m3"];
+        return cfg;
+    }
+
+    /*! Get the Hyprland bezier definition line(s) needed for the current style.
+        Returns: "bezier = nl-name, cx1, cy1, cx2, cy2" */
+    function hyprBezierDef() {
+        const cfg = root.hyprConfig();
+        const c = cfg.curve;
+        return `bezier = ${cfg.name}, ${c[0]}, ${c[1]}, ${c[2]}, ${c[3]}`;
+    }
+
+    /*! Get the Hyprland animation command for a specific type.
+        @param type: "windows" | "border" | "fade" | "workspaces"
+        @param orientation: "horizontal" | "vertical" (for workspaces)
+        @returns the keyword command string */
+    function hyprAnimation(type, orientation) {
+        const cfg = root.hyprConfig();
+        const speed = cfg.speed.toFixed(1);
+        const bezierName = cfg.name;
+        const enabled = root.animationsEnabled ? "1" : "0";
+
+        switch (type) {
+        case "windows":
+            return `keyword animation windows,${enabled},${speed},${bezierName},popin 80%`;
+        case "border":
+            return `keyword animation border,${enabled},${speed},${bezierName}`;
+        case "fade":
+            return `keyword animation fade,${enabled},${speed},${bezierName}`;
+        case "workspaces":
+            const anim = orientation === "vertical" ? "slidefadevert 20%" : "slidefade 20%";
+            return `keyword animation workspaces,${enabled},${speed},${bezierName},${anim}`;
+        default:
+            return "";
+        }
+    }
+
+    // ============================================
     // STYLE INFO
     // ============================================
     readonly property string styleName: root._profile.name || "M3"

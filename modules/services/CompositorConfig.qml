@@ -147,8 +147,8 @@ QtObject {
             }
         }
 
-        const workspacesAnimation = barOrientation === "vertical" ? `slidefadevert 20%` : `slidefade 20%`;
-        const workspaceCommand = `keyword animation workspaces,1,${speed},${bezier},${workspacesAnimation}`;
+        // Workspace animation — styled by current animation profile
+        const workspaceCommand = Anim.hyprAnimation("workspaces", barOrientation);
 
         // Calculate ignorealpha.
         let ignoreAlphaValue = 0.0;
@@ -332,10 +332,14 @@ QtObject {
         batchCommand += ` ; keyword misc:force_default_wallpaper ${Config.compositor.forceDefaultWallpaper}`;
         batchCommand += ` ; keyword misc:no_update_news ${Config.compositor.noUpdateNews}`;
 
-        // Animations and layer rules
-        batchCommand += ` ; keyword animation windows,1,2.5,myBezier,popin 80%`;
-        batchCommand += ` ; keyword animation border,1,2.5,myBezier`;
-        batchCommand += ` ; keyword animation fade,1,2.5,myBezier`;
+        // Animations and layer rules — styled by current animation profile
+        const animCfg = Anim.hyprConfig();
+        if (animCfg) {
+            batchCommand += ` ; ${Anim.hyprBezierDef()}`;
+        }
+        batchCommand += ` ; ${Anim.hyprAnimation("windows")}`;
+        batchCommand += ` ; ${Anim.hyprAnimation("border")}`;
+        batchCommand += ` ; ${Anim.hyprAnimation("fade")}`;
         batchCommand += ` ; ${workspaceCommand}`;
         // Note: workspaceCommand is dynamically calculated based on current animations and orientation.
 
