@@ -219,23 +219,23 @@ Item {
                 y: 0
 
                 Behavior on opacity {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Math.max(0, Config.animDuration - 100)
+                        duration: Anim.standardNormal
                         easing.type: Easing.OutQuad
                     }
                 }
                 Behavior on x {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Math.max(0, Config.animDuration - 100)
+                        duration: Anim.standardNormal
                         easing.type: Easing.OutQuad
                     }
                 }
                 Behavior on width {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Math.max(0, Config.animDuration - 100)
+                        duration: Anim.standardNormal
                         easing.type: Easing.OutQuad
                     }
                 }
@@ -270,23 +270,23 @@ Item {
                 y: modelData.start * workspaceButtonWidth
 
                 Behavior on opacity {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Math.max(0, Config.animDuration - 100)
+                        duration: Anim.standardNormal
                         easing.type: Easing.OutQuad
                     }
                 }
                 Behavior on y {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Math.max(0, Config.animDuration - 100)
+                        duration: Anim.standardNormal
                         easing.type: Easing.OutQuad
                     }
                 }
                 Behavior on height {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Math.max(0, Config.animDuration - 100)
+                        duration: Anim.standardNormal
                         easing.type: Easing.OutQuad
                     }
                 }
@@ -323,29 +323,31 @@ Item {
 
         Behavior on activeWorkspaceMargin {
 
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
 
             NumberAnimation {
-                duration: Config.animDuration / 2
+                duration: Anim.standardSmall
                 easing.type: Easing.OutQuad
             }
         }
         Behavior on idx1 {
 
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
 
             NumberAnimation {
-                duration: Config.animDuration / 3
-                easing.type: Easing.OutSine
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("spatial").type
+                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
             }
         }
         Behavior on idx2 {
 
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
 
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: Easing.OutSine
+                duration: Anim.standardNormal
+                easing.type: Anim.easing("spatial").type
+                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
             }
         }
     }
@@ -379,29 +381,31 @@ Item {
 
         Behavior on activeWorkspaceMargin {
 
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
 
             NumberAnimation {
-                duration: Config.animDuration / 2
+                duration: Anim.standardSmall
                 easing.type: Easing.OutQuad
             }
         }
         Behavior on idx1 {
 
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
 
             NumberAnimation {
-                duration: Config.animDuration / 3
-                easing.type: Easing.OutSine
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("spatial").type
+                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
             }
         }
         Behavior on idx2 {
 
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
 
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: Easing.OutSine
+                duration: Anim.standardNormal
+                easing.type: Anim.easing("spatial").type
+                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
             }
         }
     }
@@ -477,9 +481,9 @@ Item {
                         color: ((monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : undefined) == button.workspaceValue) ? Styling.srItem("primary") : button.hovered ? Colors.overBackground : (workspaceOccupied[index] ? Colors.overBackground : Colors.overSecondaryFixedVariant)
 
                         Behavior on opacity {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: 150
+                                duration: Anim.spatialFast
                                 easing.type: Easing.OutQuad
                             }
                         }
@@ -494,9 +498,9 @@ Item {
                         color: ((monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : undefined) == button.workspaceValue) ? Styling.srItem("primary") : button.hovered ? Styling.srItem("primary") : Colors.overBackground
 
                         Behavior on opacity {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: 150
+                                duration: Anim.spatialFast
                                 easing.type: Easing.OutQuad
                             }
                         }
@@ -518,30 +522,30 @@ Item {
                             implicitSize: (!Config.workspaces.alwaysShowNumbers && Config.workspaces.showAppIcons) ? workspaceIconSize : workspaceIconSizeShrinked
 
                             Behavior on opacity {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 150
+                                    duration: Anim.spatialFast
                                     easing.type: Easing.OutQuad
                                 }
                             }
                             Behavior on anchors.bottomMargin {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 150
+                                    duration: Anim.spatialFast
                                     easing.type: Easing.OutQuad
                                 }
                             }
                             Behavior on anchors.rightMargin {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 150
+                                    duration: Anim.spatialFast
                                     easing.type: Easing.OutQuad
                                 }
                             }
                             Behavior on implicitSize {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 150
+                                    duration: Anim.spatialFast
                                     easing.type: Easing.OutQuad
                                 }
                             }
@@ -627,9 +631,9 @@ Item {
                         color: ((monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : undefined) == buttonVert.workspaceValue) ? Styling.srItem("primary") : buttonVert.hovered ? Colors.overBackground : (workspaceOccupied[index] ? Colors.overBackground : Colors.overSecondaryFixedVariant)
 
                         Behavior on opacity {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: 150
+                                duration: Anim.spatialFast
                                 easing.type: Easing.OutQuad
                             }
                         }
@@ -644,9 +648,9 @@ Item {
                         color: ((monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : undefined) == buttonVert.workspaceValue) ? Styling.srItem("primary") : Colors.overBackground
 
                         Behavior on opacity {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: 150
+                                duration: Anim.spatialFast
                                 easing.type: Easing.OutQuad
                             }
                         }
@@ -668,30 +672,30 @@ Item {
                             implicitSize: (!Config.workspaces.alwaysShowNumbers && Config.workspaces.showAppIcons) ? workspaceIconSize : workspaceIconSizeShrinked
 
                             Behavior on opacity {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 150
+                                    duration: Anim.spatialFast
                                     easing.type: Easing.OutQuad
                                 }
                             }
                             Behavior on anchors.bottomMargin {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 150
+                                    duration: Anim.spatialFast
                                     easing.type: Easing.OutQuad
                                 }
                             }
                             Behavior on anchors.rightMargin {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 150
+                                    duration: Anim.spatialFast
                                     easing.type: Easing.OutQuad
                                 }
                             }
                             Behavior on implicitSize {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 150
+                                    duration: Anim.spatialFast
                                     easing.type: Easing.OutQuad
                                 }
                             }

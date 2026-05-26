@@ -1,27 +1,41 @@
 {
   "position": "top",
-  "launcherIcon": "/home/leo/Imágenes/Iconos/Nothing.png",
+  "launcherIcon": "/home/leo/Im\u00e1genes/Iconos/Nothing.png",
   "launcherIconTint": true,
   "launcherIconFullTint": true,
   "launcherIconSize": 22,
   "pillStyle": "default",
-  "screenList": [],
   "enableFirefoxPlayer": true,
+  "enableChromiumPlayer": true,
   "barColor": [
     [
-      "surfaceContainer",
-      0
+      "surfaceDim",
+      0.85
     ]
   ],
   "frameEnabled": false,
-  "frameThickness": 8,
-  "pinnedOnStartup": true,
-  "hoverToReveal": true,
-  "hoverRegionHeight": 4,
+  "pinnedOnStartup": false,
+  "hoverToReveal": false,
   "showPinButton": false,
   "availableOnFullscreen": true,
   "use12hFormat": true,
   "containBar": false,
   "keepBarShadow": false,
-  "keepBarBorder": false
+  "keepBarBorder": false,
+  "iconSpacing": 6,
+  "widgetSpacing": 4,
+  "barPadding": 4,
+  "clockFormat": "hh:mm",
+  "showDate": false,
+  "showBattery": true,
+  "showVolume": true,
+  "showBluetooth": true,
+  "showNetwork": true,
+  "showTray": true,
+  "taskTrayEnabled": true,
+  "taskTrayShowToggle": true,
+  "taskTrayAlwaysVisible": false,
+  "showWorkspaces": true,
+  "showActiveWindow": false,
+  "barMode": "dynamic"
 }

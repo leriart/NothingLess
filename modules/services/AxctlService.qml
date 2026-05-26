@@ -3,6 +3,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import qs.modules.services
 
 Singleton {
     id: root
@@ -32,6 +33,12 @@ Singleton {
     property string configPath: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/nothingless/axctl.toml"
 
     function dispatch(command) {
+        // Use IpcPool to coalesce rapid dispatches
+        IpcPool.dispatch(command);
+    }
+
+    function dispatchImmediate(command) {
+        // Original immediate dispatch (used for urgent commands)
         if (!command) return;
 
         let spaceIdx = command.indexOf(' ');
@@ -164,16 +171,63 @@ Singleton {
         running: true
     }
 
+    property int _daemonRestartCount: 0
+    property bool _daemonOk: false
+
+    // Kill any lingering axctl daemon before starting fresh
+    property Process _killOldDaemon: Process {
+        command: ["sh", "-c", "pkill -f 'axctl.*daemon' 2>/dev/null; sleep 0.2"]
+        running: false
+        onExited: {
+            // Start fresh daemon after killing old one
+            root._daemonRestartCount = 0;
+            root._daemonOk = false;
+            Qt.callLater(() => { axctlProcess.running = true; });
+        }
+    }
+
     property Process axctlProcess: Process {
         command: ["axctl", "-c", root.configPath, "daemon"]
-        running: true
+        running: false
         stdout: SplitParser {
             onRead: (data) => {
-                // Daemon logs can be printed here if needed
+                if (data && data.toString().length > 0) {
+                    root._daemonOk = true;
+                    root._daemonRestartCount = 0;
+                }
             }
         }
+        onStarted: {
+            console.log("AxctlService: daemon started");
+            root._daemonOk = true;
+            root._daemonRestartCount = 0;
+            // Start subscribing after daemon starts
+            Qt.callLater(() => { subscribeDelay.running = true; });
+        }
         onExited: (code) => {
-            console.warn("axctl daemon exited with code:", code)
+            console.warn("axctl daemon exited with code:", code);
+            root._daemonOk = false;
+            // Auto-restart with backoff (max 10 retries)
+            if (root._daemonRestartCount < 10) {
+                const delay = Math.min(30000, 1000 * Math.pow(2, root._daemonRestartCount));
+                root._daemonRestartCount++;
+                console.log("AxctlService: restarting daemon in", delay/1000 + "s (attempt", root._daemonRestartCount + "/10)");
+                Qt.callLater(() => {
+                    root._killOldDaemon.running = true;
+                });
+            } else {
+                console.error("AxctlService: daemon failed to start after 10 attempts, giving up");
+            }
+        }
+    }
+
+    // Initial daemon start with old-daemon cleanup
+    Timer {
+        id: daemonStartTimer
+        interval: 300
+        running: true
+        onTriggered: {
+            root._killOldDaemon.running = true;
         }
     }
 
@@ -181,16 +235,32 @@ Singleton {
     Timer {
         id: subscribeDelay
         interval: 500
-        running: true
+        running: false
         onTriggered: axctlSubscribe.running = true
     }
 
-    // Auto-reconnect on unexpected subscribe exit
+    // Auto-reconnect on unexpected subscribe exit (with backoff and retry limit)
     Timer {
         id: reconnectTimer
         interval: 1000
-        onTriggered: axctlSubscribe.running = true
+        property int retryCount: 0
+        property int maxRetries: 5
+        onTriggered: {
+            if (root._subscribeOk) {
+                // Was working before, retry with backoff
+                interval = Math.min(10000, 1000 * Math.pow(2, retryCount));
+                retryCount++;
+                if (retryCount <= maxRetries) {
+                    console.log("AxctlService: retrying subscribe (attempt", retryCount + "/" + maxRetries + ")");
+                    axctlSubscribe.running = true;
+                } else {
+                    console.warn("AxctlService: subscribe failed after", maxRetries, "retries, giving up");
+                }
+            }
+        }
     }
+
+    property bool _subscribeOk: false
 
     property Process axctlSubscribe: Process {
         command: ["axctl", "subscribe"]
@@ -200,6 +270,11 @@ Singleton {
                 if (!data) return;
                 try {
                     let parsedJson = JSON.parse(data);
+
+                    // Mark as successfully connected
+                    root._subscribeOk = true;
+                    reconnectTimer.retryCount = 0;
+                    reconnectTimer.interval = 1000;
 
                     // Apply inline state immediately (every event carries full state)
                     if (parsedJson.state) {
@@ -217,6 +292,9 @@ Singleton {
         }
         onExited: (code) => {
             console.warn("axctl subscribe exited:", code);
+            if (code !== 0) {
+                root._subscribeOk = false;
+            }
             reconnectTimer.restart();
         }
     }

@@ -128,10 +128,11 @@ StyledRect {
         opacity: (player.hasArtwork || player.wallpaperPath !== "") ? 0.25 : 0.0
         visible: player.hasArtwork || player.wallpaperPath !== ""
         Behavior on opacity {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: Easing.OutQuart
+                duration: Anim.standardNormal
+                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
     }
@@ -158,10 +159,11 @@ StyledRect {
         opacity: (player.hasArtwork || player.wallpaperPath !== "") ? 1.0 : 0.0
         visible: player.hasArtwork || player.wallpaperPath !== ""
         Behavior on opacity {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: Easing.OutQuart
+                duration: Anim.standardNormal
+                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
     }
@@ -455,7 +457,8 @@ StyledRect {
                 NumberAnimation {
                     properties: "radius"
                     duration: 300
-                    easing.type: Easing.OutBack
+                    easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                 }
             }
 

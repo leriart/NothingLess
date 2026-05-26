@@ -368,10 +368,11 @@ FocusScope {
                     opacity: 1.0
 
                     Behavior on opacity {
-                        enabled: Config.animDuration > 0
+                        enabled: Anim.animationsEnabled
                         NumberAnimation {
-                            duration: Config.animDuration / 2
-                            easing.type: Easing.OutQuart
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
 
@@ -398,10 +399,11 @@ FocusScope {
                                 elide: Text.ElideRight
                                 
                                 Behavior on color {
-                                    enabled: Config.animDuration > 0
+                                    enabled: Anim.animationsEnabled
                                     ColorAnimation {
-                                        duration: Config.animDuration / 2
-                                        easing.type: Easing.OutQuart
+                                        duration: Anim.standardSmall
+                                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                     }
                                 }
                             }
@@ -457,10 +459,11 @@ FocusScope {
                                     opacity: perScreenCheckbox.checked ? 1.0 : 0.0
 
                                     Behavior on opacity {
-                                        enabled: Config.animDuration > 0
+                                        enabled: Anim.animationsEnabled
                                         NumberAnimation {
-                                            duration: Config.animDuration / 2
-                                            easing.type: Easing.OutQuart
+                                            duration: Anim.standardSmall
+                                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                         }
                                     }
 
@@ -473,11 +476,11 @@ FocusScope {
                                         scale: perScreenCheckbox.checked ? 1.0 : 0.0
 
                                         Behavior on scale {
-                                            enabled: Config.animDuration > 0
+                                            enabled: Anim.animationsEnabled
                                             NumberAnimation {
-                                                duration: Config.animDuration / 2
-                                                easing.type: Easing.OutBack
-                                                easing.overshoot: 1.5
+                                                duration: Anim.standardSmall
+                                                easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                                             }
                                         }
                                     }
@@ -511,10 +514,11 @@ FocusScope {
                     opacity: oledCheckbox.enabled ? 1.0 : 0.5
 
                     Behavior on opacity {
-                        enabled: Config.animDuration > 0
+                        enabled: Anim.animationsEnabled
                         NumberAnimation {
-                            duration: Config.animDuration / 2
-                            easing.type: Easing.OutQuart
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
 
@@ -540,10 +544,11 @@ FocusScope {
                                 leftPadding: 8
 
                                 Behavior on color {
-                                    enabled: Config.animDuration > 0
+                                    enabled: Anim.animationsEnabled
                                     ColorAnimation {
-                                        duration: Config.animDuration / 2
-                                        easing.type: Easing.OutQuart
+                                        duration: Anim.standardSmall
+                                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                     }
                                 }
                             }
@@ -610,10 +615,11 @@ FocusScope {
                                     opacity: oledCheckbox.checked ? 1.0 : 0.0
 
                                     Behavior on opacity {
-                                        enabled: Config.animDuration > 0
+                                        enabled: Anim.animationsEnabled
                                         NumberAnimation {
-                                            duration: Config.animDuration / 2
-                                            easing.type: Easing.OutQuart
+                                            duration: Anim.standardSmall
+                                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                         }
                                     }
 
@@ -626,11 +632,11 @@ FocusScope {
                                         scale: oledCheckbox.checked ? 1.0 : 0.0
 
                                         Behavior on scale {
-                                            enabled: Config.animDuration > 0
+                                            enabled: Anim.animationsEnabled
                                             NumberAnimation {
-                                                duration: Config.animDuration / 2
-                                                easing.type: Easing.OutBack
-                                                easing.overshoot: 1.5
+                                                duration: Anim.standardSmall
+                                                easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                                             }
                                         }
                                     }
@@ -740,10 +746,11 @@ FocusScope {
                                     opacity: tintCheckbox.checked ? 1.0 : 0.0
 
                                     Behavior on opacity {
-                                        enabled: Config.animDuration > 0
+                                        enabled: Anim.animationsEnabled
                                         NumberAnimation {
-                                            duration: Config.animDuration / 2
-                                            easing.type: Easing.OutQuart
+                                            duration: Anim.standardSmall
+                                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                         }
                                     }
 
@@ -756,11 +763,11 @@ FocusScope {
                                         scale: tintCheckbox.checked ? 1.0 : 0.0
 
                                         Behavior on scale {
-                                            enabled: Config.animDuration > 0
+                                            enabled: Anim.animationsEnabled
                                             NumberAnimation {
-                                                duration: Config.animDuration / 2
-                                                easing.type: Easing.OutBack
-                                                easing.overshoot: 1.5
+                                                duration: Anim.standardSmall
+                                                easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                                             }
                                         }
                                     }
@@ -897,10 +904,11 @@ FocusScope {
                                     opacity: interpolationCheckbox.checked ? 1.0 : 0.0
 
                                     Behavior on opacity {
-                                        enabled: Config.animDuration > 0
+                                        enabled: Anim.animationsEnabled
                                         NumberAnimation {
-                                            duration: Config.animDuration / 2
-                                            easing.type: Easing.OutQuart
+                                            duration: Anim.standardSmall
+                                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                         }
                                     }
 
@@ -913,11 +921,11 @@ FocusScope {
                                         scale: interpolationCheckbox.checked ? 1.0 : 0.0
 
                                         Behavior on scale {
-                                            enabled: Config.animDuration > 0
+                                            enabled: Anim.animationsEnabled
                                             NumberAnimation {
-                                                duration: Config.animDuration / 2
-                                                easing.type: Easing.OutBack
-                                                easing.overshoot: 1.5
+                                                duration: Anim.standardSmall
+                                                easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                                             }
                                         }
                                     }
@@ -1113,18 +1121,20 @@ FocusScope {
 
                     // Deshabilitar animaciones durante scroll para evitar saltos
                     Behavior on x {
-                        enabled: Config.animDuration > 0 && !wallpaperGrid.isScrolling
+                        enabled: Anim.animationsEnabled && !wallpaperGrid.isScrolling
                         NumberAnimation {
-                            duration: Config.animDuration / 2
-                            easing.type: Easing.OutQuart
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
 
                     Behavior on y {
-                        enabled: Config.animDuration > 0 && !wallpaperGrid.isScrolling
+                        enabled: Anim.animationsEnabled && !wallpaperGrid.isScrolling
                         NumberAnimation {
-                            duration: Config.animDuration / 2
-                            easing.type: Easing.OutQuart
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
 
@@ -1391,18 +1401,20 @@ FocusScope {
 
                     // Animaciones de color y escala.
                     Behavior on color {
-                        enabled: Config.animDuration > 0
+                        enabled: Anim.animationsEnabled
                         ColorAnimation {
-                            duration: Config.animDuration / 2
-                            easing.type: Easing.OutCubic
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
 
                     Behavior on scale {
-                        enabled: Config.animDuration > 0
+                        enabled: Anim.animationsEnabled
                         NumberAnimation {
-                            duration: Config.animDuration / 3
-                            easing.type: Easing.OutCubic
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
                 }

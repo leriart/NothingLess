@@ -1,7 +1,7 @@
 {
-  "theme": "default",
+  "theme": "island",
   "position": "top",
-  "hoverRegionHeight": 16,
+  "hoverRegionHeight": 8,
   "keepHidden": false,
   "noMediaDisplay": "compositor",
   "customText": "NothingLess",

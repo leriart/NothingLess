@@ -310,9 +310,10 @@ StyledRect {
                         y: (parent.height - height) / 2
                         width: 14; height: 14; radius: 7
                         color: enabledSwitch.checked ? "#ffffff" : Colors.outline
-                        Behavior on x { enabled: Config.animDuration > 0; NumberAnimation { duration: Config.animDuration / 2; easing.type: Easing.OutCubic } }
+                        Behavior on x { enabled: Anim.animationsEnabled; NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve } }
                     }
-                    Behavior on color { enabled: Config.animDuration > 0; ColorAnimation { duration: Config.animDuration / 2 } }
+                    Behavior on color { enabled: Anim.animationsEnabled; ColorAnimation { duration: Anim.standardSmall } }
                 }
             }
         }
@@ -324,8 +325,9 @@ StyledRect {
             clip: true
             visible: !root.isCollapsed
             Behavior on Layout.preferredHeight {
-                enabled: Config.animDuration > 0
-                NumberAnimation { duration: Config.animDuration / 2; easing.type: Easing.OutCubic }
+                enabled: Anim.animationsEnabled
+                NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
             }
 
             ColumnLayout {

@@ -40,6 +40,19 @@ Item {
     property real overrideY: -1
     property bool useOverridePosition: false
 
+    // Force preview refresh when window geometry changes within same workspace
+    readonly property string _windowGeometryKey: windowData ?
+        (windowData.address + "|" + (windowData.at?.[0] ?? 0) + "," + (windowData.at?.[1] ?? 0) + "|" +
+         (windowData.size?.[0] ?? 0) + "," + (windowData.size?.[1] ?? 0) + "|" + (windowData.workspace?.id ?? 0)) : ""
+    on_WindowGeometryKeyChanged: {
+        if (GlobalStates.overviewOpen && windowPreview.hasContent) {
+            windowPreview.captureSource = null;
+            Qt.callLater(function() {
+                windowPreview.captureSource = Config.performance.windowPreview && GlobalStates.overviewOpen ? root.toplevel : null;
+            });
+        }
+    }
+
     // Cache calculated values
     // Monitor effective dimensions (accounting for rotation)
     readonly property real monitorEffectiveW: {
@@ -137,20 +150,23 @@ Item {
     scale: _closing ? 0.3 : (_entered ? hoverScale : 0.85)
 
     Behavior on scale {
-        enabled: Config.animDuration > 0
+        enabled: Anim.animationsEnabled
         NumberAnimation {
-            duration: _closing ? Config.animDuration * 0.4 : Config.animDuration * 0.6
-            easing.type: _closing ? Easing.InBack : Easing.OutBack
+            property var _ease: _closing ? Anim.easing("emphasized", "exit") : Anim.springSnappy()
+            duration: _closing ? Anim.standardSmall : Anim.standardNormal
+            easing.type: _ease.type
+            easing.bezierCurve: _ease.bezierCurve
         }
     }
 
     // Entry / close opacity
     opacity: _closing ? 0.0 : (_entered ? 1.0 : 0.0)
     Behavior on opacity {
-        enabled: Config.animDuration > 0
+        enabled: Anim.animationsEnabled
         NumberAnimation {
-            duration: _closing ? Config.animDuration * 0.3 : Config.animDuration * 0.4
-            easing.type: Easing.OutQuart
+            duration: _closing ? Anim.standardSmall : Anim.standardNormal
+            easing.type: Anim.easing("standard").type
+            easing.bezierCurve: Anim.easing("standard").bezierCurve
         }
     }
 
@@ -182,6 +198,16 @@ Item {
                     windowPreview.captureSource = Config.performance.windowPreview && GlobalStates.overviewOpen ? root.toplevel : null;
                 });
             }
+            // Also force refresh toplevel binding periodically to catch new windows
+            if (GlobalStates.overviewOpen) {
+                var currentToplevel = root.toplevel;
+                if (currentToplevel && !windowPreview.hasContent) {
+                    windowPreview.captureSource = null;
+                    Qt.callLater(function() {
+                        windowPreview.captureSource = Config.performance.windowPreview && GlobalStates.overviewOpen ? currentToplevel : null;
+                    });
+                }
+            }
         }
     }
 
@@ -191,20 +217,36 @@ Item {
     }
 
     Behavior on x {
-        enabled: Config.animDuration > 0 && !root.useOverridePosition
-        NumberAnimation { duration: Config.animDuration; easing.type: Easing.OutQuart }
+        enabled: Anim.animationsEnabled && !root.useOverridePosition
+        NumberAnimation {
+            duration: Anim.gpuFriendly("spatial", "default").duration
+            easing.type: Anim.gpuFriendly("spatial", "default").easing.type
+            easing.bezierCurve: Anim.gpuFriendly("spatial", "default").easing.bezierCurve
+        }
     }
     Behavior on y {
-        enabled: Config.animDuration > 0 && !root.useOverridePosition
-        NumberAnimation { duration: Config.animDuration; easing.type: Easing.OutQuart }
+        enabled: Anim.animationsEnabled && !root.useOverridePosition
+        NumberAnimation {
+            duration: Anim.gpuFriendly("spatial", "default").duration
+            easing.type: Anim.gpuFriendly("spatial", "default").easing.type
+            easing.bezierCurve: Anim.gpuFriendly("spatial", "default").easing.bezierCurve
+        }
     }
     Behavior on width {
-        enabled: Config.animDuration > 0
-        NumberAnimation { duration: Config.animDuration; easing.type: Easing.OutQuart }
+        enabled: Anim.animationsEnabled
+        NumberAnimation {
+            duration: Anim.gpuFriendly("spatial", "default").duration
+            easing.type: Anim.gpuFriendly("spatial", "default").easing.type
+            easing.bezierCurve: Anim.gpuFriendly("spatial", "default").easing.bezierCurve
+        }
     }
     Behavior on height {
-        enabled: Config.animDuration > 0
-        NumberAnimation { duration: Config.animDuration; easing.type: Easing.OutQuart }
+        enabled: Anim.animationsEnabled
+        NumberAnimation {
+            duration: Anim.gpuFriendly("spatial", "default").duration
+            easing.type: Anim.gpuFriendly("spatial", "default").easing.type
+            easing.bezierCurve: Anim.gpuFriendly("spatial", "default").easing.bezierCurve
+        }
     }
 
     // ── Live window preview: render at source size, Scale to fill card ──
@@ -251,13 +293,13 @@ Item {
         border.width: root.isSearchSelected ? 2 : root.isSearchMatch ? 2 : 1
 
         Behavior on border.color {
-            enabled: Config.animDuration > 0
-            ColorAnimation { duration: Config.animDuration / 2 }
+            enabled: Anim.animationsEnabled
+            ColorAnimation { duration: Anim.standardSmall }
         }
 
         Behavior on color {
-            enabled: Config.animDuration > 0
-            ColorAnimation { duration: Config.animDuration / 2 }
+            enabled: Anim.animationsEnabled
+            ColorAnimation { duration: Anim.standardSmall }
         }
     }
 
@@ -291,13 +333,17 @@ Item {
         z: 3
 
         Behavior on border.color {
-            enabled: Config.animDuration > 0
-            ColorAnimation { duration: Config.animDuration / 2 }
+            enabled: Anim.animationsEnabled
+            ColorAnimation { duration: Anim.standardSmall }
         }
 
         Behavior on border.width {
-            enabled: Config.animDuration > 0
-            NumberAnimation { duration: Config.animDuration / 2 }
+            enabled: Anim.animationsEnabled
+            NumberAnimation {
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
+            }
         }
     }
 
@@ -308,8 +354,8 @@ Item {
         color: pressed ? Qt.rgba(1, 1, 1, 0.10) : hovered ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
         z: 1
         Behavior on color {
-            enabled: Config.animDuration > 0
-            ColorAnimation { duration: Config.animDuration / 2 }
+            enabled: Anim.animationsEnabled
+            ColorAnimation { duration: Anim.standardSmall }
         }
     }
 

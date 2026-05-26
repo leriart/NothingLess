@@ -856,6 +856,8 @@ PanelWindow {
         property var source: null
         property var paletteTexture: null
         property real paletteSize: 0
+        property real sharpness: 20.0
+        property real mixStrength: 1.0
         property real texWidth: 1
         property real texHeight: 1
 
@@ -1338,12 +1340,16 @@ PanelWindow {
             SequentialAnimation {
                 id: transitionAnimation
                 ParallelAnimation {
-                    NumberAnimation { target: wallImageContainer; property: "scale"; to: 1.01; duration: Config.animDuration; easing.type: Easing.OutCubic }
-                    NumberAnimation { target: wallImageContainer; property: "opacity"; to: 0.5; duration: Config.animDuration; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: wallImageContainer; property: "scale"; to: 1.01; duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
+                    NumberAnimation { target: wallImageContainer; property: "opacity"; to: 0.5; duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
                 }
                 ParallelAnimation {
-                    NumberAnimation { target: wallImageContainer; property: "scale"; to: 1.0; duration: Config.animDuration; easing.type: Easing.OutCubic }
-                    NumberAnimation { target: wallImageContainer; property: "opacity"; to: 1.0; duration: Config.animDuration; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: wallImageContainer; property: "scale"; to: 1.0; duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
+                    NumberAnimation { target: wallImageContainer; property: "opacity"; to: 1.0; duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
                 }
             }
 

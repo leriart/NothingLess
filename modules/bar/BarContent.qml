@@ -8,6 +8,7 @@ import qs.modules.bar.workspaces
 import qs.modules.theme
 import qs.modules.bar.clock
 import qs.modules.bar.systray
+import qs.modules.widgets.defaultview
 import qs.modules.bar.tasktray
 import qs.modules.widgets.overview
 import qs.modules.widgets.dashboard
@@ -23,7 +24,11 @@ import "." as Bar
 Item {
     id: root
     required property ShellScreen screen
-    property string barPosition: (Config.bar && Config.bar.position !== undefined && ["top", "bottom", "left", "right"].includes(Config.bar.position) ? Config.bar.position : "top")
+    property string barPosition: {
+        const global = (Config.bar && Config.bar.position !== undefined && ["top", "bottom", "left", "right"].includes(Config.bar.position) ? Config.bar.position : "top");
+        return PerMonitorConfig.resolve(screen.name, "bar", "position", global);
+    }
+    property string barMode: (Config.bar && Config.bar.barMode) || "extended"
     property string orientation: barPosition === "left" || barPosition === "right" ? "vertical" : "horizontal"
     // Auto-hide properties
     onPinnedChanged: {
@@ -31,7 +36,7 @@ Item {
             Config.bar.pinnedOnStartup = pinned;
         }
     }
-    property bool pinned: (Config.bar && Config.bar.pinnedOnStartup !== undefined ? Config.bar.pinnedOnStartup : true)
+    property bool pinned: (Config.bar && Config.bar.pinnedOnStartup !== undefined ? Config.bar.pinnedOnStartup : true) && !(Config.bar && Config.bar.hoverToReveal !== undefined ? Config.bar.hoverToReveal : false)
     // Monitor reference and reference to toplevels on monitor
     readonly property var compositorMonitor: AxctlService.monitorFor(screen)
     readonly property var toplevels: (!compositorMonitor || !compositorMonitor.activeWorkspace || !AxctlService.clients.values) ? [] : AxctlService.clients.values.filter(c => c.workspace.id === compositorMonitor.activeWorkspace.id)
@@ -171,48 +176,77 @@ Item {
         // HoverHandler for bar hover detection (without blocking child hovers)
         HoverHandler {
             id: barHoverHandler
+            enabled: !bar.islandModeActive
             onHoveredChanged: {
                 root.isMouseOverBar = barHoverHandler.hovered;
             }
         }
         // Size includes margins
-        width: root.orientation === "horizontal" ? root.width : (root.reveal ? root.totalBarWidth : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset)
-        height: root.orientation === "vertical" ? root.height : (root.reveal ? root.totalBarHeight : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset)
+        width: {
+            if (root.orientation === "vertical") return root.reveal ? root.totalBarWidth : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset;
+            // Dynamic mode: always wrap content, never full width
+            if (root.barMode === "dynamic") {
+                const contentW = root.contentImplicitWidth + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2);
+                return root.reveal ? contentW : Math.max(contentW, (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8));
+            }
+            return root.width; // extended mode: full width
+        }
+        height: {
+            if (root.orientation === "horizontal") return root.reveal ? root.totalBarHeight : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset;
+            // Dynamic mode: always wrap content, never full height
+            if (root.barMode === "dynamic") {
+                const contentH = root.contentImplicitHeight + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2);
+                return root.reveal ? contentH : Math.max(contentH, (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8));
+            }
+            return root.height; // extended mode: full height
+        }
         // Position using x/y
         x: {
+            if (root.barMode === "dynamic" && root.orientation === "horizontal") {
+                // Dynamic horizontal: center in parent
+                return (parent.width - width) / 2;
+            }
             if (root.barPosition === "right") return parent.width - width;
             return 0;
         }
         y: {
+            if (root.barMode === "dynamic" && root.orientation === "vertical") {
+                // Dynamic vertical: center in parent
+                return (parent.height - height) / 2;
+            }
             if (root.barPosition === "bottom") return parent.height - height;
             return 0;
         }
         Behavior on x {
-            enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0 && root.orientation === "vertical"
+            enabled: Anim.animationsEnabled && root.orientation === "vertical"
             NumberAnimation {
-                duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 4
-                easing.type: Easing.OutCubic
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
         Behavior on y {
-            enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0 && root.orientation === "horizontal"
+            enabled: Anim.animationsEnabled && root.orientation === "horizontal"
             NumberAnimation {
-                duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 4
-                easing.type: Easing.OutCubic
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
         Behavior on width {
-            enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0 && root.orientation === "vertical"
+            enabled: Anim.animationsEnabled && root.orientation === "vertical"
             NumberAnimation {
-                duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 4
-                easing.type: Easing.OutCubic
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
         Behavior on height {
-            enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0 && root.orientation === "horizontal"
+            enabled: Anim.animationsEnabled && root.orientation === "horizontal"
             NumberAnimation {
-                duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 4
-                easing.type: Easing.OutCubic
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
         // Bar content inside MouseArea (clicks pass through to children)
@@ -230,13 +264,15 @@ Item {
             }
             // layer.enabled: true
             // layer.effect: Shadow {}
-            // Opacity animation
-            opacity: root.reveal ? 1 : 0
+            // Opacity — hide bar when island mode is active (notch IS the bar)
+            readonly property bool islandModeActive: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island" && root.barPosition === (Config.notchPosition || "top")
+            opacity: islandModeActive ? 0 : (root.reveal ? 1 : 0)
             Behavior on opacity {
-                enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
-                    easing.type: Easing.OutCubic
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
             // Slide animation
@@ -260,17 +296,19 @@ Item {
                     return 0;
                 }
                 Behavior on x {
-                    enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
-                        easing.type: Easing.OutCubic
+                        duration: Anim.spatialFast
+                        easing.type: Anim.easing("spatial").type
+                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
                     }
                 }
                 Behavior on y {
-                    enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
-                        easing.type: Easing.OutCubic
+                        duration: Anim.spatialFast
+                        easing.type: Anim.easing("spatial").type
+                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
                     }
                 }
             }
@@ -308,6 +346,8 @@ Item {
                     }
                 }
             ]
+
+
             BarBg {
                 id: barBg
                 anchors.fill: parent
@@ -320,13 +360,69 @@ Item {
                         spacing: 4
                         // Obtener referencia al notch de esta pantalla
                         readonly property var notchContainer: Visibilities.getNotchForScreen(root.screen.name)
+                        // Centered Dynamic Island inside the bar layout
+                        // Spacers push it to center without overlapping other elements
+                        Item { Layout.fillWidth: true; visible: inlineIslandLoader.active }
+
+                        Loader {
+                            id: inlineIslandLoader
+                            active: false
+                            visible: active
+                            Layout.alignment: Qt.AlignVCenter
+                            asynchronous: true
+                            source: Qt.resolvedUrl("IslandContent.qml")
+                            z: 0 // Same level as bar elements
+
+                            opacity: active ? 1 : 0
+                            scale: active ? 1 : 0.9
+                            Behavior on opacity {
+                                enabled: Anim.animationsEnabled
+                                NumberAnimation {
+                                    duration: Anim.emphasizedNormal
+                                    easing.type: Anim.easing("emphasized").type
+                                    easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+                                }
+                            }
+                            Behavior on scale {
+                                enabled: Anim.animationsEnabled
+                                NumberAnimation {
+                                    duration: Anim.emphasizedNormal
+                                    easing.type: Anim.springSnappy().type
+                                    easing.bezierCurve: Anim.springSnappy().bezierCurve
+                                }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                anchors.margins: -4
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    var v = Visibilities.getForScreen(root.screen.name);
+                                    if (v) v.launcher = !v.launcher;
+                                }
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true; visible: inlineIslandLoader.active }
+
+                        Timer {
+                            interval: 2000
+                            running: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
+                            repeat: false
+                            onTriggered: {
+                                inlineIslandLoader.active = true;
+                            }
+                        }
+
                         LauncherButton {
                             id: launcherButton
+                            visible: !Config.bar.hiddenIcons.includes("launcher")
                             startRadius: root.outerRadius
                             endRadius: root.innerRadius
                             enableShadow: root.shadowsEnabled
                         }
                         Workspaces {
+                            visible: !Config.bar.hiddenIcons.includes("workspaces")
                             orientation: root.orientation
                             bar: QtObject {
                                 property var screen: root.screen
@@ -334,6 +430,9 @@ Item {
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
                         }
+
+
+
                         LayoutSelectorButton {
             visible: !Config.bar.hiddenIcons.includes("layout")
                             id: layoutSelectorButton
@@ -368,9 +467,9 @@ Item {
                                         opacity: root.pinned ? 0 : (pinButton.pressed ? 0.5 : (pinButton.hovered ? 0.25 : 0))
                                         radius: (parent.radius !== undefined ? parent.radius : 0)
                                         Behavior on opacity {
-                                            enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                            enabled: Anim.animationsEnabled
                                             NumberAnimation {
-                                                duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                                duration: Anim.standardSmall
                                             }
                                         }
                                     }
@@ -384,15 +483,15 @@ Item {
                                     verticalAlignment: Text.AlignVCenter
                                     rotation: root.pinned ? 0 : 45
                                     Behavior on rotation {
-                                        enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                        enabled: Anim.animationsEnabled
                                         NumberAnimation {
-                                            duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                            duration: Anim.standardSmall
                                         }
                                     }
                                     Behavior on color {
-                                        enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                        enabled: Anim.animationsEnabled
                                         ColorAnimation {
-                                            duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                            duration: Anim.standardSmall
                                         }
                                     }
                                 }
@@ -437,6 +536,7 @@ Item {
                         }
                         PresetsButton {
                             id: presetsButton
+                            visible: !Config.bar.hiddenIcons.includes("presets")
                             startRadius: root.dockAtEnd ? root.innerRadius : root.outerRadius
                             endRadius: root.innerRadius
                             enableShadow: root.shadowsEnabled
@@ -449,6 +549,7 @@ Item {
                             enableShadow: root.shadowsEnabled
                         }
                         SysTray {
+                            visible: !Config.bar.hiddenIcons.includes("systray")
                             bar: root
                             enableShadow: root.shadowsEnabled
                             startRadius: root.innerRadius
@@ -456,6 +557,7 @@ Item {
                         }
                         // Running tasks tray
                         TaskTray {
+                            visible: !Config.bar.hiddenIcons.includes("tasktray")
                             bar: root
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
@@ -478,6 +580,7 @@ Item {
                         }
                         Clock {
                             id: clockComponent
+                            visible: !Config.bar.hiddenIcons.includes("clock")
                             bar: root
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.innerRadius
@@ -485,6 +588,7 @@ Item {
                         }
                         PowerButton {
                             id: powerButton
+                            visible: !Config.bar.hiddenIcons.includes("power")
                             startRadius: root.innerRadius
                             endRadius: root.outerRadius
                             enableShadow: root.shadowsEnabled
@@ -499,6 +603,7 @@ Item {
                         spacing: 4
                         LauncherButton {
                             id: launcherButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("launcher")
                             Layout.preferredHeight: 36
                             startRadius: root.outerRadius
                             endRadius: root.innerRadius
@@ -506,18 +611,21 @@ Item {
                             enableShadow: root.shadowsEnabled
                         }
                         SysTray {
+                            visible: !Config.bar.hiddenIcons.includes("systray")
                             bar: root
                             enableShadow: root.shadowsEnabled
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
                         }
                         TaskTray {
+                            visible: !Config.bar.hiddenIcons.includes("tasktray")
                             bar: root
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
                         }
                         ToolsButton {
                             id: toolsButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("tools")
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
                             vertical: true
@@ -525,6 +633,7 @@ Item {
                         }
                         PresetsButton {
                             id: presetsButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("presets")
                             startRadius: root.innerRadius
                             endRadius: root.outerRadius
                             vertical: true
@@ -552,6 +661,7 @@ Item {
                                 spacing: 4
                                 LayoutSelectorButton {
                                     id: layoutSelectorButtonVert
+                                    visible: !Config.bar.hiddenIcons.includes("layout")
                                     bar: root
                                     layerEnabled: root.shadowsEnabled
                                     Layout.alignment: Qt.AlignHCenter
@@ -561,6 +671,7 @@ Item {
                                 }
                                 Workspaces {
                                     id: workspacesVert
+                                    visible: !Config.bar.hiddenIcons.includes("workspaces")
                                     orientation: root.orientation
                                     bar: QtObject {
                                         property var screen: root.screen
@@ -595,9 +706,9 @@ Item {
                                                 opacity: root.pinned ? 0 : (pinButtonV.pressed ? 0.5 : (pinButtonV.hovered ? 0.25 : 0))
                                                 radius: (parent.radius !== undefined ? parent.radius : 0)
                                                 Behavior on opacity {
-                                                    enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                                    enabled: Anim.animationsEnabled
                                                     NumberAnimation {
-                                                        duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                                        duration: Anim.standardSmall
                                                     }
                                                 }
                                             }
@@ -611,15 +722,15 @@ Item {
                                             verticalAlignment: Text.AlignVCenter
                                             rotation: root.pinned ? 0 : 45
                                             Behavior on rotation {
-                                                enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                                enabled: Anim.animationsEnabled
                                                 NumberAnimation {
-                                                    duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                                    duration: Anim.standardSmall
                                                 }
                                             }
                                             Behavior on color {
-                                                enabled: (Config.animDuration !== undefined ? Config.animDuration : 0) > 0
+                                                enabled: Anim.animationsEnabled
                                                 ColorAnimation {
-                                                    duration: (Config.animDuration !== undefined ? Config.animDuration : 0) / 2
+                                                    duration: Anim.standardSmall
                                                 }
                                             }
                                         }
@@ -644,6 +755,7 @@ Item {
                         }
                         ControlsButton {
                             id: controlsButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("controls")
                             bar: root
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.outerRadius
@@ -659,6 +771,7 @@ Item {
                         }
                         Clock {
                             id: clockComponentVert
+                            visible: !Config.bar.hiddenIcons.includes("clock")
                             bar: root
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.innerRadius
@@ -666,6 +779,7 @@ Item {
                         }
                         PowerButton {
                             id: powerButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("power")
                             Layout.preferredHeight: 36
                             startRadius: root.innerRadius
                             endRadius: root.outerRadius

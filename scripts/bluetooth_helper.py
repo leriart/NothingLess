@@ -155,14 +155,22 @@ def cmd_scan_find(duration=8):
         print(json.dumps({"error": str(e), "devices": []}))
         return
 
-    # Merge known devices
+    # Merge known devices — only mark as paired if in the Paired list
+    out, _, _ = run_btctl("devices", "Paired")
+    paired_set = set()
+    for line in out.split("\n"):
+        if line.strip().startswith("Device "):
+            parts = line.strip().split(" ", 2)
+            if len(parts) >= 2:
+                paired_set.add(parts[1])
+
     out, _, _ = run_btctl("devices")
     for line in out.split("\n"):
         if line.strip().startswith("Device "):
             parts = line.strip().split(" ", 2)
             if len(parts) >= 3 and parts[1] not in discovered:
                 discovered[parts[1]] = {"address": parts[1], "name": parts[2],
-                                         "paired": True}
+                                         "paired": parts[1] in paired_set}
     # Mark connected
     out2, _, _ = run_btctl("devices", "Connected")
     for line in out2.split("\n"):

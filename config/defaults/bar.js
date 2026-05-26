@@ -1,6 +1,7 @@
 .pragma library
 
 var data = {
+    "barMode": "extended",
     "position": "top",
     "launcherIcon": "",
     "launcherIconTint": true,

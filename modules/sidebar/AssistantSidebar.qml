@@ -155,8 +155,9 @@ Item {
         Behavior on x {
             NumberAnimation {
                 id: slideAnimation
-                duration: Config.animDuration
-                easing.type: Easing.OutCubic
+                duration: Anim.standardNormal
+                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 
@@ -201,7 +202,7 @@ Item {
                                 opacity: parent.hovered ? 1 : 0
                                 Behavior on opacity {
                                     NumberAnimation {
-                                        duration: Config.animDuration / 4
+                                        duration: Anim.standardSmall
                                     }
                                 }
                             }
@@ -227,7 +228,7 @@ Item {
                                 opacity: parent.hovered ? 1 : 0
                                 Behavior on opacity {
                                     NumberAnimation {
-                                        duration: Config.animDuration / 4
+                                        duration: Anim.standardSmall
                                     }
                                 }
                             }
@@ -259,7 +260,7 @@ Item {
 
                                 Behavior on opacity {
                                     NumberAnimation {
-                                        duration: Config.animDuration / 4
+                                        duration: Anim.standardSmall
                                     }
                                 }
                             }
@@ -296,7 +297,7 @@ Item {
 
                                 Behavior on opacity {
                                     NumberAnimation {
-                                        duration: Config.animDuration / 4
+                                        duration: Anim.standardSmall
                                     }
                                 }
                             }
@@ -403,7 +404,7 @@ Item {
 
                             Behavior on opacity {
                                 NumberAnimation {
-                                    duration: Config.animDuration
+                                    duration: Anim.standardNormal
                                 }
                             }
 
@@ -1204,8 +1205,9 @@ Item {
 
                             Behavior on anchors.bottomMargin {
                                 NumberAnimation {
-                                    duration: Config.animDuration
-                                    easing.type: Easing.OutCubic
+                                    duration: Anim.standardNormal
+                                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                 }
                             }
 

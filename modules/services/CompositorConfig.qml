@@ -147,8 +147,8 @@ QtObject {
             }
         }
 
-        const workspacesAnimation = barOrientation === "vertical" ? `slidefadevert 20%` : `slidefade 20%`;
-        const workspaceCommand = `keyword animation workspaces,1,${speed},${bezier},${workspacesAnimation}`;
+        // Workspace animation — styled by current animation profile
+        const workspaceCommand = Anim.hyprAnimation("workspaces", barOrientation);
 
         // Calculate ignorealpha.
         let ignoreAlphaValue = 0.0;
@@ -332,10 +332,14 @@ QtObject {
         batchCommand += ` ; keyword misc:force_default_wallpaper ${Config.compositor.forceDefaultWallpaper}`;
         batchCommand += ` ; keyword misc:no_update_news ${Config.compositor.noUpdateNews}`;
 
-        // Animations and layer rules
-        batchCommand += ` ; keyword animation windows,1,2.5,myBezier,popin 80%`;
-        batchCommand += ` ; keyword animation border,1,2.5,myBezier`;
-        batchCommand += ` ; keyword animation fade,1,2.5,myBezier`;
+        // Animations and layer rules — styled by current animation profile
+        const animCfg = Anim.hyprConfig();
+        if (animCfg) {
+            batchCommand += ` ; ${Anim.hyprBezierDef()}`;
+        }
+        batchCommand += ` ; ${Anim.hyprAnimation("windows")}`;
+        batchCommand += ` ; ${Anim.hyprAnimation("border")}`;
+        batchCommand += ` ; ${Anim.hyprAnimation("fade")}`;
         batchCommand += ` ; ${workspaceCommand}`;
         // Note: workspaceCommand is dynamically calculated based on current animations and orientation.
 
@@ -652,6 +656,82 @@ QtObject {
             if (GlobalStates.compositorLayoutReady) {
                 applyCompositorConfig();
             }
+        }
+    }
+
+    // ============================================
+    // ANIMATION CONFIG FILE WRITER
+    // Writes bezier curves + animation keywords to hyprland.conf
+    // so Hyprland natively detects the current animation style.
+    // ============================================
+    function writeAnimationConfig() {
+        const confPath = Quickshell.env("HOME") + "/.local/share/nothingless/hyprland.conf";
+        const marker = "# === NOTHINGLESS ANIMATIONS ===";
+        const endMarker = "# === END ANIMATIONS ===";
+        const styleName = Anim.styleName;
+
+        // Calculate Hyprland speed from user's animDuration override
+        // Hyprland speed is inversely proportional to animDuration:
+        //   default 300ms → profile speed (1x)
+        //   faster 150ms → 2x profile speed
+        //   slower 600ms → 0.5x profile speed
+        const profileSpeed = Anim.hyprConfig().speed;
+        const userDuration = Math.max(10, Config.theme.animDuration || 300);
+        const speedScale = 300.0 / userDuration;
+        const hyprSpeed = Math.max(0.5, Math.min(50.0, profileSpeed * speedScale)).toFixed(1);
+
+        // Build hyprland.conf animation section
+        // Format: bezier = name, cx, cy, cx2, cy2
+        //         animation = type, enabled, speed, bezierName, style
+        const configBezier = Anim.hyprBezierDef().replace("bezier = ", "");
+        const bezierDef = "bezier = " + configBezier;
+        const bezierName = Anim.hyprConfig().name;
+        const animWindows = "animation = windows, 1, " + hyprSpeed + ", " + bezierName + ", popin 80%";
+        const animBorder = "animation = border, 1, " + hyprSpeed + ", " + bezierName;
+        const animFade = "animation = fade, 1, " + hyprSpeed + ", " + bezierName;
+        const orient = root.getBarOrientation();
+        const wsAnim = orient === "vertical" ? "slidefadevert 20%" : "slidefade 20%";
+        const animWorkspaces = "animation = workspaces, 1, " + hyprSpeed + ", " + bezierName + ", " + wsAnim;
+
+        // Build the new animation block
+        const animBlock = marker + "\n" +
+            "# Applied by NothingLess: " + styleName + "\n" +
+            bezierDef + "\n" +
+            animWindows + "\n" +
+            animBorder + "\n" +
+            animFade + "\n" +
+            animWorkspaces + "\n" +
+            endMarker;
+
+        // Build shell command: read file, remove old animation section, append new one
+        const cmd = "grep -q '" + marker + "' " + confPath +
+            " && sed -i '/" + marker + "/,/" + endMarker + "/d' " + confPath +
+            " || true; echo -e \"" + animBlock + "\" >> " + confPath;
+
+        writeAnimProcess.command = ["sh", "-c", cmd];
+        writeAnimProcess.running = true;
+    }
+
+    property Process writeAnimProcess: Process {
+        id: writeAnimProcess
+        running: false
+        onExited: (code) => {
+            if (code === 0) {
+                console.log("Animation config written to hyprland.conf");
+            } else {
+                console.error("Failed to write animation config, code:", code);
+            }
+        }
+    }
+
+    // Trigger write when animation style or speed changes
+    property Connections _animStyleTrigger: Connections {
+        target: Config.theme
+        function onAnimStyleChanged() {
+            root.writeAnimationConfig();
+        }
+        function onAnimDurationChanged() {
+            root.writeAnimationConfig();
         }
     }
 

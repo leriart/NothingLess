@@ -49,8 +49,9 @@ Item {
     transitions: Transition {
         NumberAnimation {
             properties: "Layout.preferredWidth,Layout.preferredHeight"
-            duration: Config.animDuration
-            easing.type: Easing.OutCubic
+            duration: Anim.standardNormal
+            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
         }
     }
     Layout.fillWidth: root.vertical
@@ -70,9 +71,9 @@ Item {
             radius: parent.radius ?? 0
 
             Behavior on opacity {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration / 2
+                    duration: Anim.standardSmall
                 }
             }
         }
