@@ -222,8 +222,7 @@ Item {
         Row {
             id: metricsModeRow
             visible: metricsActive
-            // In island mode, cap metrics width so island stays compact
-            readonly property int maxWidth: Config.notchTheme === "island" ? 300 : 600
+
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             height: mainRowHeight
