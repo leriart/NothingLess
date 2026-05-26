@@ -582,7 +582,7 @@ Item {
                                     contentItem: Text {
                                         leftPadding: 8
                                         rightPadding: 8
-                                        text: animStyleCombo.currentText || ""
+                                        text: animStyleCombo.currentText || (animStyleCombo.currentIndex >= 0 ? animStyleCombo.textAt(animStyleCombo.currentIndex) : "")
                                         font.family: Config.theme.font
                                         font.pixelSize: Styling.fontSize(-1)
                                         color: Colors.overBackground
