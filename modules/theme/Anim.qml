@@ -271,11 +271,14 @@ QtObject {
     // GLOBAL SPEED SCALE
     // ============================================
     readonly property real _baseScale: {
-        if (Config.animDuration <= 0) return 0;
         if (root._styleKey === "disabled") return 0;
+        // Check Config availability — during startup Config may not be ready
+        if (typeof Config === "undefined" || Config === null) return 1.0;
+        const ad = Config.animDuration;
+        if (ad === undefined || ad === null || ad <= 0) return 1.0; // Default to enabled
         const cfgScale = Config.theme && Config.theme.animScale;
         let userScale = (cfgScale !== undefined && cfgScale > 0) ? cfgScale : 1.0;
-        return userScale * Config.animDuration / 300;
+        return userScale * ad / 300;
     }
 
     function _scale(baseMs) {

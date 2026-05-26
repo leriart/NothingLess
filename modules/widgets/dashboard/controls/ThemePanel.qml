@@ -575,7 +575,7 @@ Item {
                                         variant: "focus"
                                         implicitHeight: 30
                                         radius: Styling.radius(2)
-                                        border: ["surfaceBright", 1]
+                                        enableBorder: true
                                     }
 
                                     contentItem: Text {
@@ -661,6 +661,7 @@ Item {
 
                                     delegate: ItemDelegate {
                                         required property var model
+                                        required property int index
                                         width: animStyleCombo.width
                                         height: model.key === "" ? 22 : 32
                                         enabled: model.key !== ""
