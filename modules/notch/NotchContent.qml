@@ -322,28 +322,34 @@ Item {
             startRadius: Styling.radius(3); endRadius: Styling.radius(3); enableShadow: false
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
         }
-        // Separator
-        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
         Workspaces {
             visible: !Config.bar.hiddenIcons.includes("workspaces")
             orientation: "horizontal"; bar: root.islandBarProxy
             startRadius: Styling.radius(3); endRadius: Styling.radius(3)
             implicitHeight: root.islandButtonSize
         }
-        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
         LayoutSelectorButton {
             visible: !Config.bar.hiddenIcons.includes("layout")
             bar: root.islandBarProxy; layerEnabled: false
             startRadius: Styling.radius(3); endRadius: Styling.radius(3)
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
         }
-        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
         Button {
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
             visible: Config.bar && Config.bar.showPinButton !== false && !Config.bar.hiddenIcons.includes("pin")
             background: StyledRect {
                 variant: "bg"; enableShadow: false
                 radius: Styling.radius(3)
+                Rectangle {
+                    anchors.fill: parent
+                    color: Colors.overBackground
+                    opacity: parent.hovered ? 0.08 : 0
+                    radius: parent.radius ?? 0
+                    Behavior on opacity {
+                        enabled: Anim.animationsEnabled
+                        NumberAnimation { duration: Anim.standardSmall }
+                    }
+                }
             }
             contentItem: Text {
                 text: Icons.pin; font.family: Icons.font
@@ -352,6 +358,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
             }
             onClicked: { if (Config.bar) Config.bar.pinnedOnStartup = !(Config.bar.pinnedOnStartup !== false); }
+            HoverHandler { cursorShape: Qt.PointingHandCursor }
         }
     }
 
@@ -395,38 +402,28 @@ Item {
                 }
             }
         }
-        // Separator after dock
-        Rectangle {
-            visible: root.islandDockEnabled && !Config.bar.hiddenIcons.includes("dock") && TaskbarApps.apps.length > 0
-            width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter
-            color: Colors.outline; opacity: 0.3
-        }
         PresetsButton {
             visible: !Config.bar.hiddenIcons.includes("presets")
             startRadius: Styling.radius(3); endRadius: Styling.radius(3); enableShadow: false
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
         }
-        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
         ToolsButton {
             visible: !Config.bar.hiddenIcons.includes("tools")
             startRadius: Styling.radius(3); endRadius: Styling.radius(3); enableShadow: false
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
         }
-        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
         SysTray {
             visible: !Config.bar.hiddenIcons.includes("systray")
             bar: root.islandBarProxy; enableShadow: false
             startRadius: Styling.radius(3); endRadius: Styling.radius(3)
             implicitHeight: root.islandButtonSize
         }
-        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
         TaskTray {
             visible: !Config.bar.hiddenIcons.includes("tasktray")
             bar: root.islandBarProxy
             startRadius: Styling.radius(3); endRadius: Styling.radius(3)
             implicitHeight: root.islandButtonSize
         }
-        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
         ControlsButton {
             visible: !Config.bar.hiddenIcons.includes("controls")
             bar: root.islandBarProxy; layerEnabled: false
@@ -439,15 +436,14 @@ Item {
             startRadius: Styling.radius(3); endRadius: Styling.radius(3)
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
         }
-        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
         Clock {
             visible: !Config.bar.hiddenIcons.includes("clock")
             bar: root.islandBarProxy; layerEnabled: false
             startRadius: Styling.radius(3); endRadius: Styling.radius(3)
             implicitHeight: root.islandButtonSize
         }
-        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
         PowerButton {
+            id: islandPowerBtn
             visible: !Config.bar.hiddenIcons.includes("power")
             startRadius: Styling.radius(3); endRadius: Styling.radius(3); enableShadow: false
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
