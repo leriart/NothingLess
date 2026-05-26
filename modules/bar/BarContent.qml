@@ -382,39 +382,39 @@ Item {
                                 radius: Math.min(implicitHeight / 2, 20)
                                 enableBorder: false
 
-                                property string _timeText: ""
                                 property bool _hovered: false
 
-                                // Show clock + system info as compact pill
-                                RowLayout {
+                                // Centered Dynamic Island inside the bar
+                                // Compact pill showing minimal indicator
+                                // Click to open notch stack (launcher/dashboard)
+                                Item {
                                     id: islandContent
                                     anchors.centerIn: parent
-                                    spacing: 6
+                                    width: 48
+                                    height: parent.height - 4
 
-                                    Text {
-                                        text: inlineIsland._timeText
-                                        font.family: Config.theme.font
-                                        font.pixelSize: Styling.fontSize(0)
-                                        color: Colors.overBackground
+                                    // Pill background
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: height / 2
+                                        color: Qt.rgba(Colors.surfaceContainerHighest.r, Colors.surfaceContainerHighest.g, Colors.surfaceContainerHighest.b, 0.5 + (inlineIsland._hovered ? 0.2 : 0))
+                                        border.color: Colors.surfaceBright
+                                        border.width: 0.5
+
+                                        Behavior on color {
+                                            enabled: Anim.animationsEnabled
+                                            ColorAnimation { duration: Anim.standardSmall }
+                                        }
                                     }
 
-                                    Text {
-                                        text: Icons.caretDown // quick indicator
-                                        font.family: Icons.font
-                                        font.pixelSize: 10
-                                        color: Colors.overSurfaceVariant
-                                    }
-
-                                    Timer {
-                                        interval: 10000
-                                        running: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
-                                        repeat: true
-                                        onTriggered: {
-                                            inlineIsland._timeText = new Date().toLocaleTimeString(Qt.locale(), Locale.ShortFormat);
-                                        }
-                                        Component.onCompleted: {
-                                            inlineIsland._timeText = new Date().toLocaleTimeString(Qt.locale(), Locale.ShortFormat);
-                                        }
+                                    // Small dot indicator
+                                    Rectangle {
+                                        anchors.centerIn: parent
+                                        width: 8
+                                        height: 8
+                                        radius: 4
+                                        color: Colors.primary
+                                        opacity: 0.8
                                     }
                                 }
 
@@ -422,8 +422,8 @@ Item {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onEntered: parent._hovered = true
-                                    onExited: parent._hovered = false
+                                    onEntered: inlineIsland._hovered = true
+                                    onExited: inlineIsland._hovered = false
                                     onClicked: {
                                         // Open the notch stack (launcher/dashboard)
                                         var v = Visibilities.getForScreen(root.screen.name);
