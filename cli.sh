@@ -796,14 +796,11 @@ help | --help | -h)
 	else
 		RHI_BACKEND="opengl"
 	fi
-	# Try Vulkan first, fall back to OpenGL
-	if [ "$RHI_BACKEND" = "opengl" ] && ! ls /usr/lib/qt6/plugins/scenegraph/*opengl* 2>/dev/null 2>&1; then
-		if ls /usr/lib/qt6/plugins/scenegraph/ 2>/dev/null | grep -q vulkan 2>/dev/null 2>&1; then
-			RHI_BACKEND="vulkan"
-		fi
+	# Let Qt auto-detect the RHI backend (don't force opengl if unavailable)
+	# Only set if a working backend was explicitly configured
+	if [ "$RHI_BACKEND" = "vulkan" ] || [ "$RHI_BACKEND" = "opengl" ]; then
+		export QSG_RHI_BACKEND="$RHI_BACKEND"
 	fi
-	# If no RHI backend found, don't set the env var (Qt will auto-detect)
-	export QSG_RHI_BACKEND="$RHI_BACKEND"
 	export QSG_RENDER_LOOP="threaded"
 	export QML_XHR_ALLOW_FILE_READ=1
 
