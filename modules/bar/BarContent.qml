@@ -388,7 +388,6 @@ Item {
                                     id: islandContent
                                     anchors.centerIn: parent
                                     sourceComponent: DefaultView {
-                                        currentScreen: root.screen
                                         notchHovered: false
                                         parentHoverActive: false
                                     }
