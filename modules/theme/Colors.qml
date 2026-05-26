@@ -270,12 +270,73 @@ FileView {
     property color yellowValue: adapter.yellowValue
     property color sourceColor: adapter.sourceColor
 
+    // ============================================
+    // M3 ELEVATION SYSTEM — helpers & semantic surfaces
+    // ============================================
+    // M3 defines 5 elevation levels (0-4) mapped to surface colors:
+    //   Level 0: surfaceDim (lowest, sunken)
+    //   Level 1: surfaceContainerLowest
+    //   Level 2: surfaceContainerLow
+    //   Level 3: surfaceContainer
+    //   Level 4: surfaceContainerHigh
+    //   Level 5: surfaceContainerHighest
+    //
+    // Usage:  Colors.elevation(3)  => surfaceContainer
+    //         Colors.elevation(0)  => surfaceDim
+
+    /*! Get surface color for M3 elevation level (0-5). */
+    function elevation(level) {
+        switch (level) {
+        case 0:  return root.surfaceDim;
+        case 1:  return root.surfaceContainerLowest;
+        case 2:  return root.surfaceContainerLow;
+        case 3:  return root.surfaceContainer;
+        case 4:  return root.surfaceContainerHigh;
+        case 5:  return root.surfaceContainerHighest;
+        default: return level <= 0 ? root.surfaceDim : root.surfaceContainerHighest;
+        }
+    }
+
+    /*! Convenience: get the over-surface color for a given elevation level. */
+    function overElevation(level) {
+        return root.overBackground; // M3 spec: all levels use same text color
+    }
+
+    /*! Get the surface tint/primary color for elevation (same as surfaceTint). */
+    function elevationTint(level) {
+        return root.surfaceTint;
+    }
+
+    /*! Compute luminance of a color (0-1). Useful for dynamic contrast logic. */
+    function luminance(color) {
+        return (0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b);
+    }
+
+    /*! Check if a color is "light" (luminance > 0.5). */
+    function isLight(color) {
+        return root.luminance(color) > 0.5;
+    }
+
+    /*! Blend two colors with alpha (useful for surface tints).
+        Equivalent to CSS: rgba(over.r, over.g, over.b, alpha) on top of base. */
+    function blend(base, over, alpha) {
+        const a = Math.max(0, Math.min(1, alpha));
+        return Qt.rgba(
+            over.r * a + base.r * (1 - a),
+            over.g * a + base.g * (1 - a),
+            over.b * a + base.b * (1 - a),
+            1.0
+        );
+    }
+
     property color criticalText: "#FF6B08"
     property color criticalRed: "#FF0028"
 
     // Semantic aliases
     property color warning: adapter.yellow
     property color success: adapter.green
+    property color info: adapter.secondary
+    property color danger: adapter.error
 
     // List of available color names for color pickers (excludes internal/source colors)
     readonly property var availableColorNames: ["background", "surface", "surfaceBright", "surfaceContainer", "surfaceContainerHigh", "surfaceContainerHighest", "surfaceContainerLow", "surfaceContainerLowest", "surfaceDim", "surfaceTint", "surfaceVariant", "primary", "primaryContainer", "primaryFixed", "primaryFixedDim", "secondary", "secondaryContainer", "secondaryFixed", "secondaryFixedDim", "tertiary", "tertiaryContainer", "tertiaryFixed", "tertiaryFixedDim", "error", "errorContainer", "overBackground", "overSurface", "overSurfaceVariant", "overPrimary", "overPrimaryContainer", "overPrimaryFixed", "overPrimaryFixedVariant", "overSecondary", "overSecondaryContainer", "overSecondaryFixed", "overSecondaryFixedVariant", "overTertiary", "overTertiaryContainer", "overTertiaryFixed", "overTertiaryFixedVariant", "overError", "overErrorContainer", "outline", "outlineVariant", "inversePrimary", "inverseSurface", "inverseOnSurface", "shadow", "scrim", "blue", "blueContainer", "overBlue", "overBlueContainer", "lightBlue", "cyan", "cyanContainer", "overCyan", "overCyanContainer", "lightCyan", "green", "greenContainer", "overGreen", "overGreenContainer", "lightGreen", "magenta", "magentaContainer", "overMagenta", "overMagentaContainer", "lightMagenta", "red", "redContainer", "overRed", "overRedContainer", "lightRed", "yellow", "yellowContainer", "overYellow", "overYellowContainer", "lightYellow", "white", "whiteContainer", "overWhite", "overWhiteContainer"]

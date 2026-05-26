@@ -1,0 +1,15 @@
+{
+  "scale": 0.3,
+  "rows": 2,
+  "columns": 3,
+  "workspaceSpacing": 8,
+  "windowSpacing": 4,
+  "animEnabled": true,
+  "animDuration": 300,
+  "showActiveIndicator": true,
+  "searchEnabled": true,
+  "dragEnabled": true,
+  "livePreview": true,
+  "scrollingMode": "vertical",
+  "workspaceGrouping": false
+}
