@@ -70,8 +70,9 @@ StyledRect {
                     border.color: parent.checked ? Styling.srItem("primary") : Colors.outline; border.width: 1
                     Rectangle { x: parent.checked ? parent.parent.width-width-3 : 3; y: (parent.parent.height-height)/2; width: 14; height: 14; radius: 7
                         color: parent.checked ? "#ffffff" : Colors.outline
-                        Behavior on x { enabled: Config.animDuration > 0; NumberAnimation { duration: Config.animDuration/2; easing.type: Easing.OutCubic } } }
-                    Behavior on color { enabled: Config.animDuration > 0; ColorAnimation { duration: Config.animDuration/2 } } }
+                        Behavior on x { enabled: Anim.animationsEnabled; NumberAnimation { duration: Anim.standardNormal/2; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve } } }
+                    Behavior on color { enabled: Anim.animationsEnabled; ColorAnimation { duration: Anim.standardNormal/2 } } }
             }
         }
 
@@ -132,7 +133,7 @@ StyledRect {
                     onActivated: root.settingChanged("transform", index) } }
 
             SR { ic: Icons.waveform; lb: "VRR"; Layout.fillWidth: true
-                ComboBox { id: vrrCombo; model: ["Global Default","Disabled","Enabled","Fullscreen","Fullscreen+Gaming"]; currentIndex: root.monitor ? root.monitor.vrr : 0; Layout.preferredWidth: 160
+                ComboBox { id: vrrCombo; model: ["Global Default","Disabled","Enabled","Fullscreen","Fullscreen+Gaming"]; currentIndex: root.monitor && root.monitor.vrr !== undefined ? root.monitor.vrr : 0; Layout.preferredWidth: 160
                     background: Rectangle { color: vrrCombo.hovered ? Colors.surfaceContainerHigh : Colors.surfaceContainer; radius: Styling.radius(-2); border.color: Colors.outlineVariant; border.width: 1 }
                     contentItem: Text { text: vrrCombo.displayText; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; verticalAlignment: Text.AlignVCenter; leftPadding: 10 }
                     indicator: Text { text: Icons.caretDown; font.family: Icons.font; font.pixelSize: 14; color: Colors.overBackground; anchors.verticalCenter: parent.verticalCenter; anchors.right: parent.right; anchors.rightMargin: 8 }
