@@ -206,13 +206,27 @@ Item {
         return false;
     }
 
+    // Show delay timer — requires hovering edge for 200ms
+    property bool _mousePending: false
+    Timer {
+        id: showDelayTimer
+        interval: 200
+        repeat: false
+        onTriggered: {
+            if (root.isMouseOverIsland) {
+                root.hoverActive = true;
+            }
+            root._mousePending = false;
+        }
+    }
+
     // Timer to delay hiding the notch after mouse leaves
     Timer {
         id: hideDelayTimer
-        interval: 1000
+        interval: 800
         repeat: false
         onTriggered: {
-            if (!root.isMouseOverIsland) {
+            if (!root.isMouseOverIsland && !root._mousePending) {
                 root.hoverActive = false;
             }
         }
@@ -222,8 +236,11 @@ Item {
     onIsMouseOverIslandChanged: {
         if (isMouseOverIsland) {
             hideDelayTimer.stop();
-            hoverActive = true;
+            root._mousePending = true;
+            showDelayTimer.restart();
         } else {
+            showDelayTimer.stop();
+            root._mousePending = false;
             hideDelayTimer.restart();
         }
     }

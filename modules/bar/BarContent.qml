@@ -99,13 +99,27 @@ Item {
         // IMPORTANT: notchHoverActive must be checked to synchronize with notch
         return isMouseOverBar || hoverActive || notchHoverActive || notchOpen;
     }
+
+    // Mouse proximity timer — requires hovering at edge for 200ms before showing
+    property bool _mousePending: false
+    Timer {
+        id: showDelayTimer
+        interval: 200
+        repeat: false
+        onTriggered: {
+            if (root.isMouseOverBar && root.shouldAutoHide) {
+                root.hoverActive = true;
+            }
+            root._mousePending = false;
+        }
+    }
     // Timer to delay hiding the bar after mouse leaves
     Timer {
         id: hideDelayTimer
-        interval: 1000
+        interval: 800
         repeat: false
         onTriggered: {
-            if (!root.isMouseOverBar) {
+            if (!root.isMouseOverBar && !root._mousePending) {
                 root.hoverActive = false;
             }
         }
@@ -113,12 +127,16 @@ Item {
     // Watch for mouse state changes
     onIsMouseOverBarChanged: {
         if (isMouseOverBar) {
+            // Don't show immediately — wait a moment to confirm intent
             hideDelayTimer.stop();
-            hoverActive = true;
+            root._mousePending = true;
+            showDelayTimer.restart();
         } else {
-            // Si está fijada, podemos resetear el hoverActive inmediatamente
-            // Si está en auto-hide, usamos el timer para dar margen
+            // Mouse left the hover zone
+            showDelayTimer.stop();
+            root._mousePending = false;
             if (shouldAutoHide) {
+                // Brief delay before hiding (allows moving back to the edge)
                 hideDelayTimer.restart();
             } else {
                 hoverActive = false;
