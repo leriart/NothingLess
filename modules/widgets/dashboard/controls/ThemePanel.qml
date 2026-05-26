@@ -572,18 +572,22 @@ Item {
                                     font.family: Config.theme.font
                                     font.pixelSize: Styling.fontSize(-1)
 
-                                    background: StyledRect {
-                                        variant: "focus"
-                                        implicitHeight: 30
-                                        radius: Styling.radius(2)
-                                        enableBorder: true
+                                    background: Rectangle {
+                                        // Use Colors directly for reliable theme-aware colors
+                                        color: Colors.surfaceContainerHigh || Qt.rgba(0.15, 0.15, 0.18, 0.8)
+                                        radius: 4
+                                        border.color: Colors.surfaceBright || Qt.rgba(0.5, 0.5, 0.5, 0.3)
+                                        border.width: 1
                                     }
 
                                     contentItem: Text {
                                         leftPadding: 8
                                         rightPadding: 8
-                                        text: animStyleCombo.currentText || (animStyleCombo.currentIndex >= 0 ? animStyleCombo.textAt(animStyleCombo.currentIndex) : "")
-                                        font.family: Config.theme.font
+                                        text: {
+                                            const idx = animStyleCombo.currentIndex;
+                                            return idx >= 0 ? animStyleCombo.textAt(idx) || "" : "";
+                                        }
+                                        font.family: Config.theme && Config.theme.font ? Config.theme.font : "sans-serif"
                                         font.pixelSize: Styling.fontSize(-1)
                                         color: Colors.overBackground
                                         verticalAlignment: Text.AlignVCenter
