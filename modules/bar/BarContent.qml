@@ -371,28 +371,23 @@ Item {
                             endRadius: root.innerRadius
                         }
 
-                        // Dynamic Island inside the bar — the actual compact notch content
+                        // Dynamic Island inside the bar — lazy loaded via URL
+                        // Uses source URL so the type isn't resolved at compile time
                         Loader {
                             id: inlineIslandLoader
-                            active: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
+                            active: false
                             visible: active
                             Layout.alignment: Qt.AlignVCenter
+                            asynchronous: true
+                            source: Qt.resolvedUrl("IslandContent.qml")
+                        }
 
-                            sourceComponent: Item {
-                                id: inlineIsland
-                                implicitWidth: islandContent.width
-                                implicitHeight: root.barTargetHeight - 6
-
-                                // Copy of the notch's DefaultView compact content
-                                Loader {
-                                    id: islandContent
-                                    anchors.centerIn: parent
-                                    sourceComponent: DefaultView {
-                                        notchHovered: false
-                                        parentHoverActive: false
-                                    }
-                                    active: true
-                                }
+                        Timer {
+                            interval: 2000
+                            running: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island"
+                            repeat: false
+                            onTriggered: {
+                                inlineIslandLoader.active = true;
                             }
                         }
 
