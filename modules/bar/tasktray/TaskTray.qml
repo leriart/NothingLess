@@ -71,13 +71,15 @@ Item {
     clip: true
 
     Behavior on Layout.preferredHeight {
-        enabled: root.vertical && Config.animDuration > 0
-        NumberAnimation { duration: Config.animDuration / 2; easing.type: Easing.OutCubic }
+        enabled: root.vertical && Anim.animationsEnabled
+        NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
     }
 
     Behavior on Layout.preferredWidth {
-        enabled: !root.vertical && Config.animDuration > 0
-        NumberAnimation { duration: Config.animDuration / 2; easing.type: Easing.OutCubic }
+        enabled: !root.vertical && Anim.animationsEnabled
+        NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
     }
 
     HoverHandler { onHoveredChanged: root.isHovered = hovered }
@@ -97,8 +99,8 @@ Item {
             opacity: root.isHovered && !root.expanded ? 0.25 : 0
             radius: parent.radius ?? 0
             Behavior on opacity {
-                enabled: Config.animDuration > 0
-                NumberAnimation { duration: Config.animDuration / 2 }
+                enabled: Anim.animationsEnabled
+                NumberAnimation { duration: Anim.standardSmall }
             }
         }
     }
@@ -109,8 +111,9 @@ Item {
         color: Styling.srItem("overprimary")
         rotation: root.expanded ? 90 : 0
         Behavior on rotation {
-            enabled: Config.animDuration > 0
-            NumberAnimation { duration: Config.animDuration / 2; easing.type: Easing.OutCubic }
+            enabled: Anim.animationsEnabled
+            NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
         }
     }
 
@@ -127,7 +130,7 @@ Item {
     RowLayout {
         visible: !root.vertical
         opacity: expanded ? 1.0 : 0.0
-        Behavior on opacity { enabled: Config.animDuration > 0; NumberAnimation { duration: Config.animDuration / 2 } }
+        Behavior on opacity { enabled: Anim.animationsEnabled; NumberAnimation { duration: Anim.standardSmall } }
         anchors.left: root.vertical ? undefined : parent.left
         anchors.leftMargin: root.vertical ? 0 : 40
         anchors.verticalCenter: root.vertical ? undefined : parent.verticalCenter
@@ -171,7 +174,7 @@ Item {
 
     ColumnLayout {
         opacity: expanded ? 1.0 : 0.0
-        Behavior on opacity { enabled: Config.animDuration > 0; NumberAnimation { duration: Config.animDuration / 2 } }
+        Behavior on opacity { enabled: Anim.animationsEnabled; NumberAnimation { duration: Anim.standardSmall } }
         anchors.top: parent.top; anchors.topMargin: 40
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 4

@@ -20,13 +20,14 @@ RowLayout {
         Layout.preferredWidth: 40; Layout.preferredHeight: 22; radius: 11
         color: tr.on ? Styling.srItem("overprimary") : Qt.rgba(0.35,0.35,0.35,0.5)
         border.width: 1.5; border.color: tr.on ? Styling.srItem("overprimary") : Colors.outline
-        Behavior on color { enabled: Config.animDuration > 0; ColorAnimation { duration: 150 } }
+        Behavior on color { enabled: Anim.animationsEnabled; ColorAnimation { duration: 150 } }
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             x: tr.on ? parent.width - width - 3 : 3
             width: 16; height: 16; radius: 8
             color: tr.on ? Colors.background : Colors.overSurfaceVariant
-            Behavior on x { enabled: Config.animDuration > 0; NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+            Behavior on x { enabled: Anim.animationsEnabled; NumberAnimation { duration: 150; easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve } }
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { tr.on = !tr.on; tr.toggled(tr.on) } }
     }

@@ -220,8 +220,10 @@ All services use `pragma Singleton` and expose `Singleton { id: root }`.
 | `Visibilities` | `modules/services/Visibilities.qml` | Per-screen UI visibility/layering manager |
 | `Colors` | `modules/theme/Colors.qml` | Dynamic color palette from `matugen` output |
 | `Styling` | `modules/theme/Styling.qml` | Shared style utilities: `radius()`, `fontSize()`, `getStyledRectConfig()` |
+| `Anim` | `modules/theme/Anim.qml` | Material 3 animation system: `duration()`, `easing()`, `configure()`, global speed scale |
 | `Icons` | `modules/theme/Icons.qml` | Phosphor-Bold icon font character map |
 | `AxctlService` | `modules/services/AxctlService.qml` | Compositor abstraction (focus, dispatch, state sync) |
+| `PerMonitorConfig` | `modules/services/PerMonitorConfig.qml` | Per-monitor config overrides (bar/notch/dock position) |
 | `StateService` | `modules/services/StateService.qml` | JSON persistence for session state (layout, presets) |
 | `FocusGrabManager` | `modules/services/FocusGrabManager.qml` | Input focus coordination for popups |
 | `GradientCache` | `modules/components/GradientCache.qml` | GPU texture sharing optimization for gradients |
@@ -230,6 +232,8 @@ All services use `pragma Singleton` and expose `Singleton { id: root }`.
 | Component | File | Usage |
 |-----------|------|-------|
 | `StyledRect` | `modules/components/StyledRect.qml` | Base themed container (300+ usages). Supports gradient, halftone, border, shadow variants |
+| `StateLayer` | `modules/components/StateLayer.qml` | M3 interaction overlay: ripple + hover/press/focus state opacity |
+| `Surface` | `modules/components/Surface.qml` | M3 elevated surface wrapper (`StyledRect` + `StateLayer`). Elevation 0-4 mapping |
 | `BarPopup` | `modules/components/BarPopup.qml` | Popup anchored to bar items |
 | `SearchInput` | `modules/components/SearchInput.qml` | Universal search field |
 | `PaneRect` | `modules/components/PaneRect.qml` | Pane variant container |
@@ -313,6 +317,8 @@ Always use one of these string values for the `variant` property:
 | **Change notch behavior** | `modules/notch/Notch.qml`, `modules/notch/NotchContent.qml` | StackView navigation, animations |
 | **Add AI provider** | `modules/services/ai/strategies/` | Implement `ApiStrategy` interface |
 | **Theme / colors** | `modules/theme/Colors.qml`, `modules/theme/Styling.qml` | Watches `~/.cache/nothingless/colors.json` |
+| **Animations (M3)** | `modules/theme/Anim.qml` | Standard / Emphasized / Spatial curves with global speed scale |
+| **Interaction states** | `modules/components/StateLayer.qml`, `modules/components/Surface.qml` | Ripple + M3 elevation surfaces |
 | **System monitoring** | `modules/services/SystemResources.qml` | Reads `scripts/system_monitor.py` JSON output |
 | **Clipboard** | `modules/services/ClipboardService.qml` | Interacts with `scripts/clipboard_*.sh` |
 | **Lockscreen** | `modules/lockscreen/LockScreen.qml` | `WlSessionLockSurface` + PAM |

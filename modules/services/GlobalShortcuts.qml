@@ -90,6 +90,17 @@ QtObject {
             case "media-next": MprisController.next(); break;
             case "media-prev": MprisController.previous(); break;
                 
+            // System toggles
+            case "caffeine": CaffeineService.toggleInhibit(); break;
+            case "gamemode": GameModeService.toggle(); break;
+            case "nightlight": NightLightService.toggle(); break;
+
+            // Audio
+            case "volume-up": Audio.incrementVolume(); break;
+            case "volume-down": Audio.decrementVolume(); break;
+            case "volume-mute": Audio.toggleMute(); break;
+            case "mic-mute": Audio.toggleMicMute(); break;
+
             default: console.warn("Unknown IPC command:", command);
         }
     }

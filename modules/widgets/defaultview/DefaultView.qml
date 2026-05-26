@@ -60,8 +60,8 @@ Item {
         enabled: Anim.animationsEnabled
         NumberAnimation {
             duration: Anim.standardNormal
-            easing.type: Anim.easing("emphasized").type
-                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+            easing.type: Anim.springSnappy().type
+            easing.bezierCurve: Anim.springSnappy().bezierCurve
         }
     }
 
@@ -167,8 +167,8 @@ Item {
         enabled: Anim.animationsEnabled
         NumberAnimation {
             duration: Anim.standardNormal
-            easing.type: Anim.easing("emphasized").type
-                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+            easing.type: Anim.springSnappy().type
+            easing.bezierCurve: Anim.springSnappy().bezierCurve
         }
     }
 

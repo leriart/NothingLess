@@ -30,18 +30,18 @@ Item {
     Behavior on implicitWidth {
         enabled: Anim.animationsEnabled
         NumberAnimation {
-            duration: Anim.standardNormal
-            easing.type: Anim.easing("standard").type
-            easing.bezierCurve: Anim.easing("standard").bezierCurve
+            duration: Anim.emphasizedNormal
+            easing.type: Anim.easing("emphasized").type
+            easing.bezierCurve: Anim.easing("emphasized").bezierCurve
         }
     }
 
     Behavior on implicitHeight {
         enabled: Anim.animationsEnabled
         NumberAnimation {
-            duration: Anim.standardNormal
-            easing.type: Anim.easing("standard").type
-            easing.bezierCurve: Anim.easing("standard").bezierCurve
+            duration: Anim.emphasizedNormal
+            easing.type: Anim.easing("emphasized").type
+            easing.bezierCurve: Anim.easing("emphasized").bezierCurve
         }
     }
 
@@ -51,30 +51,43 @@ Item {
         anchors.centerIn: parent
         active: true
         asynchronous: true
-        
+
         sourceComponent: isScrollingLayout ? scrollingOverviewComponent : standardOverviewComponent
 
-        // Smooth opacity transition when swapping layouts
+        // Smooth opacity transition with bloom-like entrance
         opacity: status === Loader.Ready ? 1 : 0
 
         Behavior on opacity {
             enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Anim.emphasizedNormal
-                easing.type: Anim.easing("emphasized").type
-                easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+                duration: Anim.standardNormal
+                easing.type: Anim.easing("decelerate").type
+                easing.bezierCurve: Anim.easing("decelerate").bezierCurve
             }
         }
 
-        // Scale entrance animation
-        scale: status === Loader.Ready ? 1 : 0.95
+        // Elegant scale entrance — starts slightly small and blooms out with spring
+        scale: status === Loader.Ready ? 1 : 0.92
 
         Behavior on scale {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.emphasizedNormal
-                easing.type: Anim.easing("emphasized").type
-                easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+                easing.type: Anim.springSnappy().type
+                easing.bezierCurve: Anim.springSnappy().bezierCurve
+            }
+        }
+
+        // Subtle vertical slide — starts slightly below and rises into place
+        transform: Translate {
+            y: overviewLoader.status === Loader.Ready ? 0 : 24
+            Behavior on y {
+                enabled: Anim.animationsEnabled
+                NumberAnimation {
+                    duration: Anim.emphasizedNormal
+                    easing.type: Anim.springSnappy().type
+                    easing.bezierCurve: Anim.springSnappy().bezierCurve
+                }
             }
         }
     }

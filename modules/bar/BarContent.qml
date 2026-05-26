@@ -176,6 +176,7 @@ Item {
         // HoverHandler for bar hover detection (without blocking child hovers)
         HoverHandler {
             id: barHoverHandler
+            enabled: !bar.islandModeActive
             onHoveredChanged: {
                 root.isMouseOverBar = barHoverHandler.hovered;
             }
@@ -263,8 +264,9 @@ Item {
             }
             // layer.enabled: true
             // layer.effect: Shadow {}
-            // Opacity animation
-            opacity: root.reveal ? 1 : 0
+            // Opacity — hide bar when island mode is active (notch IS the bar)
+            readonly property bool islandModeActive: root.barMode === "dynamic" && (Config.notchTheme || "default") === "island" && root.barPosition === (Config.notchPosition || "top")
+            opacity: islandModeActive ? 0 : (root.reveal ? 1 : 0)
             Behavior on opacity {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
@@ -371,6 +373,25 @@ Item {
                             source: Qt.resolvedUrl("IslandContent.qml")
                             z: 0 // Same level as bar elements
 
+                            opacity: active ? 1 : 0
+                            scale: active ? 1 : 0.9
+                            Behavior on opacity {
+                                enabled: Anim.animationsEnabled
+                                NumberAnimation {
+                                    duration: Anim.emphasizedNormal
+                                    easing.type: Anim.easing("emphasized").type
+                                    easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+                                }
+                            }
+                            Behavior on scale {
+                                enabled: Anim.animationsEnabled
+                                NumberAnimation {
+                                    duration: Anim.emphasizedNormal
+                                    easing.type: Anim.springSnappy().type
+                                    easing.bezierCurve: Anim.springSnappy().bezierCurve
+                                }
+                            }
+
                             MouseArea {
                                 anchors.fill: parent
                                 anchors.margins: -4
@@ -395,11 +416,13 @@ Item {
 
                         LauncherButton {
                             id: launcherButton
+                            visible: !Config.bar.hiddenIcons.includes("launcher")
                             startRadius: root.outerRadius
                             endRadius: root.innerRadius
                             enableShadow: root.shadowsEnabled
                         }
                         Workspaces {
+                            visible: !Config.bar.hiddenIcons.includes("workspaces")
                             orientation: root.orientation
                             bar: QtObject {
                                 property var screen: root.screen
@@ -513,6 +536,7 @@ Item {
                         }
                         PresetsButton {
                             id: presetsButton
+                            visible: !Config.bar.hiddenIcons.includes("presets")
                             startRadius: root.dockAtEnd ? root.innerRadius : root.outerRadius
                             endRadius: root.innerRadius
                             enableShadow: root.shadowsEnabled
@@ -525,6 +549,7 @@ Item {
                             enableShadow: root.shadowsEnabled
                         }
                         SysTray {
+                            visible: !Config.bar.hiddenIcons.includes("systray")
                             bar: root
                             enableShadow: root.shadowsEnabled
                             startRadius: root.innerRadius
@@ -532,6 +557,7 @@ Item {
                         }
                         // Running tasks tray
                         TaskTray {
+                            visible: !Config.bar.hiddenIcons.includes("tasktray")
                             bar: root
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
@@ -554,6 +580,7 @@ Item {
                         }
                         Clock {
                             id: clockComponent
+                            visible: !Config.bar.hiddenIcons.includes("clock")
                             bar: root
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.innerRadius
@@ -561,6 +588,7 @@ Item {
                         }
                         PowerButton {
                             id: powerButton
+                            visible: !Config.bar.hiddenIcons.includes("power")
                             startRadius: root.innerRadius
                             endRadius: root.outerRadius
                             enableShadow: root.shadowsEnabled
@@ -575,6 +603,7 @@ Item {
                         spacing: 4
                         LauncherButton {
                             id: launcherButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("launcher")
                             Layout.preferredHeight: 36
                             startRadius: root.outerRadius
                             endRadius: root.innerRadius
@@ -582,18 +611,21 @@ Item {
                             enableShadow: root.shadowsEnabled
                         }
                         SysTray {
+                            visible: !Config.bar.hiddenIcons.includes("systray")
                             bar: root
                             enableShadow: root.shadowsEnabled
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
                         }
                         TaskTray {
+                            visible: !Config.bar.hiddenIcons.includes("tasktray")
                             bar: root
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
                         }
                         ToolsButton {
                             id: toolsButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("tools")
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
                             vertical: true
@@ -601,6 +633,7 @@ Item {
                         }
                         PresetsButton {
                             id: presetsButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("presets")
                             startRadius: root.innerRadius
                             endRadius: root.outerRadius
                             vertical: true
@@ -628,6 +661,7 @@ Item {
                                 spacing: 4
                                 LayoutSelectorButton {
                                     id: layoutSelectorButtonVert
+                                    visible: !Config.bar.hiddenIcons.includes("layout")
                                     bar: root
                                     layerEnabled: root.shadowsEnabled
                                     Layout.alignment: Qt.AlignHCenter
@@ -637,6 +671,7 @@ Item {
                                 }
                                 Workspaces {
                                     id: workspacesVert
+                                    visible: !Config.bar.hiddenIcons.includes("workspaces")
                                     orientation: root.orientation
                                     bar: QtObject {
                                         property var screen: root.screen
@@ -720,6 +755,7 @@ Item {
                         }
                         ControlsButton {
                             id: controlsButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("controls")
                             bar: root
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.outerRadius
@@ -735,6 +771,7 @@ Item {
                         }
                         Clock {
                             id: clockComponentVert
+                            visible: !Config.bar.hiddenIcons.includes("clock")
                             bar: root
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.innerRadius
@@ -742,6 +779,7 @@ Item {
                         }
                         PowerButton {
                             id: powerButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("power")
                             Layout.preferredHeight: 36
                             startRadius: root.innerRadius
                             endRadius: root.outerRadius

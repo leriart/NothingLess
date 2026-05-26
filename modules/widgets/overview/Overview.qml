@@ -64,24 +64,37 @@ Item {
     readonly property bool isBarPinned: barPanel ? barPanel.pinned : (Config.bar.pinnedOnStartup ?? true)
     readonly property int barReserved: isBarPinned ? (Config.showBackground ? 44 : 40) : 0
 
-    // Workspace cell size (based on current screen's monitor)
-    readonly property real wsCellW: {
+    // Workspace cell size with 16:9 aspect ratio
+    readonly property real _maxCellW: {
         if (!monitorData) return 200;
         var ro = (monitorData.transform % 2 === 1);
         var ms = monitorData.scale || 1.0;
-        var w = ro ? (monitor?.height || 1920) : (monitor?.width || 1920);
-        var sw = (w / ms) * scale;
-        if (barPosition === "left" || barPosition === "right") sw -= barReserved * scale;
-        return Math.max(0, Math.round(sw));
+        var availableW = (ro ? (monitor?.height || 1920) : (monitor?.width || 1920)) / ms;
+        if (barPosition === "left" || barPosition === "right") availableW -= barReserved;
+        var totalSpacing = (columns - 1) * workspaceSpacing + columns * workspacePadding;
+        var usableW = availableW - 64;
+        return Math.max(100, Math.round((usableW - totalSpacing) / columns));
     }
-    readonly property real wsCellH: {
+    readonly property real _maxCellH: {
         if (!monitorData) return 150;
         var ro = (monitorData.transform % 2 === 1);
         var ms = monitorData.scale || 1.0;
-        var h = ro ? (monitor?.width || 1080) : (monitor?.height || 1080);
-        var sh = (h / ms) * scale;
-        if (barPosition === "top" || barPosition === "bottom") sh -= barReserved * scale;
-        return Math.max(0, Math.round(sh));
+        var availableH = (ro ? (monitor?.width || 1080) : (monitor?.height || 1080)) / ms;
+        if (barPosition === "top" || barPosition === "bottom") availableH -= barReserved;
+        var totalSpacingV = (rows - 1) * workspaceSpacing + rows * workspacePadding;
+        var usableH = availableH - 64;
+        return Math.max(80, Math.round((usableH - totalSpacingV) / rows));
+    }
+    // Force 16:9 aspect ratio — fit within available space
+    readonly property real wsCellW: {
+        var hFromW = _maxCellW * 9 / 16;
+        if (hFromW <= _maxCellH) return _maxCellW;
+        return Math.max(100, Math.round(_maxCellH * 16 / 9));
+    }
+    readonly property real wsCellH: {
+        var hFromW = _maxCellW * 9 / 16;
+        if (hFromW <= _maxCellH) return Math.max(80, Math.round(hFromW));
+        return _maxCellH;
     }
 
     // Drag state
@@ -112,16 +125,45 @@ Item {
     // the cache key detects moves/resizes even without a full list change.
     Timer {
         id: positionPollTimer
-        interval: 400
+        interval: 300
         running: GlobalStates.overviewOpen
         repeat: true
         onTriggered: overviewRoot._updateFilteredWindows()
     }
 
-    // Stable cache for filtered windows to avoid destroying/recreating delegates
-    // every time axctl pushes a minor update (focus change, etc.)
+    // Force refresh from hyprctl when overview opens so window list is current
+    property int _openRefreshCount: 0
+
+    // Rapid-fire refreshes when overview opens to catch async compositor data
+    Timer {
+        id: openRefreshTimer
+        interval: 250
+        running: GlobalStates.overviewOpen && overviewRoot._openRefreshCount < 6
+        repeat: true
+        onTriggered: {
+            if (typeof CompositorData !== "undefined" && CompositorData.refreshFromHyprctl) {
+                CompositorData.refreshFromHyprctl();
+            }
+            overviewRoot._updateFilteredWindows();
+            overviewRoot._openRefreshCount++;
+        }
+    }
+
+    Connections {
+        target: GlobalStates
+        function onOverviewOpenChanged() {
+            if (GlobalStates.overviewOpen) {
+                overviewRoot._openRefreshCount = 0;
+                if (typeof CompositorData !== "undefined" && CompositorData.refreshFromHyprctl) {
+                    CompositorData.refreshFromHyprctl();
+                }
+                overviewRoot._updateFilteredWindows();
+            }
+        }
+    }
+
+    // Stable cache for filtered windows — always recomputed for freshness
     property var _filteredWindowsCache: []
-    property string _filteredWindowsCacheKey: ""
 
     Component.onCompleted: {
         _updateFilteredWindows();
@@ -130,28 +172,19 @@ Item {
 
     function _updateFilteredWindows() {
         var list = overviewRoot.windowList;
-        var keyParts = [];
         var result = [];
         for (var i = 0; i < list.length; i++) {
             var w = list[i];
             if (!w || !w.workspace || !w.workspace.id || w.workspace.id <= 0 || w.workspace.id > workspacesShown)
                 continue;
-            // Include position and size in key so windows reposition/resize reactively
-            keyParts.push(w.address + ":" + w.workspace.id
-                + ":@" + (w.at?.[0] ?? 0) + "," + (w.at?.[1] ?? 0)
-                + ":" + (w.size?.[0] ?? 0) + "x" + (w.size?.[1] ?? 0));
             var winMon = overviewRoot.allMonitors.find(function(m) { return m.id === w.monitor; });
             result.push({
                 windowData: w,
                 winMonData: winMon
             });
         }
-        var newKey = keyParts.join('|');
-        if (newKey !== _filteredWindowsCacheKey) {
-            _filteredWindowsCacheKey = newKey;
-            // Compute fill dimensions so windows tile without overlapping
-            _filteredWindowsCache = _computeFillSizes(result);
-        }
+        // Always recompute — never cache, so windows always refresh
+        _filteredWindowsCache = _computeFillSizes(result);
     }
 
     // For each window, calculate how far it can extend right/down before
@@ -278,19 +311,52 @@ Item {
             Repeater {
                 model: overviewRoot.rows
                 delegate: RowLayout {
+                    id: rowLayout
                     spacing: workspaceSpacing
+                    property int rowIdx: index
                     Repeater {
                         model: overviewRoot.columns
                         Rectangle {
                             id: cell
-                            property int wsNum: rowIndex * overviewRoot.columns + index + 1
+                            property int wsNum: rowLayout.rowIdx * overviewRoot.columns + index + 1
                             readonly property bool isDropTarget: overviewRoot.draggingTargetWorkspace === wsNum
+                            readonly property int staggerDelay: (rowLayout.rowIdx * overviewRoot.columns + index) * 40
 
                             implicitWidth: overviewRoot.wsCellW + workspacePadding
                             implicitHeight: overviewRoot.wsCellH + workspacePadding
                             color: "transparent"; radius: Styling.radius(2)
                             border.width: 2; border.color: isDropTarget ? Colors.outline : "transparent"
                             clip: true
+
+                            // Staggered entrance animation with spring physics
+                            opacity: 0
+                            scale: 0.85
+                            Component.onCompleted: {
+                                opacity = 1;
+                                scale = 1;
+                            }
+                            Behavior on opacity {
+                                enabled: Anim.animationsEnabled
+                                SequentialAnimation {
+                                    PauseAnimation { duration: cell.staggerDelay }
+                                    NumberAnimation {
+                                        duration: Anim.emphasizedNormal
+                                        easing.type: Anim.easing("decelerate").type
+                                        easing.bezierCurve: Anim.easing("decelerate").bezierCurve
+                                    }
+                                }
+                            }
+                            Behavior on scale {
+                                enabled: Anim.animationsEnabled
+                                SequentialAnimation {
+                                    PauseAnimation { duration: cell.staggerDelay }
+                                    NumberAnimation {
+                                        duration: Anim.emphasizedNormal
+                                        easing.type: Anim.springSnappy().type
+                                        easing.bezierCurve: Anim.springSnappy().bezierCurve
+                                    }
+                                }
+                            }
 
                             TintedWallpaper {
                                 anchors.fill: parent; radius: Styling.radius(2)
@@ -367,6 +433,8 @@ Item {
                         if (!w) return null;
                         var cls = w.class || "";
                         if (!cls) return null;
+                        // Force re-evaluation whenever toplevel list changes
+                        var _toplevelTrigger = ToplevelManager.toplevels.values;
                         var cands = ToplevelManager.toplevels.values.filter(function(t) { return t.appId === cls; });
                         if (cands.length === 0) return null;
                         var titleMatch = cands.find(function(t) { return t.title === (w.title || ""); });

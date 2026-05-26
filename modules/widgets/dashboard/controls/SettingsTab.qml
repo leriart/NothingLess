@@ -383,10 +383,11 @@ Rectangle {
                     boundsBehavior: Flickable.StopAtBounds
 
                     Behavior on contentY {
-                        enabled: Config.animDuration > 0 && !sidebarFlickable.moving
+                        enabled: Anim.animationsEnabled && !sidebarFlickable.moving
                         NumberAnimation {
-                            duration: Config.animDuration / 2
-                            easing.type: Easing.OutCubic
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
 
@@ -410,10 +411,11 @@ Rectangle {
                         visible: root.selectedIndex >= 0 && root.selectedIndex < root.filteredSections.length
 
                         Behavior on y {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: Config.animDuration / 2
-                                easing.type: Easing.OutCubic
+                                duration: Anim.standardSmall
+                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                             }
                         }
                     }
@@ -458,10 +460,11 @@ Rectangle {
                                         visible: sidebarButton.modelData.isIcon && (root.searchQuery.length === 0 || !sidebarButton.modelData.subSection)
 
                                         Behavior on color {
-                                            enabled: Config.animDuration > 0
+                                            enabled: Anim.animationsEnabled
                                             ColorAnimation {
-                                                duration: Config.animDuration
-                                                easing.type: Easing.OutCubic
+                                                duration: Anim.standardNormal
+                                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                             }
                                         }
                                     }
@@ -506,10 +509,11 @@ Rectangle {
                                             color: sidebarButton.isActive ? Styling.srItem("primary") : Styling.srItem("common")
 
                                             Behavior on color {
-                                                enabled: Config.animDuration > 0
+                                                enabled: Anim.animationsEnabled
                                                 ColorAnimation {
-                                                    duration: Config.animDuration
-                                                    easing.type: Easing.OutCubic
+                                                    duration: Anim.standardNormal
+                                                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                 }
                                             }
                                         }
@@ -629,10 +633,11 @@ Rectangle {
                 // Fade in animation
                 opacity: status === Loader.Ready ? 1 : 0
                 Behavior on opacity {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration
-                        easing.type: Easing.OutCubic
+                        duration: Anim.standardNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
 

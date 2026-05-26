@@ -29,8 +29,8 @@ Item {
         enabled: Anim.animationsEnabled
         NumberAnimation {
             duration: Anim.standardNormal
-            easing.type: Anim.easing("standard").type
-            easing.bezierCurve: Anim.easing("standard").bezierCurve
+            easing.type: Anim.springSnappy().type
+            easing.bezierCurve: Anim.springSnappy().bezierCurve
         }
     }
 
@@ -66,7 +66,11 @@ Item {
     readonly property bool hasActiveNotifications: Notifications.popupList.length > 0
 
     property int defaultHeight: Config.showBackground ? (screenNotchOpen || hasActiveNotifications ? Math.max(stackContainer.height, 44) : 44) : (screenNotchOpen || hasActiveNotifications ? Math.max(stackContainer.height, 40) : 40)
-    property int islandHeight: screenNotchOpen || hasActiveNotifications ? Math.max(stackContainer.height, 36) : 36
+    property int compactHeight: 36
+    property int islandHeight: screenNotchOpen || hasActiveNotifications ? Math.max(stackContainer.height, compactHeight) : compactHeight
+
+    // Force exact button height in island mode when idle
+    readonly property bool _forceCompact: Config.notchTheme === "island" && !screenNotchOpen && !hasActiveNotifications
 
     readonly property string position: Config.notchPosition ?? "top"
     // Bar position for merging island with bar
@@ -89,7 +93,9 @@ Item {
         }
         return w;
     }
-    implicitHeight: Config.notchTheme === "default" ? defaultHeight : (Config.notchTheme === "island" ? islandHeight : defaultHeight)
+    implicitHeight: Config.notchTheme === "default" ? defaultHeight
+        : (Config.notchTheme === "island" ? (_forceCompact ? compactHeight : islandHeight)
+        : defaultHeight)
     // When island merges with bar: notch IS part of the bar
     // Position at bar level with margins to not overlap buttons
     y: root.mergeWithBar ? (root.position === "top" ? 2 : parent.height - root.implicitHeight - 2) : 0
@@ -101,7 +107,7 @@ Item {
     Behavior on implicitWidth {
         enabled: (screenNotchOpen || stackViewInternal.busy) && Anim.animationsEnabled
         NumberAnimation {
-            property var _ease: isExpanded ? Anim.easing("emphasized") : Anim.easing("standard")
+            property var _ease: isExpanded ? Anim.springSnappy() : Anim.easing("standard")
             duration: isExpanded ? Anim.emphasizedNormal : Anim.standardNormal
             easing.type: _ease.type
             easing.bezierCurve: _ease.bezierCurve
@@ -111,7 +117,7 @@ Item {
     Behavior on implicitHeight {
         enabled: (screenNotchOpen || stackViewInternal.busy) && Anim.animationsEnabled
         NumberAnimation {
-            property var _ease: isExpanded ? Anim.easing("emphasized") : Anim.easing("standard")
+            property var _ease: isExpanded ? Anim.springSnappy() : Anim.easing("standard")
             duration: isExpanded ? Anim.emphasizedNormal : Anim.standardNormal
             easing.type: _ease.type
             easing.bezierCurve: _ease.bezierCurve
@@ -368,7 +374,7 @@ Item {
                 }
             }
             width: stackViewInternal.currentItem ? stackViewInternal.currentItem.implicitWidth + animMargin * 2 : animMargin * 2
-            height: stackViewInternal.currentItem ? stackViewInternal.currentItem.implicitHeight + animMargin * 2 : animMargin * 2
+            height: _forceCompact ? compactHeight : (stackViewInternal.currentItem ? stackViewInternal.currentItem.implicitHeight + animMargin * 2 : animMargin * 2)
             clip: true
 
             // Propiedad para controlar el blur durante las transiciones
@@ -423,16 +429,16 @@ Item {
                         from: 0
                         to: 1
                         duration: Anim.standardNormal
-                        easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        easing.type: Anim.easing("decelerate").type
+                        easing.bezierCurve: Anim.easing("decelerate").bezierCurve
                     }
                     PropertyAnimation {
                         property: "scale"
-                        from: 0.8
+                        from: 0.85
                         to: 1
                         duration: Anim.emphasizedNormal
-                        easing.type: Anim.easing("emphasized").type
-                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+                        easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve
                     }
                 }
 
@@ -448,7 +454,7 @@ Item {
                     PropertyAnimation {
                         property: "scale"
                         from: 1
-                        to: 1.05
+                        to: 1.04
                         duration: Anim.standardNormal
                         easing.type: Anim.easing("standard").type
                         easing.bezierCurve: Anim.easing("standard").bezierCurve
@@ -461,16 +467,16 @@ Item {
                         from: 0
                         to: 1
                         duration: Anim.standardNormal
-                        easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        easing.type: Anim.easing("decelerate").type
+                        easing.bezierCurve: Anim.easing("decelerate").bezierCurve
                     }
                     PropertyAnimation {
                         property: "scale"
-                        from: 1.05
+                        from: 1.04
                         to: 1
                         duration: Anim.standardNormal
-                        easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve
                     }
                 }
 
@@ -486,7 +492,7 @@ Item {
                     PropertyAnimation {
                         property: "scale"
                         from: 1
-                        to: 0.93
+                        to: 0.94
                         duration: Anim.emphasizedLarge
                         easing.type: Anim.easing("emphasized", "exit").type
                         easing.bezierCurve: Anim.easing("emphasized", "exit").bezierCurve
@@ -499,16 +505,16 @@ Item {
                         from: 0
                         to: 1
                         duration: Anim.standardNormal
-                        easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        easing.type: Anim.easing("decelerate").type
+                        easing.bezierCurve: Anim.easing("decelerate").bezierCurve
                     }
                     PropertyAnimation {
                         property: "scale"
-                        from: 0.8
+                        from: 0.85
                         to: 1
                         duration: Anim.emphasizedNormal
-                        easing.type: Anim.easing("emphasized").type
-                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+                        easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve
                     }
                 }
 
@@ -524,7 +530,7 @@ Item {
                     PropertyAnimation {
                         property: "scale"
                         from: 1
-                        to: 1.05
+                        to: 1.04
                         duration: Anim.standardNormal
                         easing.type: Anim.easing("standard").type
                         easing.bezierCurve: Anim.easing("standard").bezierCurve

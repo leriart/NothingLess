@@ -1,5 +1,7 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Effects
+import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -13,6 +15,11 @@ import qs.modules.services
 import qs.modules.components
 import qs.modules.widgets.launcher
 import qs.modules.bar.workspaces
+import qs.modules.bar.clock
+import qs.modules.bar.systray
+import qs.modules.bar.tasktray
+import qs.modules.bar
+import qs.modules.widgets.presets
 import qs.config
 import "./NotchNotificationView.qml"
 
@@ -40,16 +47,28 @@ Item {
         return theme === "island" && root.notchPosition === bp;
     }
     
-    // When inline island is active inside the bar: hide the original notch
-    // The inline island (IslandContent.qml) handles the compact view.
-    // The notch stack overlay still appears when the inline is expanded.
-    readonly property bool _mergedHidden: root.islandMergedWithBar && !root.screenNotchOpen && !root.hasActiveNotifications
-    opacity: root._mergedHidden ? 0.0 : 1.0
-    // In merged mode: slide down from bar position
-    // The menu drops from the bar/top area like a curtain
-    transformOrigin: Item.Top
-    // Pass through mouse events when merged (inline island handles clicks)
-    enabled: !root._mergedHidden
+    // Frame offset for positioning
+    readonly property int frameOffset: (Config.bar && Config.bar.frameEnabled && !root.activeWindowFullscreen) ? ((Config.bar.frameThickness !== undefined) ? Config.bar.frameThickness : 6) : 0
+
+    // In island mode: always enabled (buttons need to work)
+    enabled: root.islandMergedWithBar ? true : !root._mergedHidden
+
+    // Dock joins island bar if same position
+    readonly property bool dockSamePosition: {
+        if (!Config.dock || !Config.dock.enabled) return false;
+        var dp = Config.dock.position || "center";
+        if (dp === "center") return root.barPosition === "top" || root.barPosition === "bottom";
+        return dp === root.barPosition;
+    }
+
+    // In island mode: root always visible, children animate their own hide.
+    // In normal mode: hide when merged+idle.
+    readonly property bool _mergedHidden: !root.reveal
+    opacity: root.islandMergedWithBar ? 1.0 : (root._mergedHidden ? 0.0 : 1.0)
+    Behavior on opacity {
+        enabled: Anim.animationsEnabled
+        NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.easing("decelerate").type; easing.bezierCurve: Anim.easing("decelerate").bezierCurve }
+    }
     
     // Get the bar position for this screen
     readonly property string barPosition: PerMonitorConfig.resolve(screen.name, "bar", "position",
@@ -107,6 +126,25 @@ Item {
     // Check if the bar for this screen is vertical
     readonly property bool isBarVertical: barPosition === "left" || barPosition === "right"
 
+    // Island button sizing: square buttons matching notch compact height
+    readonly property int islandButtonSize: {
+        const baseSize = Config.showBackground ? (Config.notchTheme === "island" ? 36 : 44)
+                                               : (Config.notchTheme === "island" ? 36 : 40);
+        return Math.max(32, Math.min(48, baseSize));
+    }
+
+    // Comprehensive bar proxy for island-mode buttons (mirrors BarContent root)
+    readonly property var islandBarProxy: QtObject {
+        property var screen: root.screen
+        property string orientation: "horizontal"
+        property string barPosition: root.barPosition
+        property string barMode: "dynamic"
+        property bool shadowsEnabled: false
+    }
+
+    // Dock apps visible in island mode — only if dock shares position with bar/notch
+    readonly property bool islandDockEnabled: Config.dock && Config.dock.enabled && Config.dock.theme !== "integrated" && root.dockSamePosition
+
     // Notch state properties
     readonly property bool screenNotchOpen: screenVisibilities ? (screenVisibilities.launcher || screenVisibilities.dashboard || screenVisibilities.powermenu || screenVisibilities.tools) : false
     readonly property bool hasActiveNotifications: Notifications.popupList.length > 0
@@ -114,15 +152,24 @@ Item {
     // Hover state with delay to prevent flickering
     property bool hoverActive: false
 
+    // Hover tracking for buttons — keeps island visible in auto-hide
+    property bool islandButtonsHovered: false
+    onIslandButtonsHoveredChanged: {
+        if (islandButtonsHovered) { hideDelayTimer.stop(); hoverActive = true; }
+        else if (!isMouseOverNotch) { hideDelayTimer.restart(); }
+    }
+
     // Track if mouse is over any notch-related area
     readonly property bool isMouseOverNotch: notchMouseAreaHover.hovered || notchRegionHover.hovered
 
+    // Includes button hover so island stays visible when interacting with buttons
+    readonly property bool isMouseOverIsland: isMouseOverNotch || islandButtonsHovered
+
     // Reveal logic:
     readonly property bool reveal: {
-        // If keepHidden is true, ONLY show on interaction
-        // UNLESS notch and bar are on same side (e.g. both top), then keepHidden is IGNORED for sync consistency
-        if (((Config.notch && Config.notch.keepHidden !== undefined) ? Config.notch.keepHidden : false) && barPosition !== notchPosition) {
-            return (screenNotchOpen || hasActiveNotifications || hoverActive || barHoverActive);
+        // If fullscreen and bar is NOT available on fullscreen, hard-hide
+        if (activeWindowFullscreen && !(Config.bar && Config.bar.availableOnFullscreen !== undefined ? Config.bar.availableOnFullscreen : false)) {
+            return false;
         }
 
         // If metrics overlay is active, always show the notch
@@ -130,21 +177,19 @@ Item {
             return true;
         }
 
-        // If fullscreen and bar is NOT available on fullscreen, hard-hide the notch too
-        // This prevents barHoverActive from leaking through when the bar itself is hidden
-        if (activeWindowFullscreen && !(Config.bar && Config.bar.availableOnFullscreen !== undefined ? Config.bar.availableOnFullscreen : false)) {
-            return false;
+        // If keepHidden is true and NOT merged with bar, ONLY show on interaction
+        if (((Config.notch && Config.notch.keepHidden !== undefined) ? Config.notch.keepHidden : false) && barPosition !== notchPosition && !root.islandMergedWithBar) {
+            return (screenNotchOpen || hasActiveNotifications || hoverActive || barHoverActive);
         }
 
         // If not auto-hiding (pinned and not fullscreen), always show
         if (!shouldAutoHide) return true;
-        
+
         // Show on interaction (hover, open, notifications)
-        // This works even in fullscreen, ensuring hover always works
         if (screenNotchOpen || hasActiveNotifications || hoverActive || barHoverActive) {
             return true;
         }
-        
+
         return false;
     }
 
@@ -154,20 +199,18 @@ Item {
         interval: 1000
         repeat: false
         onTriggered: {
-            if (!root.isMouseOverNotch) {
+            if (!root.isMouseOverIsland) {
                 root.hoverActive = false;
             }
         }
     }
 
-    // Watch for mouse state changes
-    onIsMouseOverNotchChanged: {
-        if (isMouseOverNotch) {
-            // Immediately show when mouse enters any notch area
+    // Watch for mouse state changes — island mode includes button hover
+    onIsMouseOverIslandChanged: {
+        if (isMouseOverIsland) {
             hideDelayTimer.stop();
             hoverActive = true;
         } else {
-            // Delay hiding when mouse leaves
             hideDelayTimer.restart();
         }
     }
@@ -241,6 +284,175 @@ Item {
         }
     }
 
+    // ── Island-mode buttons ──
+    // Fixed to screen top edge, flanking the centered notch.
+    // Both sides have equal total width for visual balance.
+    // Hover on buttons keeps the island revealed.
+
+    // Left group — compact, balanced with right
+    Row {
+        id: islandLeftButtons
+        z: 5001
+        height: root.islandButtonSize
+        anchors.top: root.top
+        anchors.topMargin: root.frameOffset + 4
+        anchors.right: root.horizontalCenter
+        anchors.rightMargin: notchContainer.width / 2 + 12
+        spacing: 0
+        visible: root.islandMergedWithBar
+
+        // Smooth show/hide — uses opacity+scale, NOT visible, so hide animates
+        opacity: root.reveal ? 1 : 0
+        scale: root.reveal ? 1 : 0.9
+        transformOrigin: Item.Right
+        Behavior on opacity {
+            enabled: Anim.animationsEnabled
+            NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.easing("decelerate").type; easing.bezierCurve: Anim.easing("decelerate").bezierCurve }
+        }
+        Behavior on scale {
+            enabled: Anim.animationsEnabled
+            NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.easing("emphasized").type; easing.bezierCurve: Anim.easing("emphasized").bezierCurve }
+        }
+
+        HoverHandler { onHoveredChanged: root.islandButtonsHovered = hovered }
+
+        LauncherButton {
+            visible: !Config.bar.hiddenIcons.includes("launcher")
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3); enableShadow: false
+            implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
+        }
+        // Separator
+        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
+        Workspaces {
+            visible: !Config.bar.hiddenIcons.includes("workspaces")
+            orientation: "horizontal"; bar: root.islandBarProxy
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3)
+            implicitHeight: root.islandButtonSize
+        }
+        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
+        LayoutSelectorButton {
+            visible: !Config.bar.hiddenIcons.includes("layout")
+            bar: root.islandBarProxy; layerEnabled: false
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3)
+            implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
+        }
+        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
+        Button {
+            implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
+            visible: Config.bar && Config.bar.showPinButton !== false && !Config.bar.hiddenIcons.includes("pin")
+            background: StyledRect {
+                variant: "bg"; enableShadow: false
+                radius: Styling.radius(3)
+            }
+            contentItem: Text {
+                text: Icons.pin; font.family: Icons.font
+                font.pixelSize: Math.round(root.islandButtonSize * 0.5)
+                color: Styling.srItem("overprimary") || Colors.foreground
+                horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter
+            }
+            onClicked: { if (Config.bar) Config.bar.pinnedOnStartup = !(Config.bar.pinnedOnStartup !== false); }
+        }
+    }
+
+    // Right group — dock, tools, system, clock, power
+    Row {
+        id: islandRightButtons
+        z: 5001
+        height: root.islandButtonSize
+        anchors.top: root.top
+        anchors.topMargin: root.frameOffset + 4
+        anchors.left: root.horizontalCenter
+        anchors.leftMargin: notchContainer.width / 2 + 12
+        spacing: 0
+        visible: root.islandMergedWithBar
+
+        // Smooth show/hide — uses opacity+scale, NOT visible, so hide animates
+        opacity: root.reveal ? 1 : 0
+        scale: root.reveal ? 1 : 0.9
+        transformOrigin: Item.Left
+        Behavior on opacity {
+            enabled: Anim.animationsEnabled
+            NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.easing("decelerate").type; easing.bezierCurve: Anim.easing("decelerate").bezierCurve }
+        }
+        Behavior on scale {
+            enabled: Anim.animationsEnabled
+            NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.easing("emphasized").type; easing.bezierCurve: Anim.easing("emphasized").bezierCurve }
+        }
+
+        HoverHandler { onHoveredChanged: root.islandButtonsHovered = hovered }
+
+        // Dock apps with unified background — same size as other buttons
+        Repeater {
+            model: root.islandDockEnabled && !Config.bar.hiddenIcons.includes("dock") && TaskbarApps.apps.length > 0 ? TaskbarApps.apps : []
+            Rectangle {
+                width: root.islandButtonSize; height: root.islandButtonSize
+                radius: Styling.radius(3); color: Colors.surfaceContainer
+                IntegratedDockAppButton {
+                    anchors.centerIn: parent
+                    appToplevel: modelData; orientation: "horizontal"
+                    iconSize: root.islandButtonSize - 10
+                }
+            }
+        }
+        // Separator after dock
+        Rectangle {
+            visible: root.islandDockEnabled && !Config.bar.hiddenIcons.includes("dock") && TaskbarApps.apps.length > 0
+            width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter
+            color: Colors.outline; opacity: 0.3
+        }
+        PresetsButton {
+            visible: !Config.bar.hiddenIcons.includes("presets")
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3); enableShadow: false
+            implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
+        }
+        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
+        ToolsButton {
+            visible: !Config.bar.hiddenIcons.includes("tools")
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3); enableShadow: false
+            implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
+        }
+        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
+        SysTray {
+            visible: !Config.bar.hiddenIcons.includes("systray")
+            bar: root.islandBarProxy; enableShadow: false
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3)
+            implicitHeight: root.islandButtonSize
+        }
+        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
+        TaskTray {
+            visible: !Config.bar.hiddenIcons.includes("tasktray")
+            bar: root.islandBarProxy
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3)
+            implicitHeight: root.islandButtonSize
+        }
+        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
+        ControlsButton {
+            visible: !Config.bar.hiddenIcons.includes("controls")
+            bar: root.islandBarProxy; layerEnabled: false
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3)
+            implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
+        }
+        BatteryIndicator {
+            visible: !Config.bar.hiddenIcons.includes("battery")
+            bar: root.islandBarProxy; layerEnabled: false
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3)
+            implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
+        }
+        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
+        Clock {
+            visible: !Config.bar.hiddenIcons.includes("clock")
+            bar: root.islandBarProxy; layerEnabled: false
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3)
+            implicitHeight: root.islandButtonSize
+        }
+        Rectangle { width: 1; height: root.islandButtonSize * 0.5; anchors.verticalCenter: parent.verticalCenter; color: Colors.outline; opacity: 0.3 }
+        PowerButton {
+            visible: !Config.bar.hiddenIcons.includes("power")
+            startRadius: Styling.radius(3); endRadius: Styling.radius(3); enableShadow: false
+            implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
+        }
+    }
+
     Item {
         id: notchRegionContainer
         
@@ -266,20 +478,36 @@ Item {
             width: notchContainer.width
             height: notchContainer.height + (root.notchPosition === "top" ? notchContainer.anchors.topMargin : notchContainer.anchors.bottomMargin)
 
-            // Opacity animation
+            // ── Island mode: bloom from center ──
+            // Normal mode: slide from off-screen
+            // All island elements share same duration for synchronized show/hide.
             opacity: root.reveal ? 1 : 0
+            scale: root.islandMergedWithBar ? (root.reveal ? 1 : 0.7) : 1
+            transformOrigin: root.islandMergedWithBar
+                ? (root.notchPosition === "top" ? Item.Top : Item.Bottom)
+                : Item.Center
+
             Behavior on opacity {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Anim.standardSmall
-                    easing.type: Anim.easing("standard").type
-                    easing.bezierCurve: Anim.easing("standard").bezierCurve
+                    duration: Anim.emphasizedNormal
+                    easing.type: Anim.easing("decelerate").type
+                    easing.bezierCurve: Anim.easing("decelerate").bezierCurve
+                }
+            }
+            Behavior on scale {
+                enabled: Anim.animationsEnabled && root.islandMergedWithBar
+                NumberAnimation {
+                    duration: Anim.emphasizedNormal
+                    easing.type: Anim.easing("emphasized").type
+                    easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                 }
             }
 
-            // Slide animation (slide up when hidden)
+            // Slide (only for non-island mode)
             transform: Translate {
                 y: {
+                    if (root.islandMergedWithBar) return 0;
                     if (root.reveal) return 0;
                     if (root.notchPosition === "top")
                         return -(Math.max(notchContainer.height, 50) + 16);
@@ -287,7 +515,7 @@ Item {
                         return (Math.max(notchContainer.height, 50) + 16);
                 }
                 Behavior on y {
-                    enabled: Anim.animationsEnabled
+                    enabled: Anim.animationsEnabled && !root.islandMergedWithBar
                     NumberAnimation {
                         duration: Anim.spatialFast
                         easing.type: Anim.easing("spatial").type
@@ -304,6 +532,8 @@ Item {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: root.notchPosition === "top" ? parent.top : undefined
                 anchors.bottom: root.notchPosition === "bottom" ? parent.bottom : undefined
+
+                compactHeight: root.islandButtonSize
 
                 readonly property int frameOffset: (Config.bar && Config.bar.frameEnabled && !root.activeWindowFullscreen) ? ((Config.bar.frameThickness !== undefined) ? Config.bar.frameThickness : 6) : 0
 
@@ -348,19 +578,35 @@ Item {
             z: 999
             radius: Styling.radius(20)
 
-            // Apply same reveal animation as notch
+            // ── Island mode: scale+fade from island ──
+            // Normal mode: slide from off-screen
+            // All elements share same duration for sync.
             opacity: root.reveal ? 1 : 0
+            scale: root.islandMergedWithBar ? (root.reveal ? 1 : 0.85) : 1
+            transformOrigin: root.islandMergedWithBar
+                ? (root.notchPosition === "top" ? Item.Top : Item.Bottom)
+                : Item.Center
+
             Behavior on opacity {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Anim.standardSmall
-                    easing.type: Anim.easing("standard").type
-                    easing.bezierCurve: Anim.easing("standard").bezierCurve
+                    duration: Anim.emphasizedNormal
+                    easing.type: Anim.easing("decelerate").type
+                    easing.bezierCurve: Anim.easing("decelerate").bezierCurve
+                }
+            }
+            Behavior on scale {
+                enabled: Anim.animationsEnabled && root.islandMergedWithBar
+                NumberAnimation {
+                    duration: Anim.emphasizedNormal
+                    easing.type: Anim.easing("emphasized").type
+                    easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                 }
             }
 
             transform: Translate {
                 y: {
+                    if (root.islandMergedWithBar) return 0;
                     if (root.reveal) return 0;
                     if (root.notchPosition === "top")
                         return -(notchContainer.height + 16);
@@ -368,7 +614,7 @@ Item {
                         return (notchContainer.height + 16);
                 }
                 Behavior on y {
-                    enabled: Anim.animationsEnabled
+                    enabled: Anim.animationsEnabled && !root.islandMergedWithBar
                     NumberAnimation {
                         duration: Anim.spatialFast
                         easing.type: Anim.easing("spatial").type

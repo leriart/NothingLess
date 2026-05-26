@@ -558,19 +558,21 @@ Item {
             x: root.editMode ? -30 : 0
 
             Behavior on x {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration / 2
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
         }
 
         Behavior on opacity {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration / 2
-                easing.type: Easing.OutQuart
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 
@@ -689,19 +691,21 @@ Item {
             x: root.editMode ? -30 : 0
 
             Behavior on x {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration / 2
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
         }
 
         Behavior on opacity {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration / 2
-                easing.type: Easing.OutQuart
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 
@@ -826,19 +830,21 @@ Item {
             x: root.editMode ? 0 : 30
 
             Behavior on x {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration / 2
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
         }
 
         Behavior on opacity {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration / 2
-                easing.type: Easing.OutQuart
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 
@@ -1732,10 +1738,11 @@ Item {
                                         radius: Styling.radius(-2)
 
                                         Behavior on width {
-                                            enabled: (Config.animDuration ?? 0) > 0
+                                            enabled: Anim.animationsEnabled
                                             NumberAnimation {
-                                                duration: (Config.animDuration ?? 0) / 3
-                                                easing.type: Easing.OutCubic
+                                                duration: Anim.standardSmall
+                                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                             }
                                         }
 
@@ -1758,19 +1765,21 @@ Item {
                                                     opacity: layoutTag.isSelected ? 1 : 0
 
                                                     Behavior on opacity {
-                                                        enabled: (Config.animDuration ?? 0) > 0
+                                                        enabled: Anim.animationsEnabled
                                                         NumberAnimation {
-                                                            duration: (Config.animDuration ?? 0) / 3
-                                                            easing.type: Easing.OutCubic
+                                                            duration: Anim.standardSmall
+                                                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                         }
                                                     }
                                                 }
 
                                                 Behavior on width {
-                                                    enabled: (Config.animDuration ?? 0) > 0
+                                                    enabled: Anim.animationsEnabled
                                                     NumberAnimation {
-                                                        duration: (Config.animDuration ?? 0) / 3
-                                                        easing.type: Easing.OutCubic
+                                                        duration: Anim.standardSmall
+                                                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                     }
                                                 }
                                             }
@@ -1917,10 +1926,11 @@ Item {
                         opacity: bindItem.isEnabled ? 1.0 : 0.0
 
                         Behavior on opacity {
-                            enabled: Config.animDuration > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: Config.animDuration / 2
-                                easing.type: Easing.OutQuart
+                                duration: Anim.standardSmall
+                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                             }
                         }
 
@@ -1933,11 +1943,11 @@ Item {
                             scale: bindItem.isEnabled ? 1.0 : 0.0
 
                             Behavior on scale {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: Config.animDuration / 2
-                                    easing.type: Easing.OutBack
-                                    easing.overshoot: 1.5
+                                    duration: Anim.standardSmall
+                                    easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                                 }
                             }
                         }

@@ -972,10 +972,11 @@ Rectangle {
                             }
 
                             Behavior on color {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 ColorAnimation {
-                                    duration: Config.animDuration
-                                    easing.type: Easing.OutCubic
+                                    duration: Anim.standardNormal
+                                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                 }
                             }
                         }
@@ -1018,10 +1019,11 @@ Rectangle {
                             }
 
                             Behavior on color {
-                                enabled: Config.animDuration > 0
+                                enabled: Anim.animationsEnabled
                                 ColorAnimation {
-                                    duration: Config.animDuration
-                                    easing.type: Easing.OutCubic
+                                    duration: Anim.standardNormal
+                                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                 }
                             }
                         }
@@ -1057,8 +1059,8 @@ Rectangle {
             color: gearMa.containsMouse ? Styling.srItem("overprimary") : Colors.overBackground
 
             Behavior on color {
-                enabled: Config.animDuration > 0
-                ColorAnimation { duration: Config.animDuration }
+                enabled: Anim.animationsEnabled
+                ColorAnimation { duration: Anim.standardNormal }
             }
         }
 

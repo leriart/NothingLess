@@ -1151,10 +1151,11 @@ Item {
                 opacity: checked ? 1.0 : 0.0
 
                 Behavior on opacity {
-                    enabled: Config.animDuration > 0
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
-                        duration: Config.animDuration / 2
-                        easing.type: Easing.OutQuart
+                        duration: Anim.standardSmall
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
 
@@ -1167,11 +1168,11 @@ Item {
                     scale: checked ? 1.0 : 0.0
 
                     Behavior on scale {
-                        enabled: Config.animDuration > 0
+                        enabled: Anim.animationsEnabled
                         NumberAnimation {
-                            duration: Config.animDuration / 2
-                            easing.type: Easing.OutBack
-                            easing.overshoot: 1.5
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("emphasized").type
+                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                         }
                     }
                 }
