@@ -18,6 +18,20 @@ Item {
     id: root
 
     property bool enabled: Config.desktopWidgets && Config.desktopWidgets.enabled
+    property bool _visible: false
+
+    // Smooth entrance
+    opacity: _visible ? 1 : 0
+    Behavior on opacity {
+        enabled: Anim.animationsEnabled
+        NumberAnimation {
+            duration: Anim.emphasizedLarge
+            easing.type: Anim.easing("emphasized").type
+            easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+        }
+    }
+
+    Component.onCompleted: Qt.callLater(() => root._visible = true)
 
     // Clock widget
     Item {

@@ -31,17 +31,19 @@ Item {
     }
 
     Behavior on iconRotation {
-        enabled: Config.animDuration > 0
+        enabled: Anim.animationsEnabled
         NumberAnimation {
             duration: 400
-            easing.type: Easing.OutCubic
+            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
         }
     }
     Behavior on iconScale {
-        enabled: Config.animDuration > 0
+        enabled: Anim.animationsEnabled
         NumberAnimation {
             duration: 400
-            easing.type: Easing.OutCubic
+            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
         }
     }
 
@@ -73,8 +75,9 @@ Item {
     transitions: Transition {
         NumberAnimation {
             properties: "implicitWidth,implicitHeight,Layout.preferredWidth,Layout.preferredHeight"
-            duration: 200
-            easing.type: Easing.OutCubic
+            duration: Anim.standardSmall
+            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
         }
     }
 
@@ -99,9 +102,9 @@ Item {
             radius: parent.radius ?? 0
 
             Behavior on opacity {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration / 2
+                    duration: Anim.standardSmall
                 }
             }
         }

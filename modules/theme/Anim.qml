@@ -33,21 +33,24 @@ QtObject {
     // BASE DURATIONS (ms) — Material 3 spec
     // ============================================
     readonly property var _durations: ({
+        // Standard — UI transitions (buttons, panels, opacity, scale)
         standard: {
-            small:      100,
-            normal:     200,
-            large:      300,
-            extraLarge: 400
+            small:      120,
+            normal:     250,
+            large:      350,
+            extraLarge: 450
         },
+        // Emphasized — High-emphasis feedback (notch expand, modal enter/exit)
         emphasized: {
-            small:  150,
-            normal: 300,
-            large:  450
+            small:  200,
+            normal: 350,
+            large:  500
         },
+        // Spatial — Layout/orientation changes (workspace switch, overview)
         spatial: {
-            fast:    100,
-            default: 250,
-            slow:    400
+            fast:    150,
+            default: 300,
+            slow:    450
         }
     })
 
