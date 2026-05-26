@@ -2,6 +2,7 @@ import QtQuick
 import qs.modules.widgets.overview
 import qs.modules.services
 import qs.modules.globals
+import qs.modules.theme
 import qs.config
 
 Item {
@@ -27,18 +28,20 @@ Item {
     }
 
     Behavior on implicitWidth {
-        enabled: Config.animDuration > 0
+        enabled: Anim.animationsEnabled
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: Easing.OutQuart
+            duration: Anim.standardNormal
+            easing.type: Anim.easing("standard").type
+            easing.bezierCurve: Anim.easing("standard").bezierCurve
         }
     }
 
     Behavior on implicitHeight {
-        enabled: Config.animDuration > 0
+        enabled: Anim.animationsEnabled
         NumberAnimation {
-            duration: Config.animDuration
-            easing.type: Easing.OutQuart
+            duration: Anim.standardNormal
+            easing.type: Anim.easing("standard").type
+            easing.bezierCurve: Anim.easing("standard").bezierCurve
         }
     }
 
@@ -47,8 +50,33 @@ Item {
         id: overviewLoader
         anchors.centerIn: parent
         active: true
+        asynchronous: true
         
         sourceComponent: isScrollingLayout ? scrollingOverviewComponent : standardOverviewComponent
+
+        // Smooth opacity transition when swapping layouts
+        opacity: status === Loader.Ready ? 1 : 0
+
+        Behavior on opacity {
+            enabled: Anim.animationsEnabled
+            NumberAnimation {
+                duration: Anim.emphasizedNormal
+                easing.type: Anim.easing("emphasized").type
+                easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+            }
+        }
+
+        // Scale entrance animation
+        scale: status === Loader.Ready ? 1 : 0.95
+
+        Behavior on scale {
+            enabled: Anim.animationsEnabled
+            NumberAnimation {
+                duration: Anim.emphasizedNormal
+                easing.type: Anim.easing("emphasized").type
+                easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+            }
+        }
     }
 
     // Standard grid overview
