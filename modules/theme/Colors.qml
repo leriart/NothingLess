@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.config
+import qs.modules.globals
 
 FileView {
     id: colors
@@ -269,6 +270,52 @@ FileView {
     property color yellowSource: adapter.yellowSource
     property color yellowValue: adapter.yellowValue
     property color sourceColor: adapter.sourceColor
+
+    // ============================================
+    // DYNAMIC COLOR — Wallpaper ColorQuantizer (M3 Material You)
+    // Extracts dominant colors from current wallpaper for dynamic theming.
+    // ============================================
+
+    /*! Dominant color extracted from wallpaper via ColorQuantizer (rescaleSize: 10).
+        Falls back to adapter.sourceColor when unavailable. */
+    property color dominantColor: adapter.sourceColor
+
+    /*! Vibrancy (0.0-1.0) of the extracted dominant color.
+        High vibrancy → more transparent surfaces.
+        Low vibrancy → more opaque surfaces (muted wallpapers). */
+    property real vibrancy: 0.5
+
+    /*! Whether dynamic color from wallpaper is active.
+        Controlled by Config.dynamicColor toggle.
+        When enabled, overrides static palette with quantizer colors. */
+    property bool dynamicColorEnabled: false
+
+    /*! Listen for wallpaper changes and re-quantize colors. */
+    property Connections wallpaperWatcher: Connections {
+        target: GlobalStates.wallpaperManager
+        function onCurrentWallpaperChanged() {
+            wallpaperQuantizer.source = GlobalStates.wallpaperManager.currentWallpaper || "";
+        }
+    }
+
+    /*! ColorQuantizer: extracts dominant colors from current wallpaper.
+        Uses rescaleSize:10 (tiny downscale) for maximum performance.
+        Colors are available in wallpaperQuantizer.colors array. */
+    property ColorQuantizer wallpaperQuantizer: ColorQuantizer {
+        id: wallpaperQuantizer
+        depth: 6
+        rescaleSize: 10
+        source: GlobalStates.wallpaperManager ? GlobalStates.wallpaperManager.currentWallpaper || "" : ""
+        onColorsChanged: {
+            if (wallpaperQuantizer.colors.length > 0) {
+                const c = wallpaperQuantizer.colors[0];
+                root.dominantColor = Qt.hsla(c.hslHue, c.hslSaturation, c.hslLightness, 1.0);
+                // Vibrancy: how saturated/bright the dominant color is
+                root.vibrancy = Math.min(1.0, (c.hslSaturation * 0.6 + (1.0 - Math.abs(c.hslLightness - 0.5) * 2.0) * 0.4));
+                console.log("DynamicColor: extracted", wallpaperQuantizer.colors.length, "colors, dominant:", root.dominantColor, "vibrancy:", root.vibrancy);
+            }
+        }
+    }
 
     // ============================================
     // M3 ELEVATION SYSTEM — helpers & semantic surfaces

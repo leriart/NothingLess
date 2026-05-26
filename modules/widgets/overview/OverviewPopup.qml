@@ -75,10 +75,11 @@ PanelWindow {
         opacity: overviewOpen ? 0.5 : 0
 
         Behavior on opacity {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: Easing.OutQuart
+                duration: Anim.standardNormal
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 
@@ -101,19 +102,20 @@ PanelWindow {
         scale: overviewOpen ? 1 : 0.9
 
         Behavior on opacity {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: Easing.OutQuart
+                duration: Anim.standardNormal
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 
         Behavior on scale {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration
-                easing.type: Easing.OutBack
-                easing.overshoot: 1.2
+                duration: Anim.emphasizedLarge
+                easing.type: Anim.easing("emphasized").type
+                easing.bezierCurve: Anim.easing("emphasized").bezierCurve
             }
         }
 
@@ -304,9 +306,21 @@ PanelWindow {
                 id: overviewLoader
                 anchors.centerIn: parent
                 active: overviewOpen
+                asynchronous: true
 
                 sourceComponent: OverviewView {
                     currentScreen: overviewPopup.screen
+                }
+
+                onLoaded: {
+                    console.log("OverviewView loaded asynchronously");
+                }
+
+                onActiveChanged: {
+                    if (!active && item) {
+                        item.destroy();
+                        console.log("OverviewView resources released");
+                    }
                 }
             }
         }
@@ -368,9 +382,9 @@ PanelWindow {
                     color: externalScrollBar.pressed ? Styling.srItem("overprimary") : (externalScrollBar.hovered ? Qt.lighter(Styling.srItem("overprimary"), 1.2) : Styling.srItem("overprimary"))
 
                     Behavior on color {
-                        enabled: Config.animDuration > 0
+                        enabled: Anim.animationsEnabled
                         ColorAnimation {
-                            duration: Config.animDuration / 2
+                            duration: Anim.standardSmall
                         }
                     }
                 }
