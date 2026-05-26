@@ -659,120 +659,103 @@ Item {
                             Layout.preferredHeight: 36
                             Layout.fillWidth: true
                         }
-                        // Center Group Container
-                        Item {
+                        // Vertical spacer before center group
+                        Item { Layout.fillHeight: true; Layout.fillWidth: true }
+
+                        LayoutSelectorButton {
+                            id: layoutSelectorButtonVert
+                            visible: !Config.bar.hiddenIcons.includes("layout")
+                            bar: root
+                            layerEnabled: root.shadowsEnabled
+                            Layout.fillWidth: true
+                            startRadius: root.outerRadius
+                            endRadius: root.innerRadius
+                            vertical: true
+                        }
+                        Workspaces {
+                            id: workspacesVert
+                            visible: !Config.bar.hiddenIcons.includes("workspaces")
+                            orientation: root.orientation
+                            bar: QtObject {
+                                property var screen: root.screen
+                            }
+                            Layout.fillWidth: true
+                            startRadius: root.innerRadius
+                            endRadius: root.innerRadius
+                        }
+                        // Pin button (vertical)
+                        Loader {
+                            active: (Config.bar && Config.bar.showPinButton !== undefined ? Config.bar.showPinButton : true)
+                            visible: active
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignHCenter
+                            sourceComponent: Button {
+                                id: pinButtonV
+                                implicitWidth: 36
+                                implicitHeight: 36
+                                background: StyledRect {
+                                    id: pinButtonVBg
+                                    variant: root.pinned ? "primary" : "bg"
+                                    enableShadow: root.shadowsEnabled
+                                    property real startRadius: root.innerRadius
+                                    property real endRadius: root.integratedDockEnabled ? root.innerRadius : root.outerRadius
+                                    topLeftRadius: startRadius
+                                    topRightRadius: startRadius
+                                    bottomLeftRadius: endRadius
+                                    bottomRightRadius: endRadius
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        color: Styling.srItem("overprimary")
+                                        opacity: root.pinned ? 0 : (pinButtonV.pressed ? 0.5 : (pinButtonV.hovered ? 0.25 : 0))
+                                        radius: (parent.radius !== undefined ? parent.radius : 0)
+                                        Behavior on opacity {
+                                            enabled: Anim.animationsEnabled
+                                            NumberAnimation {
+                                                duration: Anim.standardSmall
+                                            }
+                                        }
+                                    }
+                                }
+                                contentItem: Text {
+                                    text: Icons.pin
+                                    font.family: Icons.font
+                                    font.pixelSize: 18
+                                    color: root.pinned ? pinButtonVBg.item : (pinButtonV.pressed ? Colors.background : (Styling.srItem("overprimary") || Colors.foreground))
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    rotation: root.pinned ? 0 : 45
+                                    Behavior on rotation {
+                                        enabled: Anim.animationsEnabled
+                                        NumberAnimation {
+                                            duration: Anim.standardSmall
+                                        }
+                                    }
+                                    Behavior on color {
+                                        enabled: Anim.animationsEnabled
+                                        ColorAnimation {
+                                            duration: Anim.standardSmall
+                                        }
+                                    }
+                                }
+                                onClicked: root.pinned = !root.pinned
+                                StyledToolTip {
+                                    show: pinButtonV.hovered
+                                    tooltipText: root.pinned ? "Unpin bar" : "Pin bar"
+                                }
+                            }
+                        }
+                        // Vertical spacer after center group (pushes center items up)
+                        Item { Layout.fillHeight: true; Layout.fillWidth: true; visible: !integratedDockEnabled }
+                        // Integrated dock fills space when enabled
+                        Bar.IntegratedDock {
+                            bar: root
+                            orientation: root.orientation
+                            visible: integratedDockEnabled
                             Layout.fillHeight: true
                             Layout.fillWidth: true
-                            ColumnLayout {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                // Calculate target position to be absolutely centered in the bar (vertically)
-                                property real targetY: {
-                                    if (!parent || !bar)
-                                        return 0;
-                                    // Force re-evaluation when parent moves
-                                    var _trigger = parent.y;
-                                    var parentPos = parent.mapToItem(bar, 0, 0);
-                                    return (bar.height - height) / 2 - parentPos.y;
-                                }
-                                // Clamp y position
-                                y: Math.max(0, Math.min(parent.height - height, targetY))
-                                height: Math.min(parent.height, implicitHeight)
-                                width: parent.width
-                                spacing: 4
-                                LayoutSelectorButton {
-                                    id: layoutSelectorButtonVert
-                                    visible: !Config.bar.hiddenIcons.includes("layout")
-                                    bar: root
-                                    layerEnabled: root.shadowsEnabled
-                                    Layout.fillWidth: true
-                                    startRadius: root.outerRadius
-                                    endRadius: root.innerRadius
-                                    vertical: true
-                                }
-                                Workspaces {
-                                    id: workspacesVert
-                                    visible: !Config.bar.hiddenIcons.includes("workspaces")
-                                    orientation: root.orientation
-                                    bar: QtObject {
-                                        property var screen: root.screen
-                                    }
-                                    Layout.fillWidth: true
-                                    startRadius: root.innerRadius
-                                    endRadius: root.innerRadius
-                                }
-                                // Pin button (vertical)
-                                Loader {
-                                    active: (Config.bar && Config.bar.showPinButton !== undefined ? Config.bar.showPinButton : true)
-                                    visible: active
-                                    Layout.fillWidth: true
-                                    Layout.alignment: Qt.AlignHCenter
-                                    sourceComponent: Button {
-                                        id: pinButtonV
-                                        implicitWidth: 36
-                                        implicitHeight: 36
-                                        background: StyledRect {
-                                            id: pinButtonVBg
-                                            variant: root.pinned ? "primary" : "bg"
-                                            enableShadow: root.shadowsEnabled
-                                            property real startRadius: root.innerRadius
-                                            // In vertical, dock is always appended to this group if enabled
-                                            property real endRadius: root.integratedDockEnabled ? root.innerRadius : root.outerRadius
-                                            topLeftRadius: startRadius
-                                            topRightRadius: startRadius
-                                            bottomLeftRadius: endRadius
-                                            bottomRightRadius: endRadius
-                                            Rectangle {
-                                                anchors.fill: parent
-                                                color: Styling.srItem("overprimary")
-                                                opacity: root.pinned ? 0 : (pinButtonV.pressed ? 0.5 : (pinButtonV.hovered ? 0.25 : 0))
-                                                radius: (parent.radius !== undefined ? parent.radius : 0)
-                                                Behavior on opacity {
-                                                    enabled: Anim.animationsEnabled
-                                                    NumberAnimation {
-                                                        duration: Anim.standardSmall
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        contentItem: Text {
-                                            text: Icons.pin
-                                            font.family: Icons.font
-                                            font.pixelSize: 18
-                                            color: root.pinned ? pinButtonVBg.item : (pinButtonV.pressed ? Colors.background : (Styling.srItem("overprimary") || Colors.foreground))
-                                            horizontalAlignment: Text.AlignHCenter
-                                            verticalAlignment: Text.AlignVCenter
-                                            rotation: root.pinned ? 0 : 45
-                                            Behavior on rotation {
-                                                enabled: Anim.animationsEnabled
-                                                NumberAnimation {
-                                                    duration: Anim.standardSmall
-                                                }
-                                            }
-                                            Behavior on color {
-                                                enabled: Anim.animationsEnabled
-                                                ColorAnimation {
-                                                    duration: Anim.standardSmall
-                                                }
-                                            }
-                                        }
-                                        onClicked: root.pinned = !root.pinned
-                                        StyledToolTip {
-                                            show: pinButtonV.hovered
-                                            tooltipText: root.pinned ? "Unpin bar" : "Pin bar"
-                                        }
-                                    }
-                                }
-                            }
-                            Bar.IntegratedDock {
-                                bar: root
-                                orientation: root.orientation
-                                visible: integratedDockEnabled
-                                Layout.fillHeight: true
-                                Layout.fillWidth: true
-                                enableShadow: root.shadowsEnabled
-                                startRadius: root.innerRadius
-                                endRadius: root.outerRadius
-                            }
+                            enableShadow: root.shadowsEnabled
+                            startRadius: root.innerRadius
+                            endRadius: root.outerRadius
                         }
                         ControlsButton {
                             id: controlsButtonVert
