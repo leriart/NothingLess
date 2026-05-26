@@ -425,6 +425,7 @@ Item {
                             startRadius: root.outerRadius
                             endRadius: root.innerRadius
                             enableShadow: root.shadowsEnabled
+                            Layout.alignment: Qt.AlignVCenter
                         }
                         Workspaces {
                             visible: !Config.bar.hiddenIcons.includes("workspaces")
@@ -434,10 +435,8 @@ Item {
                             }
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                            Layout.alignment: Qt.AlignVCenter
                         }
-
-
-
                         LayoutSelectorButton {
             visible: !Config.bar.hiddenIcons.includes("layout")
                             id: layoutSelectorButton
@@ -445,6 +444,7 @@ Item {
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.innerRadius
                             endRadius: (root.pinButtonVisible) ? root.innerRadius : (root.dockAtStart ? root.innerRadius : root.outerRadius)
+                            Layout.alignment: Qt.AlignVCenter
                         }
                         // Pin button (horizontal)
                         Loader {
@@ -459,7 +459,6 @@ Item {
                                     id: pinButtonBg
                                     variant: root.pinned ? "primary" : "bg"
                                     enableShadow: root.shadowsEnabled
-                                    // PinButton is typically last in group 1 (unless IntegratedDock follows at start)
                                     property real startRadius: root.innerRadius
                                     property real endRadius: root.dockAtStart ? root.innerRadius : root.outerRadius
                                     topLeftRadius: startRadius
@@ -545,6 +544,7 @@ Item {
                             startRadius: root.dockAtEnd ? root.innerRadius : root.outerRadius
                             endRadius: root.innerRadius
                             enableShadow: root.shadowsEnabled
+                            Layout.alignment: Qt.AlignVCenter
                         }
                         ToolsButton {
             visible: !Config.bar.hiddenIcons.includes("tools")
@@ -552,6 +552,7 @@ Item {
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
                             enableShadow: root.shadowsEnabled
+                            Layout.alignment: Qt.AlignVCenter
                         }
                         SysTray {
                             visible: !Config.bar.hiddenIcons.includes("systray")
@@ -559,13 +560,14 @@ Item {
                             enableShadow: root.shadowsEnabled
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                            Layout.alignment: Qt.AlignVCenter
                         }
-                        // Running tasks tray
                         TaskTray {
                             visible: !Config.bar.hiddenIcons.includes("tasktray")
                             bar: root
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                            Layout.alignment: Qt.AlignVCenter
                         }
                         ControlsButton {
             visible: !Config.bar.hiddenIcons.includes("controls")
@@ -574,6 +576,7 @@ Item {
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                            Layout.alignment: Qt.AlignVCenter
                         }
                         Bar.BatteryIndicator {
             visible: !Config.bar.hiddenIcons.includes("battery")
@@ -582,6 +585,7 @@ Item {
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                            Layout.alignment: Qt.AlignVCenter
                         }
                         Clock {
                             id: clockComponent
@@ -590,6 +594,7 @@ Item {
                             layerEnabled: root.shadowsEnabled
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
+                            Layout.alignment: Qt.AlignVCenter
                         }
                         PowerButton {
                             id: powerButton
@@ -597,6 +602,7 @@ Item {
                             startRadius: root.innerRadius
                             endRadius: root.outerRadius
                             enableShadow: root.shadowsEnabled
+                            Layout.alignment: Qt.AlignVCenter
                         }
                     }
                 }
@@ -678,7 +684,7 @@ Item {
                                     visible: !Config.bar.hiddenIcons.includes("layout")
                                     bar: root
                                     layerEnabled: root.shadowsEnabled
-                                    Layout.alignment: Qt.AlignHCenter
+                                    Layout.fillWidth: true
                                     startRadius: root.outerRadius
                                     endRadius: root.innerRadius
                                     vertical: true
@@ -690,7 +696,7 @@ Item {
                                     bar: QtObject {
                                         property var screen: root.screen
                                     }
-                                    Layout.alignment: Qt.AlignHCenter
+                                    Layout.fillWidth: true
                                     startRadius: root.innerRadius
                                     endRadius: root.innerRadius
                                 }
@@ -698,6 +704,7 @@ Item {
                                 Loader {
                                     active: (Config.bar && Config.bar.showPinButton !== undefined ? Config.bar.showPinButton : true)
                                     visible: active
+                                    Layout.fillWidth: true
                                     Layout.alignment: Qt.AlignHCenter
                                     sourceComponent: Button {
                                         id: pinButtonV
