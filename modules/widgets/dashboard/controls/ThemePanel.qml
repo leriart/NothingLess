@@ -551,13 +551,105 @@ Item {
                                 }
                             }
 
+                            // Animation Style selector
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                Text {
+                                    text: "Style"
+                                    font.family: Config.theme.font
+                                    font.pixelSize: Styling.fontSize(0)
+                                    color: Colors.overBackground
+                                    Layout.preferredWidth: 80
+                                }
+
+                                Text {
+                                    text: "M3 standard"
+                                    font.family: Config.theme.font
+                                    font.pixelSize: Styling.fontSize(-2)
+                                    color: Colors.overSurfaceVariant
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                StyledRect {
+                                    id: animStyleSelector
+                                    variant: "focus"
+                                    implicitWidth: 160
+                                    implicitHeight: 30
+                                    radius: Styling.radius(2)
+
+                                    property int selectedIndex: {
+                                        const style = Config.theme.animStyle || "m3";
+                                        const styles = ["m3", "smooth", "snappy", "minimal", "disabled"];
+                                        const idx = styles.indexOf(style);
+                                        return idx >= 0 ? idx : 0;
+                                    }
+
+                                    property var styles: ["M3", "Smooth", "Snappy", "Minimal", "Off"]
+                                    property var styleKeys: ["m3", "smooth", "snappy", "minimal", "disabled"]
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.margins: 2
+                                        spacing: 0
+
+                                        Repeater {
+                                            model: animStyleSelector.styles.length
+
+                                            delegate: Item {
+                                                required property int index
+                                                width: animStyleSelector.width / animStyleSelector.styles.length - 2
+                                                height: parent.height
+
+                                                Rectangle {
+                                                    anchors.fill: parent
+                                                    radius: Styling.radius(1)
+                                                    color: index === animStyleSelector.selectedIndex ? Colors.primary : "transparent"
+                                                    opacity: index === animStyleSelector.selectedIndex ? 0.3 : 0
+
+                                                    Behavior on color {
+                                                        enabled: Anim.animationsEnabled
+                                                        ColorAnimation { duration: Anim.standardSmall }
+                                                    }
+                                                }
+
+                                                Text {
+                                                    anchors.centerIn: parent
+                                                    text: animStyleSelector.styles[index]
+                                                    font.family: Config.theme.font
+                                                    font.pixelSize: Styling.fontSize(-2)
+                                                    font.weight: index === animStyleSelector.selectedIndex ? Font.Medium : Font.Normal
+                                                    color: index === animStyleSelector.selectedIndex ? Colors.primary : Colors.overSurfaceVariant
+                                                }
+
+                                                MouseArea {
+                                                    anchors.fill: parent
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    onClicked: {
+                                                        const newStyle = animStyleSelector.styleKeys[index];
+                                                        if (newStyle !== (Config.theme.animStyle || "m3")) {
+                                                            Config.theme.animStyle = newStyle;
+                                                            GlobalStates.markThemeChanged();
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
                             // Animation Duration slider
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 8
 
                                 Text {
-                                    text: "Animation"
+                                    text: "Speed"
                                     font.family: Config.theme.font
                                     font.pixelSize: Styling.fontSize(0)
                                     color: Colors.overBackground

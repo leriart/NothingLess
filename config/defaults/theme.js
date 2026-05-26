@@ -12,6 +12,7 @@ var data = {
     "enableCorners": true,
     "animDuration": 300,
     "dynamicColor": false,
+    "animStyle": "m3",
     "animScale": 1.0,
     "shadowOpacity": 0.5,
     "shadowColor": "shadow",

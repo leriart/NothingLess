@@ -75,17 +75,40 @@ QtObject {
     })
 
     // ============================================
+    // ANIMATION STYLE
+    // ============================================
+    // Controls the overall animation feel:
+    //   "m3"       — Material 3 spec durations (default)
+    //   "smooth"   — 1.5x slower, emphasized easings everywhere
+    //   "snappy"   — 0.5x faster, standard easings
+    //   "minimal"  — Minimal animations (only fade/opacity)
+    //   "disabled" — No animations at all (0 duration)
+    readonly property string _style: (Config.theme && Config.theme.animStyle) || "m3"
+
+    readonly property real _styleScale: {
+        switch (root._style) {
+        case "smooth":   return 1.5;
+        case "snappy":   return 0.5;
+        case "minimal":  return 0.25;
+        case "disabled": return 0.0;
+        default:         return 1.0; // "m3" or unknown
+        }
+    }
+
+    // ============================================
     // GLOBAL SPEED SCALE
     // ============================================
-    // Falls back to Config.animDuration / 300 so existing configs remain valid.
-    // If Config adds animScale in the future, that takes precedence.
+    // Combined: style scale × user animScale × legacy animDuration
     readonly property real _baseScale: {
         const cfgScale = Config.theme && Config.theme.animScale;
-        if (cfgScale !== undefined && cfgScale > 0) return cfgScale;
+        const styleScale = root._styleScale;
+        let userScale = 1.0;
+        if (cfgScale !== undefined && cfgScale > 0) userScale = cfgScale;
         // Derive from legacy animDuration so we don't break existing configs.
         // animDuration 0 (GameMode) disables animations entirely.
         if (Config.animDuration <= 0) return 0;
-        return Config.animDuration / 300;
+        if (root._style === "disabled") return 0;
+        return styleScale * userScale * Config.animDuration / 300;
     }
 
     function _scale(baseMs) {
@@ -151,4 +174,5 @@ QtObject {
     readonly property int spatialSlow:    root.duration("spatial", "slow")
 
     readonly property bool animationsEnabled: root._baseScale > 0
+    readonly property bool minimalAnimations: root._style === "minimal"
 }
