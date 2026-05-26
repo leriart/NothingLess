@@ -35,7 +35,7 @@ Item {
             Config.bar.pinnedOnStartup = pinned;
         }
     }
-    property bool pinned: (Config.bar && Config.bar.pinnedOnStartup !== undefined ? Config.bar.pinnedOnStartup : true)
+    property bool pinned: (Config.bar && Config.bar.pinnedOnStartup !== undefined ? Config.bar.pinnedOnStartup : true) && !(Config.bar && Config.bar.hoverToReveal !== undefined ? Config.bar.hoverToReveal : false)
     // Monitor reference and reference to toplevels on monitor
     readonly property var compositorMonitor: AxctlService.monitorFor(screen)
     readonly property var toplevels: (!compositorMonitor || !compositorMonitor.activeWorkspace || !AxctlService.clients.values) ? [] : AxctlService.clients.values.filter(c => c.workspace.id === compositorMonitor.activeWorkspace.id)
@@ -182,14 +182,20 @@ Item {
         // Size includes margins
         width: {
             if (root.orientation === "vertical") return root.reveal ? root.totalBarWidth : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset;
-            // Dynamic mode: wrap content, don't fill full width
-            if (root.barMode === "dynamic") return (root.reveal ? (root.contentImplicitWidth + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2)) : root.width);
+            // Dynamic mode: always wrap content, never full width
+            if (root.barMode === "dynamic") {
+                const contentW = root.contentImplicitWidth + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2);
+                return root.reveal ? contentW : Math.max(contentW, (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8));
+            }
             return root.width; // extended mode: full width
         }
         height: {
             if (root.orientation === "horizontal") return root.reveal ? root.totalBarHeight : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset;
-            // Dynamic mode: wrap content, don't fill full height
-            if (root.barMode === "dynamic") return (root.reveal ? (root.contentImplicitHeight + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2)) : root.height);
+            // Dynamic mode: always wrap content, never full height
+            if (root.barMode === "dynamic") {
+                const contentH = root.contentImplicitHeight + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2);
+                return root.reveal ? contentH : Math.max(contentH, (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8));
+            }
             return root.height; // extended mode: full height
         }
         // Position using x/y

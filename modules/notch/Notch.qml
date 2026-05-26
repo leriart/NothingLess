@@ -69,6 +69,10 @@ Item {
     property int islandHeight: screenNotchOpen || hasActiveNotifications ? Math.max(stackContainer.height, 36) : 36
 
     readonly property string position: Config.notchPosition ?? "top"
+    // Bar position for merging island with bar
+    readonly property string barPosition: (Config.bar && Config.bar.position !== undefined) ? Config.bar.position : "top"
+    // When island theme and same position as bar, offset from bar edge instead of screen edge
+    readonly property bool mergeWithBar: Config.notchTheme === "island" && root.position === root.barPosition
 
     // Corner size calculation for dynamic width (only for default theme)
     readonly property int cornerSize: Config.roundness > 0 ? Config.roundness + 4 : 0
@@ -79,6 +83,8 @@ Item {
 
     implicitWidth: screenNotchOpen ? Math.max(stackContainer.width + totalCornerWidth, 290) : stackContainer.width + totalCornerWidth
     implicitHeight: Config.notchTheme === "default" ? defaultHeight : (Config.notchTheme === "island" ? islandHeight : defaultHeight)
+    // When merged with bar, position at bar's edge
+    y: root.mergeWithBar && Config.notchTheme === "island" ? (root.position === "top" ? 0 : parent.height - root.implicitHeight) : 0
 
     Behavior on implicitWidth {
         enabled: (screenNotchOpen || stackViewInternal.busy) && Anim.animationsEnabled
