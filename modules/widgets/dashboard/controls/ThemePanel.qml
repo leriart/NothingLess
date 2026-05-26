@@ -607,6 +607,29 @@ Item {
 
 
 
+                                    popup: Popup {
+                                        y: animStyleCombo.height + 2
+                                        width: animStyleCombo.width
+                                        implicitHeight: Math.min(contentItem.implicitHeight + 16, 400)
+                                        padding: 4
+
+                                        background: Rectangle {
+                                            color: Colors.surfaceContainer || Qt.rgba(0.1, 0.1, 0.12, 0.95)
+                                            radius: 6
+                                            border.color: Colors.surfaceBright || Qt.rgba(0.3, 0.3, 0.3, 0.5)
+                                            border.width: 1
+                                        }
+
+                                        contentItem: ListView {
+                                            clip: true
+ implicitHeight: contentHeight
+                                            model: animStyleCombo.delegateModel
+                                            currentIndex: animStyleCombo.currentIndex
+                                            interactive: contentHeight > 300
+                                            spacing: 2
+                                        }
+                                    }
+
                                     model: ListModel {
                                         ListElement { text: "M3 (Material 3)"; key: "m3" }
                                         ListElement { text: "── Windows ──"; key: "" }
