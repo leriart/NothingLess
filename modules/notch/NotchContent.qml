@@ -45,6 +45,18 @@ Item {
     // The notch stack overlay still appears when the inline is expanded.
     readonly property bool _mergedHidden: root.islandMergedWithBar && !root.screenNotchOpen && !root.hasActiveNotifications
     opacity: root._mergedHidden ? 0.0 : 1.0
+    // In merged mode, animate from center (island position) instead of edge
+    scale: root.islandMergedWithBar ? (root._mergedHidden ? 0.85 : 1.0) : 1.0
+    Behavior on scale {
+        enabled: Anim.animationsEnabled && root.islandMergedWithBar
+        NumberAnimation {
+            duration: Anim.emphasizedNormal
+            easing.type: Anim.easing("emphasized").type
+            easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+        }
+    }
+    // Transform origin: center of screen (where island is)
+    transformOrigin: root.islandMergedWithBar ? Item.Center : Item.Top
     // Pass through mouse events when merged (inline island handles clicks)
     enabled: !root._mergedHidden
     
