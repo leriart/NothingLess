@@ -665,7 +665,7 @@ Item {
                                         enabled: key !== ""
                                         font.family: Config.theme.font
                                         font.pixelSize: key === "" ? Styling.fontSize(-2) : Styling.fontSize(-1)
-                                        font.weight: key === "" ? Font.Normal : Font.DemiBold
+                                        font.weight: key === "" ? Font.Normal : (parent && parent.highlighted ? Font.Bold : Font.DemiBold)
                                         leftPadding: key === "" ? 8 : 16
                                         highlighted: animStyleCombo.currentIndex === index
                                         contentItem: Text {
@@ -677,7 +677,6 @@ Item {
                                             elide: Text.ElideRight
                                             leftPadding: parent.leftPadding
                                             verticalAlignment: Text.AlignVCenter
-                                            font.weight: parent.highlighted ? Font.DemiBold : Font.Normal
                                         }
                                         background: Rectangle {
                                             color: {
