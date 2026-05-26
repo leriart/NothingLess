@@ -152,6 +152,7 @@ Singleton {
             property bool enableCorners: true
             property int animDuration: 300
             property real animScale: 1.0
+            property string animStyle: "m3"
             property real shadowOpacity: 0.5
             property string shadowColor: "shadow"
             property int shadowXOffset: 0

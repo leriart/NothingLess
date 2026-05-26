@@ -567,9 +567,57 @@ Item {
                                 ComboBox {
                                     id: animStyleCombo
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 28
+                                    Layout.preferredHeight: 30
                                     font.family: Config.theme.font
                                     font.pixelSize: Styling.fontSize(-1)
+
+                                    background: StyledRect {
+                                        variant: "focus"
+                                        implicitHeight: 30
+                                        radius: Styling.radius(2)
+                                        border: ["surfaceBright", 1]
+                                    }
+
+                                    contentItem: Text {
+                                        leftPadding: 8
+                                        rightPadding: 8
+                                        text: animStyleCombo.displayText
+                                        font.family: Config.theme.font
+                                        font.pixelSize: Styling.fontSize(-1)
+                                        color: Colors.overBackground
+                                        verticalAlignment: Text.AlignVCenter
+                                        elide: Text.ElideRight
+                                    }
+
+                                    indicator: Text {
+                                        x: animStyleCombo.width - width - 8
+                                        y: (animStyleCombo.height - height) / 2
+                                        text: "▼"
+                                        font.family: Icons.font
+                                        font.pixelSize: 10
+                                        color: Colors.overSurfaceVariant
+                                    }
+
+                                    popup: Popup {
+                                        y: animStyleCombo.height + 2
+                                        width: animStyleCombo.width
+                                        implicitHeight: contentItem.implicitHeight + 16
+                                        padding: 8
+
+                                        background: StyledRect {
+                                            variant: "popup"
+                                            radius: Styling.radius(4)
+                                            enableShadow: true
+                                        }
+
+                                        contentItem: ListView {
+                                            clip: true
+                                            implicitHeight: contentHeight
+                                            model: animStyleCombo.delegateModel
+                                            currentIndex: animStyleCombo.currentIndex
+                                            interactive: contentHeight > 300
+                                        }
+                                    }
 
                                     model: ListModel {
                                         ListElement { text: "M3 (Material 3)"; key: "m3" }
@@ -614,21 +662,29 @@ Item {
                                     delegate: ItemDelegate {
                                         required property var model
                                         width: animStyleCombo.width
-                                        height: model.key === "" ? 20 : 28
+                                        height: model.key === "" ? 22 : 32
                                         enabled: model.key !== ""
                                         font.family: Config.theme.font
                                         font.pixelSize: model.key === "" ? Styling.fontSize(-2) : Styling.fontSize(-1)
-                                        font.weight: model.key === "" ? Font.Normal : Font.Medium
-                                        leftPadding: model.key === "" ? 4 : 12
+                                        font.weight: model.key === "" ? Font.Normal : Font.DemiBold
+                                        leftPadding: model.key === "" ? 8 : 16
+                                        highlighted: animStyleCombo.currentIndex === index
                                         contentItem: Text {
                                             text: model.text
                                             font: parent.font
-                                            color: model.key === "" ? Colors.outline : (parent.highlighted ? Colors.primary : Colors.overBackground)
+                                            color: model.key === "" ? Colors.overSurfaceVariant : (parent.highlighted ? Colors.primary : Colors.overBackground)
+                                            opacity: model.key === "" ? 0.6 : 1.0
                                             elide: Text.ElideRight
                                             leftPadding: parent.leftPadding
+                                            verticalAlignment: Text.AlignVCenter
                                         }
                                         background: Rectangle {
-                                            color: parent.highlighted ? Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.15) : "transparent"
+                                            color: {
+                                                if (parent.highlighted) return Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.2);
+                                                if (parent.hovered) return Qt.rgba(Colors.overBackground.r, Colors.overBackground.g, Colors.overBackground.b, 0.08);
+                                                return "transparent";
+                                            }
+                                            radius: Styling.radius(1)
                                         }
                                     }
                                 }
