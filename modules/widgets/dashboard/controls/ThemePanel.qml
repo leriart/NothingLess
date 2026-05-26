@@ -551,93 +551,82 @@ Item {
                                 }
                             }
 
-                            // Animation Style selector
+                            // Animation Style selector — platform-based animation profiles
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 8
 
                                 Text {
-                                    text: "Style"
+                                    text: "Anim Style"
                                     font.family: Config.theme.font
                                     font.pixelSize: Styling.fontSize(0)
                                     color: Colors.overBackground
                                     Layout.preferredWidth: 80
                                 }
 
-                                Text {
-                                    text: "M3 standard"
-                                    font.family: Config.theme.font
-                                    font.pixelSize: Styling.fontSize(-2)
-                                    color: Colors.overSurfaceVariant
+                                ComboBox {
+                                    id: animStyleCombo
                                     Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                }
+                                    Layout.preferredHeight: 28
+                                    font.family: Config.theme.font
+                                    font.pixelSize: Styling.fontSize(-1)
 
-                                Item { Layout.fillWidth: true }
-
-                                StyledRect {
-                                    id: animStyleSelector
-                                    variant: "focus"
-                                    implicitWidth: 160
-                                    implicitHeight: 30
-                                    radius: Styling.radius(2)
-
-                                    property int selectedIndex: {
-                                        const style = Config.theme.animStyle || "m3";
-                                        const styles = ["m3", "smooth", "snappy", "minimal", "disabled"];
-                                        const idx = styles.indexOf(style);
-                                        return idx >= 0 ? idx : 0;
+                                    model: ListModel {
+                                        ListElement { text: "M3 (Material 3)"; key: "m3" }
+                                        ListElement { text: "── Windows ──"; key: "" }
+                                        ListElement { text: "Windows Classic"; key: "windows-classic" }
+                                        ListElement { text: "Windows XP"; key: "windows-xp" }
+                                        ListElement { text: "Windows 7 (Aero)"; key: "windows-7" }
+                                        ListElement { text: "── Mac ──"; key: "" }
+                                        ListElement { text: "Mac OS Classic"; key: "mac-classic" }
+                                        ListElement { text: "Mac OS X"; key: "mac-legacy" }
+                                        ListElement { text: "macOS (Modern)"; key: "mac-modern" }
+                                        ListElement { text: "── Android ──"; key: "" }
+                                        ListElement { text: "Android (Legacy)"; key: "android-legacy" }
+                                        ListElement { text: "Android Material"; key: "android-material" }
+                                        ListElement { text: "Android 12+ (You)"; key: "android-you" }
                                     }
 
-                                    property var styles: ["M3", "Smooth", "Snappy", "Minimal", "Off"]
-                                    property var styleKeys: ["m3", "smooth", "snappy", "minimal", "disabled"]
+                                    property string currentKey: {
+                                        const idx = animStyleCombo.currentIndex;
+                                        return idx >= 0 ? animStyleCombo.model.get(idx).key : "m3";
+                                    }
 
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 2
-                                        spacing: 0
-
-                                        Repeater {
-                                            model: animStyleSelector.styles.length
-
-                                            delegate: Item {
-                                                required property int index
-                                                width: animStyleSelector.width / animStyleSelector.styles.length - 2
-                                                height: parent.height
-
-                                                Rectangle {
-                                                    anchors.fill: parent
-                                                    radius: Styling.radius(1)
-                                                    color: index === animStyleSelector.selectedIndex ? Colors.primary : "transparent"
-                                                    opacity: index === animStyleSelector.selectedIndex ? 0.3 : 0
-
-                                                    Behavior on color {
-                                                        enabled: Anim.animationsEnabled
-                                                        ColorAnimation { duration: Anim.standardSmall }
-                                                    }
-                                                }
-
-                                                Text {
-                                                    anchors.centerIn: parent
-                                                    text: animStyleSelector.styles[index]
-                                                    font.family: Config.theme.font
-                                                    font.pixelSize: Styling.fontSize(-2)
-                                                    font.weight: index === animStyleSelector.selectedIndex ? Font.Medium : Font.Normal
-                                                    color: index === animStyleSelector.selectedIndex ? Colors.primary : Colors.overSurfaceVariant
-                                                }
-
-                                                MouseArea {
-                                                    anchors.fill: parent
-                                                    cursorShape: Qt.PointingHandCursor
-                                                    onClicked: {
-                                                        const newStyle = animStyleSelector.styleKeys[index];
-                                                        if (newStyle !== (Config.theme.animStyle || "m3")) {
-                                                            Config.theme.animStyle = newStyle;
-                                                            GlobalStates.markThemeChanged();
-                                                        }
-                                                    }
-                                                }
+                                    Component.onCompleted: {
+                                        const cur = Config.theme.animStyle || "m3";
+                                        for (let i = 0; i < model.count; i++) {
+                                            if (model.get(i).key === cur) {
+                                                currentIndex = i;
+                                                break;
                                             }
+                                        }
+                                    }
+
+                                    onCurrentKeyChanged: {
+                                        const key = animStyleCombo.currentKey;
+                                        if (key && key !== (Config.theme.animStyle || "m3")) {
+                                            Config.theme.animStyle = key;
+                                            GlobalStates.markThemeChanged();
+                                        }
+                                    }
+
+                                    delegate: ItemDelegate {
+                                        width: animStyleCombo.width
+                                        height: modelData.key === "" ? 20 : 28
+                                        enabled: modelData.key !== ""
+                                        font.family: Config.theme.font
+                                        font.pixelSize: modelData.key === "" ? Styling.fontSize(-2) : Styling.fontSize(-1)
+                                        font.weight: modelData.key === "" ? Font.Normal : Font.Medium
+                                        leftPadding: modelData.key === "" ? 4 : 12
+                                        contentItem: Text {
+                                            text: modelData.text
+                                            font: parent.font
+                                            color: modelData.key === "" ? Colors.outline : (parent.highlighted ? Colors.primary : Colors.overBackground)
+                                            elide: Text.ElideRight
+                                            leftPadding: parent.leftPadding
+                                        }
+                                        background: Rectangle {
+                                            color: parent.highlighted ? Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.15) : "transparent"
                                         }
                                     }
                                 }
