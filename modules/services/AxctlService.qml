@@ -192,12 +192,28 @@ Singleton {
         onTriggered: axctlSubscribe.running = true
     }
 
-    // Auto-reconnect on unexpected subscribe exit
+    // Auto-reconnect on unexpected subscribe exit (with backoff and retry limit)
     Timer {
         id: reconnectTimer
         interval: 1000
-        onTriggered: axctlSubscribe.running = true
+        property int retryCount: 0
+        property int maxRetries: 5
+        onTriggered: {
+            if (root._subscribeOk) {
+                // Was working before, retry with backoff
+                interval = Math.min(10000, 1000 * Math.pow(2, retryCount));
+                retryCount++;
+                if (retryCount <= maxRetries) {
+                    console.log("AxctlService: retrying subscribe (attempt", retryCount + "/" + maxRetries + ")");
+                    axctlSubscribe.running = true;
+                } else {
+                    console.warn("AxctlService: subscribe failed after", maxRetries, "retries, giving up");
+                }
+            }
+        }
     }
+
+    property bool _subscribeOk: false
 
     property Process axctlSubscribe: Process {
         command: ["axctl", "subscribe"]
@@ -207,6 +223,11 @@ Singleton {
                 if (!data) return;
                 try {
                     let parsedJson = JSON.parse(data);
+
+                    // Mark as successfully connected
+                    root._subscribeOk = true;
+                    reconnectTimer.retryCount = 0;
+                    reconnectTimer.interval = 1000;
 
                     // Apply inline state immediately (every event carries full state)
                     if (parsedJson.state) {
@@ -224,6 +245,9 @@ Singleton {
         }
         onExited: (code) => {
             console.warn("axctl subscribe exited:", code);
+            if (code !== 0) {
+                root._subscribeOk = false;
+            }
             reconnectTimer.restart();
         }
     }
