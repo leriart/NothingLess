@@ -90,12 +90,13 @@ Item {
         return w;
     }
     implicitHeight: Config.notchTheme === "default" ? defaultHeight : (Config.notchTheme === "island" ? islandHeight : defaultHeight)
-    // When island merges with bar: notch sits AT bar level
-    // Compact state: sits on the bar (y=top), expanded state: grows away from bar
-    y: root.mergeWithBar ? (root.position === "top" ? 0 : parent.height - root.implicitHeight) : 0
-    // Limit max expansion width when merged with bar to not overflow bar bounds
-    // In dynamic bar mode, the bar is already content-sized, so notch fits within it
-    readonly property int maxIslandWidth: parent ? Math.min(parent.width * 0.85, 600) : 600
+    // When island merges with bar: notch IS part of the bar
+    // Position at bar level with margins to not overlap buttons
+    y: root.mergeWithBar ? (root.position === "top" ? 2 : parent.height - root.implicitHeight - 2) : 0
+    // Match bar size when merged
+    readonly property int maxIslandWidth: root.mergeWithBar ? (parent ? Math.min(parent.width, 400) : 400) : (parent ? Math.min(parent.width * 0.85, 600) : 600)
+    // When merged, make the background transparent so bar bg shows through
+    readonly property bool sectionInvisible: root.mergeWithBar && !root.screenNotchOpen && !root.hasActiveNotifications
 
     Behavior on implicitWidth {
         enabled: (screenNotchOpen || stackViewInternal.busy) && Anim.animationsEnabled
