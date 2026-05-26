@@ -87,19 +87,36 @@ QtObject {
         return t[size];
     }
 
-    // Convenience properties (computed once, reactive via _m3BaseSize)
-    readonly property int m3HeadlineLarge:   root.m3("headline", "large").size
-    readonly property int m3HeadlineMedium:  root.m3("headline", "medium").size
-    readonly property int m3HeadlineSmall:   root.m3("headline", "small").size
-    readonly property int m3TitleLarge:      root.m3("title", "large").size
-    readonly property int m3TitleMedium:     root.m3("title", "medium").size
-    readonly property int m3TitleSmall:      root.m3("title", "small").size
-    readonly property int m3BodyLarge:       root.m3("body", "large").size
-    readonly property int m3BodyMedium:      root.m3("body", "medium").size
-    readonly property int m3BodySmall:       root.m3("body", "small").size
-    readonly property int m3LabelLarge:      root.m3("label", "large").size
-    readonly property int m3LabelMedium:     root.m3("label", "medium").size
-    readonly property int m3LabelSmall:      root.m3("label", "small").size
+    // Convenience properties — using function() instead of bindings to avoid loops
+    property int m3HeadlineLarge:   0
+    property int m3HeadlineMedium:  0
+    property int m3HeadlineSmall:   0
+    property int m3TitleLarge:      0
+    property int m3TitleMedium:     0
+    property int m3TitleSmall:      0
+    property int m3BodyLarge:       0
+    property int m3BodyMedium:      0
+    property int m3BodySmall:       0
+    property int m3LabelLarge:      0
+    property int m3LabelMedium:     0
+    property int m3LabelSmall:      0
+
+    function _initM3Convenience() {
+        root.m3HeadlineLarge  = root.m3("headline", "large").size;
+        root.m3HeadlineMedium = root.m3("headline", "medium").size;
+        root.m3HeadlineSmall  = root.m3("headline", "small").size;
+        root.m3TitleLarge     = root.m3("title", "large").size;
+        root.m3TitleMedium    = root.m3("title", "medium").size;
+        root.m3TitleSmall     = root.m3("title", "small").size;
+        root.m3BodyLarge      = root.m3("body", "large").size;
+        root.m3BodyMedium     = root.m3("body", "medium").size;
+        root.m3BodySmall      = root.m3("body", "small").size;
+        root.m3LabelLarge     = root.m3("label", "large").size;
+        root.m3LabelMedium    = root.m3("label", "medium").size;
+        root.m3LabelSmall     = root.m3("label", "small").size;
+    }
+
+    Component.onCompleted: root._initM3Convenience()
 
     // Pre-built "transparent" variant to avoid allocating a new object on every call
     property var _transparentConfig: null

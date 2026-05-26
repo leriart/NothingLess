@@ -18,6 +18,9 @@ Rectangle {
     id: root
     color: "transparent"
     
+    property string calcResult: ""
+    property bool isMathQuery: false
+
     readonly property bool isCompact: currentTab === 0 || currentTab === 2
     implicitWidth: isCompact ? 464 : 900
     implicitHeight: isCompact ? 296 : 392
@@ -127,8 +130,6 @@ Rectangle {
         property string searchText: GlobalStates.launcherSearchText
         property bool showResults: searchText.length > 0
         property int selectedIndex: GlobalStates.launcherSelectedIndex
-        property string calcResult: ""
-        property bool isMathQuery: false
 
         // Options menu state (expandable list)
         property int expandedItemIndex: -1
@@ -309,12 +310,12 @@ Rectangle {
             target: typeof Calculator !== "undefined" ? Calculator : null
             function onResultReady(expression, result) {
                 if (expression === appLauncher.searchText.trim()) {
-                    appLauncher.calcResult = result;
+                    root.calcResult = result;
                 }
             }
             function onError(expression, error) {
                 if (expression === appLauncher.searchText.trim()) {
-                    appLauncher.calcResult = "";
+                    root.calcResult = "";
                 }
             }
         }
