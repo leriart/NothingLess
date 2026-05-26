@@ -603,6 +603,7 @@ Item {
                                     }
 
                                     onCurrentKeyChanged: {
+                                        if (typeof Config === "undefined" || !Config.theme) return;
                                         const key = animStyleCombo.currentKey;
                                         if (key && key !== (Config.theme.animStyle || "m3")) {
                                             Config.theme.animStyle = key;
@@ -611,17 +612,18 @@ Item {
                                     }
 
                                     delegate: ItemDelegate {
+                                        required property var model
                                         width: animStyleCombo.width
-                                        height: modelData.key === "" ? 20 : 28
-                                        enabled: modelData.key !== ""
+                                        height: model.key === "" ? 20 : 28
+                                        enabled: model.key !== ""
                                         font.family: Config.theme.font
-                                        font.pixelSize: modelData.key === "" ? Styling.fontSize(-2) : Styling.fontSize(-1)
-                                        font.weight: modelData.key === "" ? Font.Normal : Font.Medium
-                                        leftPadding: modelData.key === "" ? 4 : 12
+                                        font.pixelSize: model.key === "" ? Styling.fontSize(-2) : Styling.fontSize(-1)
+                                        font.weight: model.key === "" ? Font.Normal : Font.Medium
+                                        leftPadding: model.key === "" ? 4 : 12
                                         contentItem: Text {
-                                            text: modelData.text
+                                            text: model.text
                                             font: parent.font
-                                            color: modelData.key === "" ? Colors.outline : (parent.highlighted ? Colors.primary : Colors.overBackground)
+                                            color: model.key === "" ? Colors.outline : (parent.highlighted ? Colors.primary : Colors.overBackground)
                                             elide: Text.ElideRight
                                             leftPadding: parent.leftPadding
                                         }
