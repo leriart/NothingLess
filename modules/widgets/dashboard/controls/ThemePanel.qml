@@ -155,19 +155,21 @@ Item {
             x: root.colorPickerActive ? -30 : 0
 
             Behavior on x {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration / 2
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
         }
 
         Behavior on opacity {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration / 2
-                easing.type: Easing.OutQuart
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 
@@ -375,9 +377,9 @@ Item {
                                         border.color: tintIconsSwitch.checked ? Styling.srItem("overprimary") : Colors.outline
 
                                         Behavior on color {
-                                            enabled: Config.animDuration > 0
+                                            enabled: Anim.animationsEnabled
                                             ColorAnimation {
-                                                duration: Config.animDuration / 2
+                                                duration: Anim.standardSmall
                                             }
                                         }
 
@@ -390,10 +392,11 @@ Item {
                                             color: tintIconsSwitch.checked ? Colors.background : Colors.overSurfaceVariant
 
                                             Behavior on x {
-                                                enabled: Config.animDuration > 0
+                                                enabled: Anim.animationsEnabled
                                                 NumberAnimation {
-                                                    duration: Config.animDuration / 2
-                                                    easing.type: Easing.OutCubic
+                                                    duration: Anim.standardSmall
+                                                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                 }
                                             }
                                         }
@@ -444,9 +447,9 @@ Item {
                                         border.color: enableCornersSwitch.checked ? Styling.srItem("overprimary") : Colors.outline
 
                                         Behavior on color {
-                                            enabled: Config.animDuration > 0
+                                            enabled: Anim.animationsEnabled
                                             ColorAnimation {
-                                                duration: Config.animDuration / 2
+                                                duration: Anim.standardSmall
                                             }
                                         }
 
@@ -459,15 +462,92 @@ Item {
                                             color: enableCornersSwitch.checked ? Colors.background : Colors.overSurfaceVariant
 
                                             Behavior on x {
-                                                enabled: Config.animDuration > 0
+                                                enabled: Anim.animationsEnabled
                                                 NumberAnimation {
-                                                    duration: Config.animDuration / 2
-                                                    easing.type: Easing.OutCubic
+                                                    duration: Anim.standardSmall
+                                                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                 }
                                             }
                                         }
                                     }
                                     background: null
+                                }
+                            }
+
+                            // Dynamic Color toggle (Material You from wallpaper)
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                visible: typeof Colors !== "undefined"
+
+                                Text {
+                                    text: "Dynamic"
+                                    font.family: Config.theme.font
+                                    font.pixelSize: Styling.fontSize(0)
+                                    color: Colors.overBackground
+                                    Layout.preferredWidth: 80
+                                }
+
+                                Text {
+                                    text: "Auto-color from wallpaper"
+                                    font.family: Config.theme.font
+                                    font.pixelSize: Styling.fontSize(-2)
+                                    color: Colors.overSurfaceVariant
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                Switch {
+                                    id: dynamicColorSwitch
+                                    checked: Config.theme.dynamicColor || false
+
+                                    indicator: Rectangle {
+                                        implicitWidth: 40
+                                        implicitHeight: 22
+                                        x: dynamicColorSwitch.leftPadding
+                                        y: parent.height / 2 - height / 2
+                                        radius: 11
+                                        color: dynamicColorSwitch.checked ? Colors.primary : Colors.surfaceVariant
+                                        border.color: dynamicColorSwitch.checked ? Colors.primary : Colors.outline
+
+                                        Behavior on color {
+                                            enabled: Anim.animationsEnabled
+                                            ColorAnimation {
+                                                duration: Anim.standardSmall
+                                                easing.type: Anim.easing("standard").type
+                                                easing.bezierCurve: Anim.easing("standard").bezierCurve
+                                            }
+                                        }
+
+                                        Rectangle {
+                                            x: dynamicColorSwitch.checked ? parent.width - width - 2 : 2
+                                            y: 2
+                                            width: parent.height - 4
+                                            height: width
+                                            radius: width / 2
+                                            color: dynamicColorSwitch.checked ? Colors.background : Colors.overSurfaceVariant
+
+                                            Behavior on x {
+                                                enabled: Anim.animationsEnabled
+                                                NumberAnimation {
+                                                    duration: Anim.standardSmall
+                                                    easing.type: Anim.easing("standard").type
+                                                    easing.bezierCurve: Anim.easing("standard").bezierCurve
+                                                }
+                                            }
+                                        }
+                                    }
+                                    background: null
+
+                                    onClicked: {
+                                        if (checked !== (Config.theme.dynamicColor || false)) {
+                                            Config.theme.dynamicColor = checked;
+                                            Colors.dynamicColorEnabled = checked;
+                                        }
+                                    }
                                 }
                             }
 
@@ -1076,9 +1156,9 @@ Item {
                                         opacity: shadowColorButton.isHovered ? 0.15 : 0
 
                                         Behavior on opacity {
-                                            enabled: (Config.animDuration ?? 0) > 0
+                                            enabled: Anim.animationsEnabled
                                             NumberAnimation {
-                                                duration: (Config.animDuration ?? 0) / 2
+                                                duration: Anim.standardSmall
                                             }
                                         }
                                     }
@@ -1114,10 +1194,11 @@ Item {
                         property bool variantExpanded: false
 
                         Behavior on Layout.preferredHeight {
-                            enabled: (Config.animDuration ?? 0) > 0
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
-                                duration: (Config.animDuration ?? 0) / 2
-                                easing.type: Easing.OutCubic
+                                duration: Anim.standardSmall
+                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                             }
                         }
 
@@ -1180,10 +1261,11 @@ Item {
                                                     radius: isSelected ? Styling.radius(0) / 2 : Styling.radius(0)
 
                                                     Behavior on width {
-                                                        enabled: (Config.animDuration ?? 0) > 0
+                                                        enabled: Anim.animationsEnabled
                                                         NumberAnimation {
-                                                            duration: (Config.animDuration ?? 0) / 3
-                                                            easing.type: Easing.OutCubic
+                                                            duration: Anim.standardSmall
+                                                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                         }
                                                     }
 
@@ -1210,19 +1292,21 @@ Item {
                                                                     opacity: variantTagRow.isSelected ? 1 : 0
 
                                                                     Behavior on opacity {
-                                                                        enabled: (Config.animDuration ?? 0) > 0
+                                                                        enabled: Anim.animationsEnabled
                                                                         NumberAnimation {
-                                                                            duration: (Config.animDuration ?? 0) / 3
-                                                                            easing.type: Easing.OutCubic
+                                                                            duration: Anim.standardSmall
+                                                                            easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                                         }
                                                                     }
                                                                 }
 
                                                                 Behavior on width {
-                                                                    enabled: (Config.animDuration ?? 0) > 0
+                                                                    enabled: Anim.animationsEnabled
                                                                     NumberAnimation {
-                                                                        duration: (Config.animDuration ?? 0) / 3
-                                                                        easing.type: Easing.OutCubic
+                                                                        duration: Anim.standardSmall
+                                                                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                                     }
                                                                 }
                                                             }
@@ -1236,10 +1320,11 @@ Item {
                                                                 color: variantTagRow.item
 
                                                                 Behavior on color {
-                                                                    enabled: (Config.animDuration ?? 0) > 0
+                                                                    enabled: Anim.animationsEnabled
                                                                     ColorAnimation {
-                                                                        duration: (Config.animDuration ?? 0) / 3
-                                                                        easing.type: Easing.OutCubic
+                                                                        duration: Anim.standardSmall
+                                                                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                                     }
                                                                 }
                                                             }
@@ -1253,9 +1338,9 @@ Item {
                                                         opacity: variantTagRow.isHovered ? 0.15 : 0
 
                                                         Behavior on opacity {
-                                                            enabled: (Config.animDuration ?? 0) > 0
+                                                            enabled: Anim.animationsEnabled
                                                             NumberAnimation {
-                                                                duration: (Config.animDuration ?? 0) / 2
+                                                                duration: Anim.standardSmall
                                                             }
                                                         }
                                                     }
@@ -1336,10 +1421,11 @@ Item {
                                             radius: isSelected ? Styling.radius(0) / 2 : Styling.radius(0)
 
                                             Behavior on width {
-                                                enabled: (Config.animDuration ?? 0) > 0
+                                                enabled: Anim.animationsEnabled
                                                 NumberAnimation {
-                                                    duration: (Config.animDuration ?? 0) / 3
-                                                    easing.type: Easing.OutCubic
+                                                    duration: Anim.standardSmall
+                                                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                 }
                                             }
 
@@ -1366,19 +1452,21 @@ Item {
                                                             opacity: variantTag.isSelected ? 1 : 0
 
                                                             Behavior on opacity {
-                                                                enabled: (Config.animDuration ?? 0) > 0
+                                                                enabled: Anim.animationsEnabled
                                                                 NumberAnimation {
-                                                                    duration: (Config.animDuration ?? 0) / 3
-                                                                    easing.type: Easing.OutCubic
+                                                                    duration: Anim.standardSmall
+                                                                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                                 }
                                                             }
                                                         }
 
                                                         Behavior on width {
-                                                            enabled: (Config.animDuration ?? 0) > 0
+                                                            enabled: Anim.animationsEnabled
                                                             NumberAnimation {
-                                                                duration: (Config.animDuration ?? 0) / 3
-                                                                easing.type: Easing.OutCubic
+                                                                duration: Anim.standardSmall
+                                                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                             }
                                                         }
                                                     }
@@ -1392,10 +1480,11 @@ Item {
                                                         color: variantTag.item
 
                                                         Behavior on color {
-                                                            enabled: (Config.animDuration ?? 0) > 0
+                                                            enabled: Anim.animationsEnabled
                                                             ColorAnimation {
-                                                                duration: (Config.animDuration ?? 0) / 3
-                                                                easing.type: Easing.OutCubic
+                                                                duration: Anim.standardSmall
+                                                                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                             }
                                                         }
                                                     }
@@ -1410,9 +1499,9 @@ Item {
                                                 opacity: variantTag.isHovered ? 0.15 : 0
 
                                                 Behavior on opacity {
-                                                    enabled: (Config.animDuration ?? 0) > 0
+                                                    enabled: Anim.animationsEnabled
                                                     NumberAnimation {
-                                                        duration: (Config.animDuration ?? 0) / 2
+                                                        duration: Anim.standardSmall
                                                     }
                                                 }
                                             }
@@ -1517,19 +1606,21 @@ Item {
             x: root.colorPickerActive ? 0 : 30
 
             Behavior on x {
-                enabled: Config.animDuration > 0
+                enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    duration: Config.animDuration / 2
-                    easing.type: Easing.OutQuart
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                 }
             }
         }
 
         Behavior on opacity {
-            enabled: Config.animDuration > 0
+            enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: Config.animDuration / 2
-                easing.type: Easing.OutQuart
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 

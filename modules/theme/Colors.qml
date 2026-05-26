@@ -296,6 +296,11 @@ FileView {
         Controlled by Config.dynamicColor toggle.
         When enabled, overrides static palette with quantizer colors. */
     property bool dynamicColorEnabled: false
+    onDynamicColorEnabledChanged: {
+        if (dynamicColorEnabled && wallpaperQuantizer.colors.length > 0) {
+            console.log("DynamicColor: enabled, regenerating palette");
+        }
+    }
 
     /*! Connection to wallpaperManager: re-quantize when wallpaper changes.
         Delayed 500ms to ensure wallpaperManager is available. */

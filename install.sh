@@ -179,6 +179,7 @@ install_color_presets
       ttf-nerd-fonts-symbols
       matugen gpu-screen-recorder wl-clip-persist mpvpaper gradia
       quickshell ttf-phosphor-icons ttf-league-gothic adw-gtk-theme
+      ttf-material-symbols-variable-git translate-shell songrec libqalculate
     )
 
     log_info "Installing dependencies with $AUR_HELPER..."
@@ -194,6 +195,44 @@ install_color_presets
     install_color_presets
 
     install_ndot_font
+    install_material_symbols_font
+    ;;
+
+  fedora)
+    log_info "Enabling COPR repositories..."
+    sudo dnf install -y --best --allowerasing --setopt=install_weak_deps=False dnf-plugins-core
+    yes | sudo dnf copr enable errornointernet/quickshell
+    yes | sudo dnf copr enable solopasha/hyprland
+    yes | sudo dnf copr enable zirconium/packages
+    yes | sudo dnf copr enable iucar/cran
+
+    local PKGS=(
+      kitty tmux fuzzel network-manager-applet blueman
+      pipewire wireplumber easyeffects playerctl
+      qt6-qtbase qt6-qtdeclarative qt6-qtwayland qt6-qtsvg qt6-qttools
+      qt6-qtimageformats qt6-qtmultimedia qt6-qtshadertools
+      kf6-syntax-highlighting kf6-breeze-icons hicolor-icon-theme
+      brightnessctl ddcutil fontconfig grim slurp ImageMagick jq sqlite upower
+      wl-clipboard wlsunset wtype zbar glib2 pipx zenity power-profiles-daemon
+      python3.12 libnotify flatpak
+      tesseract tesseract-langpack-eng tesseract-langpack-spa tesseract-langpack-jpn
+      tesseract-langpack-chi_sim tesseract-langpack-chi_tra tesseract-langpack-kor tesseract-langpack-lat
+      google-roboto-fonts google-roboto-mono-fonts dejavu-sans-fonts liberation-fonts
+      google-noto-fonts-common google-noto-cjk-fonts google-noto-emoji-fonts
+      mpvpaper matugen R-CRAN-phosphoricons adw-gtk3-theme quickshell unzip curl
+      translate-shell songrec libqalculate
+    )
+
+    log_info "Installing dependencies..."
+    sudo dnf install -y --best --allowerasing --setopt=install_weak_deps=False $(filter_packages "${PKGS[@]}")
+
+    log_info "Installing Gradia (Flatpak)..."
+    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+    flatpak install -y flathub be.alexandervanhee.gradia 2>/dev/null || true
+
+    install_phosphor_fonts
+    install_ndot_font
+    install_material_symbols_font
     ;;
 
   *)
@@ -259,6 +298,26 @@ install_ndot_font() {
 
   fc-cache -f "$FONT_DIR"
   log_success "Ndot font installed"
+}
+
+install_material_symbols_font() {
+  has_font "Material Symbols" && return
+
+  log_info "Installing Material Symbols Variable font..."
+  local FONT_DIR="$HOME/.local/share/fonts/material-symbols"
+  mkdir -p "$FONT_DIR"
+
+  local SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+  if [[ -f "$SRC_DIR/assets/fonts/MaterialSymbolsRounded-Variable.ttf" ]]; then
+    cp "$SRC_DIR/assets/fonts/MaterialSymbolsRounded-Variable.ttf" "$FONT_DIR/"
+    log_success "Material Symbols font installed from repo"
+  elif has_cmd pacman; then
+    log_info "Material Symbols not in repo. Install via: yay -S ttf-material-symbols-variable-git"
+    return
+  fi
+
+  fc-cache -f "$FONT_DIR" 2>/dev/null || true
 }
 
 # === Migration ===
