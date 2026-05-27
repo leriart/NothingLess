@@ -344,6 +344,9 @@ QtObject {
         console.log("CompositorConfig: Applying compositor batch command:", batchCommand);
         compositorProcess.command = ["axctl", "config", "raw-batch", batchCommand];
         compositorProcess.running = true;
+
+        // Also write to hyprland.conf for persistence
+        root.writeConfigToFile(batchCommand);
     }
 
     property Connections configConnections: Connections {
@@ -652,6 +655,58 @@ QtObject {
             if (GlobalStates.compositorLayoutReady) {
                 applyCompositorConfig();
             }
+        }
+    }
+
+    // Write config to hyprland.conf for persistence
+    function writeConfigToFile(batchCmd) {
+        if (!batchCmd) return;
+        const confPath = Quickshell.env("HOME") + "/.local/share/nothingless/hyprland.conf";
+        const marker = "# === NOTHINGLESS COMPOSITOR ===";
+        const endMarker = "# === END COMPOSITOR ===";
+
+        // Parse batchCmd into key=value lines
+        let lines = [];
+        const commands = batchCmd.split(" ; ");
+        for (let i = 0; i < commands.length; i++) {
+            const cmd = commands[i].trim();
+            if (!cmd || !cmd.startsWith("keyword")) continue;
+            const kv = cmd.replace("keyword ", "");
+            const sep = kv.indexOf(" ");
+            if (sep < 0) continue;
+            const key = kv.substring(0, sep);
+            const val = kv.substring(sep + 1);
+            // Skip bezier and animation keywords (handled by writeAnimationConfig)
+            if (key.startsWith("bezier") || key.startsWith("animation ")) continue;
+            lines.push(key + " = " + val);
+        }
+        if (lines.length === 0) return;
+
+        let block = marker + "\n# Applied by NothingLess\n";
+        block += lines.join("\n") + "\n" + endMarker + "\n";
+
+        // Write via Python passed stdin: clean, no escaping issues
+        const pyCode = "import re,sys;" +
+            "p=sys.argv[1];" +
+            "m=sys.argv[2];" +
+            "e=sys.argv[3];" +
+            "b=sys.stdin.read();" +
+            "try:f=open(p);c=f.read();f.close()\n" +
+            "except:c='';" +
+            "c=re.sub(re.escape(m)+'.*?'+re.escape(e),'',c,flags=re.DOTALL).strip();" +
+            "c+=('\\n' if c else '')+b;" +
+            "f=open(p,'w');f.write(c);f.close()";
+
+        writeConfProcess.command = ["python3", "-c", pyCode, confPath, marker, endMarker];
+        writeConfProcess.write(block);
+    }
+
+    property Process writeConfProcess: Process {
+        id: writeConfProcess
+        running: false
+        onExited: (code) => {
+            if (code === 0) console.log("Config written to hyprland.conf");
+            else console.error("Failed to write hyprland.conf, code:", code);
         }
     }
 
