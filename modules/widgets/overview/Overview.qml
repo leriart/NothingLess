@@ -477,10 +477,11 @@ Item {
     }
 
     // ── Drag overlay: la card se mueve aqui durante drag ──
-    // Esto asegura que la card flote sobre TODOS los cells
+    // z: 9997 (debajo del dragTracker z:9998) para que el tracker 
+    // capture eventos de mouse sobre la card arrastrada
     Item {
         id: dragOverlay
-        z: 9999
+        z: 9997
         width: parent.width
         height: parent.height
     }
