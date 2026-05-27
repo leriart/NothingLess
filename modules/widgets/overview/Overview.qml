@@ -317,7 +317,7 @@ Item {
                         property real _dragOverrideY: 0
                         x: _dragActive ? _dragOverrideX : cardX
                         y: _dragActive ? _dragOverrideY : cardY
-                        z: _dragActive ? 9999 : 1
+                        z: _dragActive ? 99999 : 1
                         scale: _dragActive ? 1.04 : 1.0
 
                         Behavior on scale {
@@ -481,11 +481,13 @@ Item {
 
     }
 
-    // ── Drag overlay (inactivo: la card se mueve por si misma) ──
+    // ── Drag overlay: la card se mueve aqui durante drag ──
+    // Esto asegura que la card flote sobre TODOS los cells
     Item {
         id: dragOverlay
-        visible: false
         z: 9999
+        width: parent.width
+        height: parent.height
     }
 
     // ── SINGLE MouseArea: handles ALL interactions ──
