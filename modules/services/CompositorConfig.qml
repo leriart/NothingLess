@@ -672,10 +672,18 @@ QtObject {
         onExited: (code) => {
             if (code === 0) {
                 console.log("Config written to hyprland.conf/lua via sync script");
+                // Reload axctl daemon so it picks up the new config
+                reloadProcess.command = ["axctl", "reload"];
+                reloadProcess.running = true;
             } else {
                 console.error("sync-hyprland-conf.py failed, code:", code);
             }
         }
+    }
+
+    property Process reloadProcess: Process {
+        id: reloadProcess
+        running: false
     }
 
     property Process writeConfProcess: Process {
