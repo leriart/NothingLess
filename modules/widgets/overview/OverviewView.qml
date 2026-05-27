@@ -12,9 +12,6 @@ Item {
     // Detect if we're in scrolling layout mode
     readonly property bool isScrollingLayout: GlobalStates.compositorLayout === "scrolling"
 
-    implicitWidth: overviewLoader.item ? overviewLoader.item.implicitWidth : 400
-    implicitHeight: overviewLoader.item ? overviewLoader.item.implicitHeight : 300
-
     // Expose flickable and scrollbar needs for scrolling mode
     readonly property var flickable: isScrollingLayout && overviewLoader.item ? overviewLoader.item.flickable : null
     readonly property bool needsScrollbar: isScrollingLayout && overviewLoader.item ? overviewLoader.item.needsScrollbar : false
@@ -27,28 +24,10 @@ Item {
         }
     }
 
-    Behavior on implicitWidth {
-        enabled: Anim.animationsEnabled
-        NumberAnimation {
-            duration: Anim.emphasizedNormal
-            easing.type: Anim.easing("emphasized").type
-            easing.bezierCurve: Anim.easing("emphasized").bezierCurve
-        }
-    }
-
-    Behavior on implicitHeight {
-        enabled: Anim.animationsEnabled
-        NumberAnimation {
-            duration: Anim.emphasizedNormal
-            easing.type: Anim.easing("emphasized").type
-            easing.bezierCurve: Anim.easing("emphasized").bezierCurve
-        }
-    }
-
     // Dynamic loader for the appropriate overview component
     Loader {
         id: overviewLoader
-        anchors.centerIn: parent
+        anchors.fill: parent
         active: true
         asynchronous: true
 
