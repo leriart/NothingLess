@@ -724,8 +724,11 @@ Singleton {
         }
         onPathChanged: reload()
         onAdapterUpdated: {
-            if (root.compositorReady && !root.pauseAutoSave) {
-                compositorLoader.writeAdapter();
+            if (root.compositorReady) {
+                if (!root.pauseAutoSave) {
+                    compositorLoader.writeAdapter();
+                }
+                GlobalStates.compositorConfigChanged();
             }
         }
 

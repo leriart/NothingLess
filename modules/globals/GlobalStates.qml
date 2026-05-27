@@ -553,6 +553,7 @@ Singleton {
     property string assistantScreenName: ""
 
     signal assistantFocusRequested(bool wasAlreadyOpen)
+    signal compositorConfigChanged()
 
     function toggleAssistant() {
         if (assistantVisible) {

@@ -655,10 +655,18 @@ QtObject {
         }
     }
 
-    // Force re-apply when Config.compositor adapter becomes available (was null during init)
+    // Force re-apply when Config.compositor adapter becomes available
     property QtObject compWatch: Config.compositor
     onCompWatchChanged: {
         if (root.compWatch) {
+            root.applyCompositorConfig();
+        }
+    }
+
+    // Direct signal from Config when compositor settings change
+    property Connections globalStateConnections: Connections {
+        target: GlobalStates
+        function onCompositorConfigChanged() {
             root.applyCompositorConfig();
         }
     }
