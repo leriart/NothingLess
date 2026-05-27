@@ -489,13 +489,59 @@ Item {
         y: overviewRoot.dragGhostY
         width: overviewRoot.dragGhostW
         height: overviewRoot.dragGhostH
+        clip: true
 
+        // Live preview via WlrToplevelMapper
+        readonly property var _toplevel: Config.performance.windowPreview && overviewRoot.dragGhostCls
+            ? (WlrToplevelMapper ? WlrToplevelMapper.find(overviewRoot.dragGhostCls, overviewRoot.dragGhostTitle) : null) : null
+
+        // Live ScreencopyView
+        Loader {
+            anchors.fill: parent
+            active: dragOverlay._toplevel != null
+            visible: status === Loader.Ready
+            asynchronous: true
+
+            sourceComponent: ClippingRectangle {
+                anchors.fill: parent
+                radius: Styling.radius(-2)
+                antialiasing: true; color: "transparent"
+
+                ScreencopyView {
+                    id: ovPreview
+                    width: Math.max(1, overviewRoot.dragGhostW * 1.2)
+                    height: Math.max(1, overviewRoot.dragGhostH * 1.2)
+                    captureSource: dragOverlay._toplevel
+                    live: true
+                    transform: Scale {
+                        origin.x: 0; origin.y: 0
+                        xScale: parent.width / ovPreview.width
+                        yScale: parent.height / ovPreview.height
+                    }
+                }
+                // Dim overlay so text is readable
+                Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.15) }
+            }
+        }
+
+        // Grim screenshot fallback
+        Image {
+            anchors.fill: parent
+            source: Config.performance.windowPreview && dragOverlay._toplevel == null && overviewRoot.dragGhostAddr
+                ? WlrToplevelMapper.screenshotPath(overviewRoot.dragGhostAddr) : ""
+            sourceSize: Qt.size(parent.width, parent.height)
+            asynchronous: true; fillMode: Image.PreserveAspectCrop
+            visible: status === Image.Ready && dragOverlay._toplevel == null
+            opacity: 0.5
+        }
+
+        // Card background (always visible)
         Rectangle {
             anchors.fill: parent
             radius: Styling.radius(-2)
             color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.5)
-            border.color: Styling.srItem("overprimary")
-            border.width: 2
+            border.color: Styling.srItem("overprimary"); border.width: 2
+            z: 0
 
             Rectangle {
                 anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
@@ -507,8 +553,7 @@ Item {
             Image {
                 anchors.centerIn: parent
                 anchors.verticalCenterOffset: Math.round(-parent.height * 0.02)
-                width: Math.round(Math.min(parent.width, parent.height) * 0.30)
-                height: width
+                width: Math.round(Math.min(parent.width, parent.height) * 0.30); height: width
                 source: Quickshell.iconPath(overviewRoot.iconForClass(overviewRoot.dragGhostCls), "image-missing")
                 sourceSize: Qt.size(width, height)
                 asynchronous: true; opacity: 0.7
@@ -528,6 +573,7 @@ Item {
                 visible: parent.height > 35
             }
         }
+    }
     }
 
     // ── SINGLE MouseArea: handles ALL interactions ──
@@ -617,8 +663,6 @@ Item {
 
             if (dragTracker._dragging) {
                 // Overlay replica follows mouse at root level (floats above all cells)
-                overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
-                overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
                 overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
                 overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
 
@@ -720,5 +764,5 @@ Item {
             dragTracker._pendingData = null;
         }
     }
-}
+
 
