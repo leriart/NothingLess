@@ -231,11 +231,11 @@ Item {
     }
     readonly property int _effectiveHoverRegion: root._hasAdjacentMonitor ? 8 : (Config.notch && Config.notch.hoverRegionHeight !== undefined ? Config.notch.hoverRegionHeight : 2)
 
-    // Show delay timer — requires hovering edge for 200ms
+    // Show delay timer — requires hovering edge for 200ms (400ms in island mode)
     property bool _mousePending: false
     Timer {
         id: showDelayTimer
-        interval: 200
+        interval: root.islandMergedWithBar ? 400 : 200
         repeat: false
         onTriggered: {
             if (root.isMouseOverIsland) {
@@ -329,12 +329,12 @@ Item {
     Item {
         id: notchHoverRegion
 
-        // In island mode: full-width edge strip so mouse can trigger from anywhere
+        // In island mode: centered strip near the notch pill, not full-width
         // In normal mode: centered below the notch position
-        width: root.islandMergedWithBar ? parent.width : (notchRegionContainer.width + 20)
+        width: root.islandMergedWithBar ? Math.min(parent.width, notchRegionContainer.width + 120) : (notchRegionContainer.width + 20)
         height: root.reveal ? notchRegionContainer.height : Math.max(root._effectiveHoverRegion, 2)
 
-        x: root.islandMergedWithBar ? 0 : (parent.width - width) / 2
+        x: root.islandMergedWithBar ? (parent.width - width) / 2 : (parent.width - width) / 2
         y: root.notchPosition === "top" ? 0 : parent.height - height
 
         Behavior on height {
