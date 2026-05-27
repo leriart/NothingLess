@@ -47,14 +47,14 @@ ACTION_MAP = {
     "nothingless.lock":            ("exec", "nothingless lock"),
 
     # Window actions
-    # Note: resizewindow is axctl-only. For native hyprland:
-    # - window.drag becomes bindm (move+resize in one)
-    # - window.resize-drag is handled by bindm, no separate bind needed
+    # Window movement: SUPER + drag = MOVE (via m flag)
+    # Window resize: click border + drag = RESIZE nativo (via resize_on_border)
+    # resize-drag no genera bind nativo - lo maneja resize_on_border
     "window.close":                ("killactive", ""),
     "window.focus":                ("movefocus", "direction"),
     "window.move":                 ("movewindow", "direction"),
-    "window.drag":                 ("movewindow", "", "bindm"),
-    "window.resize-drag":          ("", "", ""),  # Handled by bindm
+    "window.drag":                 ("movewindow", "", "m"),
+    "window.resize-drag":          ("", ""),  # No bind nativo - lo maneja resize_on_border
     "window.resize":               ("resizeactive", "delta"),
     "window.resize-expand":        ("resizeactive", "50 50"),
     "window.resize-shrink":        ("resizeactive", "-50 -50"),
@@ -177,18 +177,10 @@ def build_bind_line(modifiers, key, dispatcher, argument, flags):
 
     mods_str = " ".join(modifiers) if modifiers else ""
 
-    # bindm: native hyprland move+resize in one (no dispatcher needed)
-    if "bindm" in flags:
-        if key == "mouse:272":
-            if not mods_str:
-                return f"bindm = , {key}"
-            return f"bindm = {mods_str}, {key}"
-        return None  # Only left mouse for bindm
-
     if not dispatcher:
         return None
 
-    # Mouse bind with 'm' flag
+    # Mouse bind with 'm' flag (for move only)
     if "m" in flags:
         if argument:
             if not mods_str:
@@ -217,17 +209,7 @@ def build_bind_line(modifiers, key, dispatcher, argument, flags):
 
 def build_lua_bind(modifiers, key, dispatcher, argument, flags):
     """Build a hyprland.lua hl.bind() call."""
-    if not key:
-        return None
-
-    # bindm: native move+resize
-    if "bindm" in flags:
-        if key == "mouse:272":
-            mods_lua = "{ " + ", ".join(f'"{m}"' for m in (modifiers or [])) + " }" if modifiers else "{}"
-            return f'hl.bind({{ mods = {mods_lua}, key = "{key}", mouse = true }})'
-        return None
-
-    if not dispatcher:
+    if not key or not dispatcher:
         return None
 
     mods_lua = "{ " + ", ".join(f'"{m}"' for m in (modifiers or [])) + " }" if modifiers else "{}"
