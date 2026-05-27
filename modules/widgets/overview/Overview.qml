@@ -496,6 +496,7 @@ Item {
         y: overviewRoot.dragGhostY
         width: overviewRoot.dragGhostW
         height: overviewRoot.dragGhostH
+        clip: true
 
         Behavior on x {
             enabled: Anim.animationsEnabled
@@ -506,12 +507,64 @@ Item {
             SpringAnimation { spring: 2.5; damping: 0.22; mass: 0.35 }
         }
 
+        // ── Live ScreencopyView while dragging ──
+        readonly property var _toplevel: Config.performance.windowPreview && overviewRoot.dragGhostCls
+            ? (WlrToplevelMapper ? WlrToplevelMapper.find(overviewRoot.dragGhostCls, overviewRoot.dragGhostTitle) : null)
+            : null
+
+        Loader {
+            anchors.fill: parent
+            active: dragGhost._toplevel != null
+            visible: status === Loader.Ready
+            asynchronous: true
+
+            sourceComponent: ClippingRectangle {
+                anchors.fill: parent
+                radius: Styling.radius(-2)
+                antialiasing: true
+                color: "transparent"
+
+                ScreencopyView {
+                    id: ghostPreview
+                    width: Math.max(1, overviewRoot.dragGhostW * 1.2)
+                    height: Math.max(1, overviewRoot.dragGhostH * 1.2)
+                    captureSource: dragGhost._toplevel
+                    live: true
+
+                    transform: Scale {
+                        origin.x: 0; origin.y: 0
+                        xScale: parent.width / ghostPreview.width
+                        yScale: parent.height / ghostPreview.height
+                    }
+                }
+
+                // Dim overlay
+                Rectangle {
+                    anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.2)
+                }
+            }
+        }
+
+        // ── Grim screenshot fallback ──
+        Image {
+            anchors.fill: parent
+            source: Config.performance.windowPreview && dragGhost._toplevel == null && overviewRoot.dragGhostAddr
+                ? WlrToplevelMapper.screenshotPath(overviewRoot.dragGhostAddr) : ""
+            sourceSize: Qt.size(parent.width, parent.height)
+            asynchronous: true
+            fillMode: Image.PreserveAspectCrop
+            visible: status === Image.Ready && dragGhost._toplevel == null
+            opacity: 0.55
+        }
+
+        // ── Card background (always visible, underneath previews) ──
         Rectangle {
             anchors.fill: parent
             radius: Styling.radius(-2)
-            color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.7)
+            color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.5)
             border.color: Styling.srItem("overprimary")
             border.width: 2
+            z: 0
 
             Rectangle {
                 anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
