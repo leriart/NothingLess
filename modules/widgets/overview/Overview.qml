@@ -324,6 +324,10 @@ Item {
                         readonly property string addr: win.address || ""
                         readonly property string title: win.title || cls
 
+                        // Expose card info for the root dragTracker
+                        property bool _isCard: true
+                        property var _cardData: ({ wsNum: wsNum, addr: addr, cls: cls, title: title, cardW: cardW, cardH: cardH, cardX: cardX, cardY: cardY, cellX: cell.x, cellY: cell.y })
+
                         x: cardX; y: cardY
                         z: 1
                         width: cardW; height: cardH
@@ -446,137 +450,6 @@ Item {
                                 ColorAnimation { duration: 120 }
                             }
                         }
-
-                        // ── Interaction: click, drag, close ──
-                        MouseArea {
-                            id: cardMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
-                            cursorShape: containsMouse ? Qt.PointingHandCursor : Qt.ArrowCursor
-
-                            property bool _holding: false
-                            property bool _dragging: false
-                            property real _startX: 0
-                            property real _startY: 0
-                            property real _ghostOffX: 0
-                            property real _ghostOffY: 0
-
-                            Timer {
-                                id: holdTimer
-                                interval: 120
-                                onTriggered: {
-                                    if (cardMouse._holding && !cardMouse._dragging) {
-                                        cardMouse._dragging = true;
-                                        overviewRoot.isDragging = true;
-                                        overviewRoot.dragFromWorkspace = wsNum;
-                                        overviewRoot.dragWindowAddr = addr;
-                                        overviewRoot.dragGhostCls = cls;
-                                        overviewRoot.dragGhostTitle = title;
-                                        overviewRoot.dragGhostAddr = addr;
-                                        overviewRoot.dragGhostW = cardW;
-                                        overviewRoot.dragGhostH = cardH;
-                                        // Ghost initial position at card's location
-                                        overviewRoot.dragGhostX = cell.x + cardX + gridContainer.x;
-                                        overviewRoot.dragGhostY = cell.y + cardY + gridContainer.y;
-                                    }
-                                }
-                            }
-
-                            onPressed: mouse => {
-                                if (mouse.button === Qt.LeftButton) {
-                                    // Reset any stale drag state
-                                    cardMouse._dragging = false;
-                                    cardMouse._holding = true;
-                                    cardMouse._startX = mouse.x;
-                                    cardMouse._startY = mouse.y;
-                                    holdTimer.restart();
-                                } else if (mouse.button === Qt.RightButton) {
-                                    AxctlService.dispatch("closewindow address:" + addr);
-                                }
-                            }
-
-                            onMouseXChanged: {
-                                if (cardMouse._holding && !cardMouse._dragging) {
-                                    var dx = cardMouse.mouseX - cardMouse._startX;
-                                    var dy = cardMouse.mouseY - cardMouse._startY;
-                                    if (Math.sqrt(dx*dx + dy*dy) > 12) {
-                                        holdTimer.stop();
-                                        cardMouse._holding = false;
-                                    }
-                                }
-                            }
-
-                            onMouseYChanged: {
-                                if (cardMouse._holding && !cardMouse._dragging) {
-                                    var dx = cardMouse.mouseX - cardMouse._startX;
-                                    var dy = cardMouse.mouseY - cardMouse._startY;
-                                    if (Math.sqrt(dx*dx + dy*dy) > 12) {
-                                        holdTimer.stop();
-                                        cardMouse._holding = false;
-                                    }
-                                }
-                            }
-
-                            // Initial position capture when drag starts
-                            onPositionChanged: {
-                                if (cardMouse._dragging) {
-                                    // Find target cell from mouse position
-                                    var gridX = cardMouse.mouseX + cardX + cell.x;
-                                    var gridY = cardMouse.mouseY + cardY + cell.y;
-                                    var cw = wsCellW + workspaceSpacing;
-                                    var ch = wsCellH + workspaceSpacing;
-                                    var col = Math.floor((gridX - workspacePadding) / cw);
-                                    var row = Math.floor((gridY - workspacePadding) / ch);
-                                    if (col >= 0 && col < columns && row >= 0 && row < rows) {
-                                        var target = row * columns + col + 1;
-                                        if (target !== overviewRoot.dragToWorkspace) {
-                                            overviewRoot.dragToWorkspace = target;
-                                        }
-                                    } else {
-                                        overviewRoot.dragToWorkspace = -1;
-                                    }
-                                }
-                            }
-
-                            onReleased: mouse => {
-                                if (mouse.button === Qt.LeftButton) {
-                                    holdTimer.stop();
-                                    if (cardMouse._dragging) {
-                                        // Drop: dispatch move to target workspace
-                                        var targetWs = overviewRoot.dragToWorkspace;
-                                        var origWs = overviewRoot.dragFromWorkspace;
-                                        var dragAddr = overviewRoot.dragWindowAddr;
-
-                                        cardMouse._dragging = false;
-                                        cardMouse._holding = false;
-                                        overviewRoot.isDragging = false;
-                                        overviewRoot.dragToWorkspace = -1;
-                                        overviewRoot.dragFromWorkspace = -1;
-                                        overviewRoot.dragWindowAddr = "";
-
-                                        if (targetWs > 0 && targetWs !== origWs && dragAddr) {
-                                            AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + dragAddr);
-                                            Qt.callLater(function() {
-                                                if (!clientProcess.running) clientProcess.running = true;
-                                                if (!monProcess.running) monProcess.running = true;
-                                            });
-                                        }
-                                    } else if (cardMouse._holding) {
-                                        // Quick click: focus + switch
-                                        Visibilities.setActiveModule("", true);
-                                        Qt.callLater(function() {
-                                            AxctlService.dispatch("focuswindow address:" + addr);
-                                            wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
-                                            wsSwitchProcess.running = true;
-                                        });
-                                        cardMouse._holding = false;
-                                    }
-                                } else if (mouse.button === Qt.MiddleButton || mouse.button === Qt.RightButton) {
-                                    AxctlService.dispatch("closewindow address:" + addr);
-                                }
-                            }
-                        }
                     }
                 }
 
@@ -692,37 +565,161 @@ Item {
         }
     }
 
-    // ── Global drag tracker at ROOT level (position tracking solo) ──
-    // The release is handled by the card's onReleased (it has the press grab).
+    // ── SINGLE MouseArea: handles ALL interactions ──
+    // Finds cards via childAt + _isCard property walk.
+    // No mouse event conflicts because this is the only MouseArea.
     MouseArea {
         id: dragTracker
         anchors.fill: parent
-        enabled: overviewRoot.isDragging
-        acceptedButtons: Qt.NoButton  // Don't grab, just track hover
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
         hoverEnabled: true
         z: 9998
-        cursorShape: Qt.ClosedHandCursor
+        cursorShape: overviewRoot.isDragging ? Qt.ClosedHandCursor : Qt.ArrowCursor
+
+        // Find the card Item by walking parent chain from a child
+        function findCard(item) {
+            if (!item) return null;
+            var p = item;
+            while (p && p !== overviewRoot) {
+                if (p._isCard) return p;
+                p = p.parent;
+            }
+            return null;
+        }
+
+        // ── Press: detect card, start hold timer ──
+        property var _pendingCard: null
+        property var _pendingData: null
+        property bool _holding: false
+        property bool _dragging: false
+
+        Timer {
+            id: holdTimer
+            interval: 120
+            onTriggered: {
+                if (dragTracker._holding && !dragTracker._dragging) {
+                    dragTracker._dragging = true;
+                    var d = dragTracker._pendingData;
+                    if (!d) return;
+                    overviewRoot.isDragging = true;
+                    overviewRoot.dragFromWorkspace = d.wsNum;
+                    overviewRoot.dragWindowAddr = d.addr;
+                    overviewRoot.dragGhostCls = d.cls;
+                    overviewRoot.dragGhostTitle = d.title;
+                    overviewRoot.dragGhostAddr = d.addr;
+                    overviewRoot.dragGhostW = d.cardW;
+                    overviewRoot.dragGhostH = d.cardH;
+                    overviewRoot.dragGhostX = d.cellX + d.cardX + gridContainer.x;
+                    overviewRoot.dragGhostY = d.cellY + d.cardY + gridContainer.y;
+                }
+            }
+        }
+
+        onPressed: mouse => {
+            var card = findCard(dragTracker.childAt(mouse.x, mouse.y));
+            if (!card) return;
+
+            dragTracker._pendingCard = card;
+            dragTracker._pendingData = card._cardData;
+            dragTracker._holding = true;
+            dragTracker._startX = mouse.x;
+            dragTracker._startY = mouse.y;
+            holdTimer.restart();
+        }
+
+        onReleased: mouse => {
+            holdTimer.stop();
+
+            if (dragTracker._dragging) {
+                // Drag complete — dispatch move
+                var targetWs = overviewRoot.dragToWorkspace;
+                var origWs = overviewRoot.dragFromWorkspace;
+                var dragAddr = overviewRoot.dragWindowAddr;
+
+                dragTracker._dragging = false;
+                dragTracker._holding = false;
+                dragTracker._pendingCard = null;
+                dragTracker._pendingData = null;
+                overviewRoot.isDragging = false;
+                overviewRoot.dragToWorkspace = -1;
+                overviewRoot.dragFromWorkspace = -1;
+                overviewRoot.dragWindowAddr = "";
+
+                if (targetWs > 0 && targetWs !== origWs && dragAddr) {
+                    AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + dragAddr);
+                }
+
+                Qt.callLater(function() {
+                    if (!clientProcess.running) clientProcess.running = true;
+                    if (!monProcess.running) monProcess.running = true;
+                });
+
+            } else if (dragTracker._holding && mouse.button === Qt.LeftButton) {
+                // Quick click — focus window
+                var d = dragTracker._pendingData;
+                if (d && d.addr) {
+                    Visibilities.setActiveModule("", true);
+                    Qt.callLater(function() {
+                        AxctlService.dispatch("focuswindow address:" + d.addr);
+                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(d.wsNum)];
+                        wsSwitchProcess.running = true;
+                    });
+                }
+                dragTracker._holding = false;
+                dragTracker._pendingCard = null;
+                dragTracker._pendingData = null;
+
+            } else if (mouse.button === Qt.MiddleButton || mouse.button === Qt.RightButton) {
+                // Middle/right click — close window
+                var card = findCard(dragTracker.childAt(mouse.x, mouse.y));
+                if (card && card._cardData && card._cardData.addr) {
+                    AxctlService.dispatch("closewindow address:" + card._cardData.addr);
+                }
+                dragTracker._holding = false;
+                dragTracker._pendingCard = null;
+                dragTracker._pendingData = null;
+            } else {
+                dragTracker._holding = false;
+                dragTracker._pendingCard = null;
+                dragTracker._pendingData = null;
+            }
+        }
+
+        // Cancel hold on significant movement
+        property real _startX: 0
+        property real _startY: 0
 
         onPositionChanged: mouse => {
-            if (!overviewRoot.isDragging) return;
-            // Ghost follows mouse
-            overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
-            overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
+            if (dragTracker._dragging) {
+                // Ghost follows mouse at root level
+                overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
+                overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
 
-            // Target cell from grid-relative position
-            var gx = mouse.x - gridContainer.x;
-            var gy = mouse.y - gridContainer.y;
-            var cw = overviewRoot.wsCellW + overviewRoot.workspaceSpacing;
-            var ch = overviewRoot.wsCellH + overviewRoot.workspaceSpacing;
-            var col = Math.floor((gx - overviewRoot.workspacePadding) / cw);
-            var row = Math.floor((gy - overviewRoot.workspacePadding) / ch);
-            if (col >= 0 && col < overviewRoot.columns && row >= 0 && row < overviewRoot.rows) {
-                var target = row * overviewRoot.columns + col + 1;
-                if (target !== overviewRoot.dragToWorkspace) {
-                    overviewRoot.dragToWorkspace = target;
+                // Target cell from grid-relative position
+                var gx = mouse.x - gridContainer.x;
+                var gy = mouse.y - gridContainer.y;
+                var cw = overviewRoot.wsCellW + overviewRoot.workspaceSpacing;
+                var ch = overviewRoot.wsCellH + overviewRoot.workspaceSpacing;
+                var col = Math.floor((gx - overviewRoot.workspacePadding) / cw);
+                var row = Math.floor((gy - overviewRoot.workspacePadding) / ch);
+                if (col >= 0 && col < overviewRoot.columns && row >= 0 && row < overviewRoot.rows) {
+                    var target = row * overviewRoot.columns + col + 1;
+                    if (target !== overviewRoot.dragToWorkspace) {
+                        overviewRoot.dragToWorkspace = target;
+                    }
+                } else {
+                    overviewRoot.dragToWorkspace = -1;
                 }
-            } else {
-                overviewRoot.dragToWorkspace = -1;
+            } else if (dragTracker._holding && !dragTracker._dragging) {
+                // Cancel hold if mouse moved too far (it's a scroll, not a drag)
+                var dx = mouse.x - dragTracker._startX;
+                var dy = mouse.y - dragTracker._startY;
+                if (Math.sqrt(dx*dx + dy*dy) > 15) {
+                    holdTimer.stop();
+                    dragTracker._holding = false;
+                    dragTracker._pendingCard = null;
+                    dragTracker._pendingData = null;
+                }
             }
         }
     }
