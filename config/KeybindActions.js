@@ -60,6 +60,8 @@ var ACTION_CATALOG = [
     { id: "window.resize", label: "Resize Window", category: "Window", dispatcher: "resizeactive", args: [{ key: "delta", label: "Delta", placeholder: "50 0", defaultValue: "50 0" }], argumentBuilder: function (args) {
         return String(args.delta || "").trim();
     } },
+    { id: "window.resize-expand", label: "Expand Window (Top-Left Anchor)", category: "Window", dispatcher: "resizeactive", argument: "50 50" },
+    { id: "window.resize-shrink", label: "Shrink Window (Top-Left Anchor)", category: "Window", dispatcher: "resizeactive", argument: "-50 -50" },
 
     { id: "workspace.switch", label: "Switch Workspace", category: "Workspace", dispatcher: "workspace", args: [{ key: "index", label: "Workspace", placeholder: "1", defaultValue: "1" }], argumentBuilder: function (args) {
         return String(args.index || "").trim();
