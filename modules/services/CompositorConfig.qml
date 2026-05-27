@@ -440,15 +440,6 @@ QtObject {
         function onBlurSizeChanged() {
             applyCompositorConfig();
         }
-    }
-
-    // Force re-apply when Config.compositor adapter becomes available (was null during init)
-    property QtObject compWatch: Config.compositor
-    onCompWatchChanged: {
-        if (root.compWatch) {
-            root.applyCompositorConfig();
-        }
-    }
         function onBlurPassesChanged() {
             applyCompositorConfig();
         }
@@ -627,6 +618,14 @@ QtObject {
         function onNoUpdateNewsChanged() { applyCompositorConfig(); }
     }
 
+    // Force re-apply when Config.compositor adapter becomes available (was null during init)
+    property QtObject compWatch: Config.compositor
+    onCompWatchChanged: {
+        if (root.compWatch) {
+            root.applyCompositorConfig();
+        }
+    }
+
     property Connections colorsConnections: Connections {
         target: Colors
         function onFileChanged() {
@@ -764,3 +763,4 @@ QtObject {
         }
         // Otherwise, handled by onLoaded.
     }
+}
