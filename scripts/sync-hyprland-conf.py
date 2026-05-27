@@ -6,6 +6,7 @@ BASE = os.path.expanduser('~/.config/nothingless/config')
 BINDS_PATH = os.path.expanduser('~/.config/nothingless/binds.json')
 CONF_PATH = os.path.expanduser('~/.local/share/nothingless/hyprland.conf')
 LUA_PATH = os.path.expanduser('~/.local/share/nothingless/hyprland.lua')
+AXCTL_TOML_PATH = os.path.expanduser('~/.local/share/nothingless/axctl.toml')
 COMPOSITOR_PATH = os.path.join(BASE, 'compositor.json')
 
 with open(COMPOSITOR_PATH) as f:
@@ -585,6 +586,118 @@ def build_lua_block():
     return '\n'.join(lines) + '\n'
 
 # ============================================================================
+#  axctl.toml - TOML format (syncs compositor settings to axctl daemon)
+# ============================================================================
+def build_toml_block():
+    """Build the compositor settings section for axctl.toml."""
+    lines = ['# === NOTHINGLESS COMPOSITOR ===', '# Synced from compositor.json', '']
+
+    def toml_val(val):
+        if isinstance(val, bool):
+            return 'true' if val else 'false'
+        if isinstance(val, list):
+            return '[' + ', '.join(toml_val(v) for v in val) + ']'
+        if isinstance(val, float):
+            s = f'{val:.2f}'.rstrip('0').rstrip('.')
+            return s if '.' in s else s + '.0'
+        if isinstance(val, str):
+            return '"' + val.replace('\\', '\\\\').replace('"', '\\"') + '"'
+        return str(val)
+
+    def fmt_t(val, fixed=None):
+        if isinstance(val, bool):
+            return 'true' if val else 'false'
+        if isinstance(val, float):
+            if fixed:
+                return f'{val:.{fixed}f}'
+            return str(val)
+        if isinstance(val, int):
+            return str(val)
+        return str(val)
+
+    # Gaps
+    if 'gapsIn' in cfg or 'gapsOut' in cfg:
+        lines.append('[appearance.gaps]')
+        if 'gapsIn' in cfg: lines.append(f'inner = {cfg["gapsIn"]}')
+        if 'gapsOut' in cfg: lines.append(f'outer = {cfg["gapsOut"]}')
+        lines.append('')
+
+    # Border
+    lines.append('[appearance.border]')
+    if 'borderSize' in cfg: lines.append(f'width = {cfg["borderSize"]}')
+    if 'rounding' in cfg: lines.append(f'rounding = {cfg["rounding"]}')
+    if 'roundingPower' in cfg: lines.append(f'rounding_power = {fmt_t(cfg["roundingPower"], 1)}')
+    lines.append('')
+
+    # Opacity
+    lines.append('[appearance.opacity]')
+    if 'activeOpacity' in cfg: lines.append(f'active = {fmt_t(cfg["activeOpacity"], 2)}')
+    if 'inactiveOpacity' in cfg: lines.append(f'inactive = {fmt_t(cfg["inactiveOpacity"], 2)}')
+    if 'fullscreenOpacity' in cfg: lines.append(f'fullscreen = {fmt_t(cfg["fullscreenOpacity"], 2)}')
+    lines.append('')
+
+    # Dim
+    lines.append('[appearance.dim]')
+    if 'dimInactive' in cfg: lines.append(f'enabled = {fmt_t(cfg["dimInactive"])}')
+    if 'dimStrength' in cfg: lines.append(f'strength = {fmt_t(cfg["dimStrength"], 2)}')
+    if 'dimAround' in cfg: lines.append(f'around = {fmt_t(cfg["dimAround"], 2)}')
+    if 'dimSpecial' in cfg: lines.append(f'special = {fmt_t(cfg["dimSpecial"], 2)}')
+    lines.append('')
+
+    # Blur
+    lines.append('[appearance.blur]')
+    if 'blurEnabled' in cfg: lines.append(f'enabled = {fmt_t(cfg["blurEnabled"])}')
+    if 'blurSize' in cfg: lines.append(f'size = {cfg["blurSize"]}')
+    if 'blurPasses' in cfg: lines.append(f'passes = {cfg["blurPasses"]}')
+    if 'blurIgnoreOpacity' in cfg: lines.append(f'ignore_opacity = {fmt_t(cfg["blurIgnoreOpacity"])}')
+    if 'blurNewOptimizations' in cfg: lines.append(f'new_optimizations = {fmt_t(cfg["blurNewOptimizations"])}')
+    if 'blurXray' in cfg: lines.append(f'xray = {fmt_t(cfg["blurXray"])}')
+    if 'blurNoise' in cfg: lines.append(f'noise = {fmt_t(cfg["blurNoise"], 3)}')
+    if 'blurContrast' in cfg: lines.append(f'contrast = {fmt_t(cfg["blurContrast"], 2)}')
+    if 'blurBrightness' in cfg: lines.append(f'brightness = {fmt_t(cfg["blurBrightness"], 2)}')
+    if 'blurVibrancy' in cfg: lines.append(f'vibrancy = {fmt_t(cfg["blurVibrancy"], 2)}')
+    if 'blurVibrancyDarkness' in cfg: lines.append(f'vibrancy_darkness = {fmt_t(cfg["blurVibrancyDarkness"], 2)}')
+    if 'blurSpecial' in cfg: lines.append(f'special = {fmt_t(cfg["blurSpecial"])}')
+    if 'blurPopups' in cfg: lines.append(f'popups = {fmt_t(cfg["blurPopups"])}')
+    lines.append('')
+
+    # Shadow
+    lines.append('[appearance.shadow]')
+    if 'shadowEnabled' in cfg: lines.append(f'enabled = {fmt_t(cfg["shadowEnabled"])}')
+    if 'shadowRange' in cfg: lines.append(f'range = {cfg["shadowRange"]}')
+    if 'shadowRenderPower' in cfg: lines.append(f'render_power = {cfg["shadowRenderPower"]}')
+    if 'shadowOffset' in cfg: lines.append(f'offset = {toml_val(cfg["shadowOffset"])}')
+    if 'shadowScale' in cfg: lines.append(f'scale = {fmt_t(cfg["shadowScale"], 2)}')
+    lines.append('')
+
+    # Animations
+    lines.append('[appearance.animations]')
+    if 'animationsEnabled' in cfg: lines.append(f'enabled = {fmt_t(cfg["animationsEnabled"])}')
+    lines.append('')
+
+    # General
+    lines.append('[general]')
+    if 'layout' in cfg: lines.append(f'layout = {toml_val(cfg["layout"])}')
+    if 'allowTearing' in cfg: lines.append(f'allow_tearing = {fmt_t(cfg["allowTearing"])}')
+    if 'resizeOnBorder' in cfg: lines.append(f'resize_on_border = {fmt_t(cfg["resizeOnBorder"])}')
+    if 'extendBorderGrabArea' in cfg: lines.append(f'extend_border_grab_area = {cfg["extendBorderGrabArea"]}')
+    if 'hoverIconOnBorder' in cfg: lines.append(f'hover_icon_on_border = {fmt_t(cfg["hoverIconOnBorder"])}')
+    lines.append('')
+
+    # Snap
+    lines.append('[general.snap]')
+    if 'snapEnabled' in cfg: lines.append(f'enabled = {fmt_t(cfg["snapEnabled"])}')
+    if 'snapWindowGap' in cfg: lines.append(f'window_gap = {cfg["snapWindowGap"]}')
+    if 'snapMonitorGap' in cfg: lines.append(f'monitor_gap = {cfg["snapMonitorGap"]}')
+    if 'snapBorderOverlap' in cfg: lines.append(f'border_overlap = {fmt_t(cfg["snapBorderOverlap"])}')
+    if 'snapRespectGaps' in cfg: lines.append(f'respect_gaps = {fmt_t(cfg["snapRespectGaps"])}')
+    lines.append('')
+
+    lines.append('# === END COMPOSITOR ===')
+    return '\n'.join(lines) + '\n'
+
+
+# ============================================================================
 #  FILE WRITING
 # ============================================================================
 
@@ -634,4 +747,45 @@ with open(LUA_PATH, 'w') as f:
     f.write(content)
 print(f'hyprland.lua: {len(lua_block)} chars (compositor), {len(lua_binds_block)} chars (keybinds)')
 
-print('Done - hyprctl reload recommended')
+# --- axctl.toml ---
+toml_block = build_toml_block()
+
+try:
+    with open(AXCTL_TOML_PATH) as f:
+        toml_content = f.read()
+
+    # Remove everything from [appearance] through the last section before [[keybinds]]
+    # This clears old values from CompositorTomlWriter that may conflict
+    pattern = re.compile(
+        r'\n?\[appearance\].*?(?=\n?\[\[keybinds\]\]|\n?# === NOTHINGLESS|\Z)',
+        re.DOTALL
+    )
+    toml_content = pattern.sub('', toml_content).strip()
+
+    # Also remove old marker block if present
+    toml_content = re.sub(
+        re.escape('# === NOTHINGLESS COMPOSITOR ===') + '.*?' + re.escape('# === END COMPOSITOR ==='),
+        '', toml_content, flags=re.DOTALL
+    ).strip()
+
+    # Insert the new block after [startup] section, before [[keybinds]]
+    # Find insertion point: either before [[keybinds]] or at end of file
+    keybinds_match = re.search(r'^\[\[keybinds\]\]', toml_content, re.MULTILINE)
+    if keybinds_match:
+        # Find the line before [[keybinds]] and insert there
+        before = toml_content[:keybinds_match.start()].rstrip()
+        after = toml_content[keybinds_match.start():]
+        toml_content = before + '\n\n' + toml_block.strip() + '\n\n' + after
+    else:
+        toml_content += '\n\n' + toml_block
+
+    with open(AXCTL_TOML_PATH, 'w') as f:
+        f.write(toml_content)
+    print(f'axctl.toml: {len(toml_block)} chars (synced)')
+except FileNotFoundError:
+    print(f'axctl.toml: CREATED at {AXCTL_TOML_PATH}')
+    with open(AXCTL_TOML_PATH, 'w') as f:
+        f.write(toml_block)
+    print(f'axctl.toml: {len(toml_block)} chars')
+
+print('Done - hyprctl reload & axctl config reload recommended')
