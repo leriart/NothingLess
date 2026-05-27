@@ -594,68 +594,6 @@ Item {
                 dragTracker._pendingCard = null;
                 dragTracker._pendingData = null;
             }
-        }
-
-        onReleased: mouse => {
-            if (dragTracker._dragging) {
-                var targetWs = overviewRoot.dragToWorkspace;
-                var origWs = overviewRoot.dragFromWorkspace;
-                var dragAddr = overviewRoot.dragWindowAddr;
-                var card = dragTracker._pendingCard;
-
-                // Reset card override
-                if (card) {
-                    card._dragActive = false;
-                }
-
-                dragTracker._dragging = false;
-                dragTracker._holding = false;
-                dragTracker._pendingCard = null;
-                dragTracker._pendingData = null;
-                overviewRoot.isDragging = false;
-                overviewRoot.dragToWorkspace = -1;
-                overviewRoot.dragFromWorkspace = -1;
-                overviewRoot.dragWindowAddr = "";
-
-                if (targetWs > 0 && targetWs !== origWs && dragAddr) {
-                    AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + dragAddr);
-                }
-
-                Qt.callLater(function() {
-                    if (!clientProcess.running) clientProcess.running = true;
-                    if (!monProcess.running) monProcess.running = true;
-                });
-
-            } else if (dragTracker._holding && mouse.button === Qt.LeftButton) {
-                var d = dragTracker._pendingData;
-                if (d && d.addr) {
-                    Visibilities.setActiveModule("", true);
-                    Qt.callLater(function() {
-                        AxctlService.dispatch("focuswindow address:" + d.addr);
-                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(d.wsNum)];
-                        wsSwitchProcess.running = true;
-                    });
-                }
-
-            } else if (mouse.button === Qt.MiddleButton || mouse.button === Qt.RightButton) {
-                var card = findCardAt(mouse.x, mouse.y);
-                if (card && card._cardData && card._cardData.addr) {
-                    AxctlService.dispatch("closewindow address:" + card._cardData.addr);
-                }
-
-            } else if (mouse.button === Qt.LeftButton && !dragTracker._holding) {
-                var ws = dragTracker.wsAt(mouse.x, mouse.y);
-                if (ws > 0) {
-                    wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(ws)];
-                    wsSwitchProcess.running = true;
-                }
-            }
-
-            dragTracker._holding = false;
-            dragTracker._pendingCard = null;
-            dragTracker._pendingData = null;
-        }
-
         // Cancel hold on significant movement
         property real _startX: 0
         property real _startY: 0
