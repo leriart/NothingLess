@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 import Quickshell.Wayland
 import qs.modules.globals
 import qs.modules.theme
@@ -237,14 +238,18 @@ Item {
                         readonly property var mon: overviewRoot.monMap[String(win.monitor)]
 
                         // Window position & size as fraction of its monitor
+                        // Note: hyprctl reports at[] in logical coords but size[]
+                        // in physical coords when scale != 1.0. We multiply
+                        // size by scale to normalize to logical coordinates.
+                        readonly property real _monScale: mon ? (mon.scale || 1.0) : 1.0
                         readonly property real monW: mon ? (mon.width || 1920) : 1920
                         readonly property real monH: mon ? (mon.height || 1080) : 1080
                         readonly property real relX: monW > 0 ? ((win.at?.[0] || 0) - (mon?.x || 0)) / monW : 0
                         readonly property real relY: monH > 0 ? ((win.at?.[1] || 0) - (mon?.y || 0)) / monH : 0
-                        readonly property real relW: monW > 0 ? Math.max(0.05, Math.min(1, (win.size?.[0] || 100) / monW)) : 0.85
-                        readonly property real relH: monH > 0 ? Math.max(0.05, Math.min(1, (win.size?.[1] || 100) / monH)) : 0.85
+                        readonly property real relW: monW > 0 ? Math.max(0.05, Math.min(1, ((win.size?.[0] || 100) * _monScale) / monW)) : 0.85
+                        readonly property real relH: monH > 0 ? Math.max(0.05, Math.min(1, ((win.size?.[1] || 100) * _monScale) / monH)) : 0.85
 
-                        // Fill to neighbor algorithm: expand until hitting another window edge
+                        // Fill to neighbor: expand until hitting another window edge
                         readonly property real fillW: {
                             var base = relW;
                             var r = relX + relW;
@@ -253,8 +258,8 @@ Item {
                                 if (others[i].address === win.address) continue;
                                 var ox = ((others[i].at?.[0] || 0) - (mon?.x || 0)) / monW;
                                 var oy = ((others[i].at?.[1] || 0) - (mon?.y || 0)) / monH;
-                                var ow = (others[i].size?.[0] || 100) / monW;
-                                var oh = (others[i].size?.[1] || 100) / monH;
+                                var ow = Math.max(0.05, ((others[i].size?.[0] || 100) * _monScale) / monW);
+                                var oh = Math.max(0.05, ((others[i].size?.[1] || 100) * _monScale) / monH);
                                 if (ox > relX && oy < relY + relH && oy + oh > relY)
                                     r = Math.min(r, ox);
                             }
@@ -268,8 +273,8 @@ Item {
                                 if (others[i].address === win.address) continue;
                                 var ox = ((others[i].at?.[0] || 0) - (mon?.x || 0)) / monW;
                                 var oy = ((others[i].at?.[1] || 0) - (mon?.y || 0)) / monH;
-                                var ow = (others[i].size?.[0] || 100) / monW;
-                                var oh = (others[i].size?.[1] || 100) / monH;
+                                var ow = Math.max(0.05, ((others[i].size?.[0] || 100) * _monScale) / monW);
+                                var oh = Math.max(0.05, ((others[i].size?.[1] || 100) * _monScale) / monH);
                                 if (oy > relY && ox < relX + relW && ox + ow > relX)
                                     b = Math.min(b, oy);
                             }
