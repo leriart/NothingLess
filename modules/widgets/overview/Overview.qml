@@ -482,25 +482,6 @@ Item {
                     font.bold: true; color: Colors.onSurface; opacity: 0.2; z: 5
                 }
 
-                // ── Cell click: empty space below window cards ──
-                // Rendered last = highest visual stacking.
-                // Window cards sit on top because they're in a Repeater child.
-                // Clicks on empty space reach here since no card covers them.
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton
-                    enabled: !overviewRoot.isDragging
-                    z: -1
-                    onClicked: {
-                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
-                        wsSwitchProcess.running = true;
-                    }
-                    onDoubleClicked: {
-                        Visibilities.setActiveModule("");
-                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
-                        wsSwitchProcess.running = true;
-                    }
-                }
             }
         }
 
@@ -615,16 +596,37 @@ Item {
             }
         }
 
+        // Helper: find workspace number from root-level coordinates
+        function wsAt(mx, my) {
+            var gx = mx - gridContainer.x;
+            var gy = my - gridContainer.y;
+            var cw = overviewRoot.wsCellW + overviewRoot.workspaceSpacing;
+            var ch = overviewRoot.wsCellH + overviewRoot.workspaceSpacing;
+            var col = Math.floor((gx - overviewRoot.workspacePadding) / cw);
+            var row = Math.floor((gy - overviewRoot.workspacePadding) / ch);
+            if (col >= 0 && col < overviewRoot.columns && row >= 0 && row < overviewRoot.rows) {
+                return row * overviewRoot.columns + col + 1;
+            }
+            return -1;
+        }
+
         onPressed: mouse => {
             var card = findCard(dragTracker.childAt(mouse.x, mouse.y));
-            if (!card) return;
 
-            dragTracker._pendingCard = card;
-            dragTracker._pendingData = card._cardData;
-            dragTracker._holding = true;
-            dragTracker._startX = mouse.x;
-            dragTracker._startY = mouse.y;
-            holdTimer.restart();
+            if (card) {
+                // Pressed on a window card
+                dragTracker._pendingCard = card;
+                dragTracker._pendingData = card._cardData;
+                dragTracker._holding = true;
+                dragTracker._startX = mouse.x;
+                dragTracker._startY = mouse.y;
+                holdTimer.restart();
+            } else {
+                // Pressed on empty space
+                dragTracker._holding = false;
+                dragTracker._pendingCard = null;
+                dragTracker._pendingData = null;
+            }
         }
 
         onReleased: mouse => {
@@ -655,7 +657,7 @@ Item {
                 });
 
             } else if (dragTracker._holding && mouse.button === Qt.LeftButton) {
-                // Quick click — focus window
+                // Quick click on card — focus window
                 var d = dragTracker._pendingData;
                 if (d && d.addr) {
                     Visibilities.setActiveModule("", true);
@@ -678,11 +680,19 @@ Item {
                 dragTracker._holding = false;
                 dragTracker._pendingCard = null;
                 dragTracker._pendingData = null;
-            } else {
-                dragTracker._holding = false;
-                dragTracker._pendingCard = null;
-                dragTracker._pendingData = null;
+
+            } else if (mouse.button === Qt.LeftButton && !dragTracker._holding) {
+                // Click on empty space — switch workspace
+                var ws = dragTracker.wsAt(mouse.x, mouse.y);
+                if (ws > 0) {
+                    wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(ws)];
+                    wsSwitchProcess.running = true;
+                }
             }
+
+            dragTracker._holding = false;
+            dragTracker._pendingCard = null;
+            dragTracker._pendingData = null;
         }
 
         // Cancel hold on significant movement
