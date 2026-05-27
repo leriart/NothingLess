@@ -594,6 +594,7 @@ Item {
                 dragTracker._pendingCard = null;
                 dragTracker._pendingData = null;
             }
+        }
         // Cancel hold on significant movement
         property real _startX: 0
         property real _startY: 0
