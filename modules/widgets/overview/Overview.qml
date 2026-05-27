@@ -574,7 +574,6 @@ Item {
             }
         }
     }
-    }
 
     // ── SINGLE MouseArea: handles ALL interactions ──
     // Finds cards via childAt + _isCard property walk.
@@ -766,3 +765,5 @@ Item {
     }
 
 
+
+}
