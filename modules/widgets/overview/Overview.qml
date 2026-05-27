@@ -168,17 +168,13 @@ Item {
     property int dragToWorkspace: -1
     property string dragWindowAddr: ""
     property bool isDragging: false
-    property bool _dragCardLifted: false
     property real dragGhostX: 0
     property real dragGhostY: 0
-    property real dragGhostW: 100
-    property real dragGhostH: 100
+    property real dragGhostW: 120
+    property real dragGhostH: 80
     property string dragGhostCls: ""
     property string dragGhostTitle: ""
     property string dragGhostAddr: ""
-
-    // Silent workspace where dragged windows go
-    readonly property int _dragSilentWs: 99
 
     Component.onCompleted: {
         if (!clientProcess.running) clientProcess.running = true;
@@ -443,7 +439,7 @@ Item {
                             anchors.fill: parent
                             radius: Styling.radius(-2)
                             color: overviewRoot.isDragging && overviewRoot.dragWindowAddr === addr
-                                ? Qt.rgba(0, 0, 0, 0.5) : "transparent"
+                                ? Qt.rgba(0, 0, 0, 0.4) : "transparent"
                             z: 5
                             Behavior on color {
                                 enabled: Anim.animationsEnabled
@@ -480,17 +476,9 @@ Item {
                                         overviewRoot.dragGhostAddr = addr;
                                         overviewRoot.dragGhostW = cardW;
                                         overviewRoot.dragGhostH = cardH;
-                                        // Move window to silent workspace (it disappears from grid)
-                                        AxctlService.dispatch("movetoworkspacesilent " + overviewRoot._dragSilentWs + ",address:" + addr);
-                                        // Position ghost at the card's grid location
-                                        overviewRoot.dragGhostX = cardX + cell.x;
-                                        overviewRoot.dragGhostY = cardY + cell.y;
-                                        // Flag: ghost rendering starts now
-                                        overviewRoot._dragCardLifted = true;
-                                        // Refresh data so window disappears from its old cell
-                                        Qt.callLater(function() {
-                                            if (!clientProcess.running) clientProcess.running = true;
-                                        });
+                                        // Ghost initial position at card's location
+                                        overviewRoot.dragGhostX = cell.x + cardX + gridContainer.x;
+                                        overviewRoot.dragGhostY = cell.y + cardY + gridContainer.y;
                                     }
                                 }
                             }
@@ -555,30 +543,25 @@ Item {
                                 if (mouse.button === Qt.LeftButton) {
                                     holdTimer.stop();
                                     if (cardMouse._dragging) {
-                                        // Dragging: the card grabbed the press, so we handle
-                                        // the drop here (dragTracker can't get the release)
-                                        cardMouse._dragging = false;
-                                        cardMouse._holding = false;
+                                        // Drop: dispatch move to target workspace
                                         var targetWs = overviewRoot.dragToWorkspace;
                                         var origWs = overviewRoot.dragFromWorkspace;
                                         var dragAddr = overviewRoot.dragWindowAddr;
 
-                                        overviewRoot._dragCardLifted = false;
+                                        cardMouse._dragging = false;
+                                        cardMouse._holding = false;
                                         overviewRoot.isDragging = false;
                                         overviewRoot.dragToWorkspace = -1;
                                         overviewRoot.dragFromWorkspace = -1;
                                         overviewRoot.dragWindowAddr = "";
 
-                                        if (targetWs > 0 && dragAddr) {
+                                        if (targetWs > 0 && targetWs !== origWs && dragAddr) {
                                             AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + dragAddr);
-                                        } else if (dragAddr && origWs > 0) {
-                                            AxctlService.dispatch("movetoworkspacesilent " + origWs + ",address:" + dragAddr);
+                                            Qt.callLater(function() {
+                                                if (!clientProcess.running) clientProcess.running = true;
+                                                if (!monProcess.running) monProcess.running = true;
+                                            });
                                         }
-
-                                        Qt.callLater(function() {
-                                            if (!clientProcess.running) clientProcess.running = true;
-                                            if (!monProcess.running) monProcess.running = true;
-                                        });
                                     } else if (cardMouse._holding) {
                                         // Quick click: focus + switch
                                         Visibilities.setActiveModule("", true);
@@ -653,7 +636,7 @@ Item {
     // ── Drag ghost card (outside gridContainer, at overviewRoot level) ──
     Item {
         id: dragGhost
-        visible: overviewRoot._dragCardLifted && overviewRoot.dragGhostAddr.length > 0
+        visible: overviewRoot.isDragging && overviewRoot.dragGhostAddr.length > 0
         z: 9999
         x: overviewRoot.dragGhostX
         y: overviewRoot.dragGhostY
