@@ -61,7 +61,7 @@ nothingless remove hyprland            # Remove config
 
 On first boot, `exec-once = nothingless` launches the shell, which starts the axctl daemon internally. All compositor settings are managed live via axctl and persisted to `~/.local/share/nothingless/`.
 
-Supported on **Arch** and **NixOS**.
+
 
 ---
 
@@ -72,7 +72,7 @@ Supported on **Arch** and **NixOS**.
 - **Task tray** — system tray con show/hide
 - **Overview** — gestor de workspaces con drag & drop y live preview
 - **Dashboard** — panel de configuración visual con 200+ opciones
-- **AI Assistant** — soporte para OpenAI, Anthropic, DeepSeek, Gemini, Ollama y más
+
 - **FPS Monitoring** — MangoHud parcheado con overlay de FPS en el notch
 - **Monitor configuration** — GUI panel and CLI backend
 - **Snap Assistant** — intelligent window snapping via axctl
