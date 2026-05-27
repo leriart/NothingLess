@@ -407,7 +407,7 @@ def build_conf_block():
 
     # Free Layout: windowrule float BEFORE any section blocks
     if _is_free:
-        lines.append('windowrulev2 = float, class:.*')
+        lines.append('windowrule = float, class:.*')
         lines.append('')
 
     sec('general', [
