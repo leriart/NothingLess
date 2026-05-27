@@ -311,10 +311,16 @@ Item {
                         property var _cardData: ({ wsNum: wsNum, addr: addr, cls: cls, title: title, cardW: cardW, cardH: cardH, cardX: cardX, cardY: cardY, cellX: cell.x, cellY: cell.y })
                         // No Component.onCompleted - findCardAt walks children directly
 
-                        // Drag override: card se reparentea a dragOverlay
+                        // Drag override: card se mueve con Translate, no con reparent
                         property bool _dragActive: false
-                        x: cardX; y: cardY; z: 1; width: cardW; height: cardH
+                        property real _dragTx: 0
+                        property real _dragTy: 0
+                        x: cardX; y: cardY; z: 99999; width: cardW; height: cardH
                         scale: _dragActive ? 1.04 : 1.0
+                        transform: Translate {
+                            x: _dragActive ? _dragTx : 0
+                            y: _dragActive ? _dragTy : 0
+                        }
 
                         Behavior on scale {
                             enabled: Anim.animationsEnabled
@@ -477,11 +483,9 @@ Item {
     }
 
     // ── Drag overlay: la card se mueve aqui durante drag ──
-    // z: 9997 (debajo del dragTracker z:9998) para que el tracker 
-    // capture eventos de mouse sobre la card arrastrada
     Item {
         id: dragOverlay
-        z: 9997
+        z: 1
         width: parent.width
         height: parent.height
     }
@@ -494,7 +498,7 @@ Item {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
         hoverEnabled: true
-        z: 9998
+        z: 100000
         cursorShape: overviewRoot.isDragging ? Qt.ClosedHandCursor : Qt.ArrowCursor
 
         // Find card at mouse position by walking cell children directly
@@ -568,10 +572,13 @@ Item {
         onPositionChanged: mouse => {
             if (dragTracker._dragging) {
                 var card = dragTracker._pendingCard;
-                if (card) {
-                    // Card is now child of dragOverlay (root level), x/y = root coords
-                    card.x = mouse.x - card.width / 2;
-                    card.y = mouse.y - card.height / 2;
+                var d = dragTracker._pendingData;
+                if (card && d) {
+                    // Card stays in grid, Translate shifts it to follow mouse
+                    var newTx = mouse.x - gridContainer.x - d.cellX - card.x - card.width / 2;
+                    var newTy = mouse.y - gridContainer.y - d.cellY - card.y - card.height / 2;
+                    card._dragTx = newTx;
+                    card._dragTy = newTy;
                 }
                 overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
                 overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
@@ -601,12 +608,8 @@ Item {
                     var card = dragTracker._pendingCard;
                     if (d && card) {
                         card._dragActive = true;
-                        // Reparent card to dragOverlay (root level = no cell constraints)
-                        var rx = d.cellX + d.cardX + gridContainer.x; // root-relative x
-                        var ry = d.cellY + d.cardY + gridContainer.y; // root-relative y
-                        card.parent = dragOverlay;
-                        card.x = rx;
-                        card.y = ry;
+                        card._dragTx = 0;
+                        card._dragTy = 0; // Reset translate, starts at grid position
                         overviewRoot.isDragging = true;
                         overviewRoot.dragFromWorkspace = d.wsNum;
                         overviewRoot.dragWindowAddr = d.addr;
@@ -628,7 +631,7 @@ Item {
                 var origWs = overviewRoot.dragFromWorkspace;
                 var dragAddr = overviewRoot.dragWindowAddr;
                 var card = dragTracker._pendingCard;
-                if (card) { card._dragActive = false; card.destroy(); }
+                if (card) { card._dragActive = false; card._dragTx = 0; card._dragTy = 0; }
 
                 dragTracker._dragging = false;
                 dragTracker._holding = false;
