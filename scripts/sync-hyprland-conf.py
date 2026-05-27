@@ -75,6 +75,20 @@ ACTION_MAP = {
     "scrolling.swap-column":       ("layoutmsg", "direction", "", "swapcol "),
     "scrolling.move-column-workspace":("layoutmsg", "index", "", "movecoltoworkspace "),
 
+    # Free Layout actions (axctl movesnap)
+    "free.snap-left":              ("axctl", "movesnap left"),
+    "free.snap-right":             ("axctl", "movesnap right"),
+    "free.snap-top":               ("axctl", "movesnap up"),
+    "free.snap-bottom":            ("axctl", "movesnap down"),
+    "free.snap-center":            ("axctl", "movesnap center"),
+    "free.snap-maximize":          ("axctl", "movesnap maximize"),
+    "free.snap-restore":           ("axctl", "movesnap restore"),
+    "free.snap-top-left":          ("axctl", "movesnap topleft"),
+    "free.snap-top-right":         ("axctl", "movesnap topright"),
+    "free.snap-bottom-left":       ("axctl", "movesnap bottomleft"),
+    "free.snap-bottom-right":      ("axctl", "movesnap bottomright"),
+    "free.toggle-tile":            ("togglefloating", ""),
+
     # Media actions
     "media.play-pause":            ("exec", "playerctl play-pause"),
     "media.play-pause-locked":     ("exec", "playerctl play-pause", "l"),
@@ -381,12 +395,20 @@ def build_conf_block():
                 lines.append(indent + '  ' + kw + ' = ' + fmt(cfg[ck]))
         lines.append(indent + '}')
 
+    # Determine if Free Layout (floating mode)
+    _is_free = cfg.get('layout') == 'free'
+
     sec('general', [
         ('borderSize','border_size'), ('gapsIn','gaps_in'), ('gapsOut','gaps_out'),
         ('allowTearing','allow_tearing'), ('resizeOnBorder','resize_on_border'),
         ('extendBorderGrabArea','extend_border_grab_area'),
-        ('hoverIconOnBorder','hover_icon_on_border'), ('layout','layout'),
-    ])
+        ('hoverIconOnBorder','hover_icon_on_border'),
+    ] + ([] if _is_free else [('layout','layout')]))
+
+    # Free Layout: windowrule float for all windows
+    if _is_free:
+        lines.append('windowrule = float,.*')
+
     lines.append('')
 
     lines.append('decoration {')
@@ -498,11 +520,14 @@ def build_lua_block():
         'hl.config({',
     ]
 
+    _is_free = cfg.get('layout') == 'free'
+
     sections = {
         'general': [('borderSize','border_size'), ('gapsIn','gaps_in'), ('gapsOut','gaps_out'),
                     ('allowTearing','allow_tearing'), ('resizeOnBorder','resize_on_border'),
                     ('extendBorderGrabArea','extend_border_grab_area'),
-                    ('hoverIconOnBorder','hover_icon_on_border'), ('layout','layout')],
+                    ('hoverIconOnBorder','hover_icon_on_border'),
+        ] + ([] if _is_free else [('layout','layout')]),
         'decoration': [('rounding','rounding'), ('roundingPower','rounding_power'),
                        ('activeOpacity','active_opacity'), ('inactiveOpacity','inactive_opacity'),
                        ('fullscreenOpacity','fullscreen_opacity'),
@@ -582,6 +607,11 @@ def build_lua_block():
         lines.append('    },')
 
     lines.append('})')
+
+    # Free Layout: windowrule float for all windows (lua syntax)
+    if _is_free:
+        lines.append('hl.windowrule("float,.*")')
+
     lines.append('-- === END COMPOSITOR ===')
     return '\n'.join(lines) + '\n'
 
@@ -676,13 +706,26 @@ def build_toml_block():
     lines.append('')
 
     # General
+    _is_free = cfg.get('layout') == 'free'
     lines.append('[general]')
-    if 'layout' in cfg: lines.append(f'layout = {toml_val(cfg["layout"])}')
+    if 'layout' in cfg and not _is_free: lines.append(f'layout = {toml_val(cfg["layout"])}')
     if 'allowTearing' in cfg: lines.append(f'allow_tearing = {fmt_t(cfg["allowTearing"])}')
     if 'resizeOnBorder' in cfg: lines.append(f'resize_on_border = {fmt_t(cfg["resizeOnBorder"])}')
     if 'extendBorderGrabArea' in cfg: lines.append(f'extend_border_grab_area = {cfg["extendBorderGrabArea"]}')
     if 'hoverIconOnBorder' in cfg: lines.append(f'hover_icon_on_border = {fmt_t(cfg["hoverIconOnBorder"])}')
     lines.append('')
+
+    # Free Layout grid & snap config
+    if _is_free:
+        lines.append('[general.free]')
+        if 'freeGridSize' in cfg: lines.append(f'grid_size = {cfg["freeGridSize"]}')
+        if 'freeSnapSensitivity' in cfg: lines.append(f'snap_sensitivity = {cfg["freeSnapSensitivity"]}')
+        if 'freeSnapEdges' in cfg: lines.append(f'snap_edges = {fmt_t(cfg["freeSnapEdges"])}')
+        if 'freeSnapCenter' in cfg: lines.append(f'snap_center = {fmt_t(cfg["freeSnapCenter"])}')
+        if 'freeSnapGaps' in cfg: lines.append(f'snap_gaps = {cfg["freeSnapGaps"]}')
+        if 'freeTileByDefault' in cfg: lines.append(f'tile_by_default = {fmt_t(cfg["freeTileByDefault"])}')
+        if 'freeMaximizedByDefault' in cfg: lines.append(f'maximized_by_default = {fmt_t(cfg["freeMaximizedByDefault"])}')
+        lines.append('')
 
     # Snap
     lines.append('[general.snap]')

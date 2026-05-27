@@ -1898,6 +1898,91 @@ Item {
                             }
                         }
 
+                        // Free Layout Section
+                        ColumnLayout {
+                            visible: root.currentSection === "layout"
+                            Layout.fillWidth: true
+                            spacing: 6
+
+                            Text {
+                                text: "Free"
+                                font.family: Config.theme.font
+                                font.pixelSize: Styling.fontSize(-2)
+                                font.weight: Font.Medium
+                                color: Colors.overSurfaceVariant
+                                Layout.topMargin: 8
+                            }
+
+                            NumberInputRow {
+                                label: "Grid Size"
+                                value: Config.compositor.freeGridSize ?? 20
+                                minValue: 4
+                                maxValue: 100
+                                onValueEdited: newValue => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.freeGridSize = newValue;
+                                }
+                            }
+
+                            NumberInputRow {
+                                label: "Snap Sensitivity"
+                                value: Config.compositor.freeSnapSensitivity ?? 10
+                                minValue: 1
+                                maxValue: 50
+                                onValueEdited: newValue => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.freeSnapSensitivity = newValue;
+                                }
+                            }
+
+                            ToggleRow {
+                                label: "Snap to Edges"
+                                checked: Config.compositor.freeSnapEdges ?? true
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.freeSnapEdges = value;
+                                }
+                            }
+
+                            ToggleRow {
+                                label: "Snap to Center"
+                                checked: Config.compositor.freeSnapCenter ?? true
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.freeSnapCenter = value;
+                                }
+                            }
+
+                            NumberInputRow {
+                                label: "Snap Gaps"
+                                value: Config.compositor.freeSnapGaps ?? 4
+                                minValue: 0
+                                maxValue: 50
+                                onValueEdited: newValue => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.freeSnapGaps = newValue;
+                                }
+                            }
+
+                            ToggleRow {
+                                label: "Tile by Default"
+                                checked: Config.compositor.freeTileByDefault ?? false
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.freeTileByDefault = value;
+                                }
+                            }
+
+                            ToggleRow {
+                                label: "Maximize by Default"
+                                checked: Config.compositor.freeMaximizedByDefault ?? false
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.freeMaximizedByDefault = value;
+                                }
+                            }
+                        }
+
                         // Advanced Section
                         ColumnLayout {
                             visible: root.currentSection === "advanced"

@@ -172,7 +172,13 @@ QtObject {
         batchCommand += ` ; keyword general:col.active_border ${activeColorFormatted}`;
         batchCommand += ` ; keyword general:col.inactive_border ${inactiveColorFormatted}`;
         if (GlobalStates.compositorLayout) {
-            batchCommand += ` ; keyword general:layout ${GlobalStates.compositorLayout}`;
+            if (GlobalStates.compositorLayout === "free") {
+                // Free layout: NOT a real hyprland layout, use windowrule float for all windows
+                batchCommand += ` ; keyword windowrule float,.*`;
+            } else {
+                // Regular tiling layouts
+                batchCommand += ` ; keyword general:layout ${GlobalStates.compositorLayout}`;
+            }
         }
         batchCommand += ` ; keyword decoration:rounding ${Config.compositorRounding}`;
         batchCommand += ` ; keyword decoration:shadow:enabled ${Config.compositor.shadowEnabled}`;

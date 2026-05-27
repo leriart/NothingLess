@@ -182,5 +182,14 @@ var data = {
 
     // === Ecosystem ===
     "noUpdateNews": true,
-    "enforcePermissions": false
+    "enforcePermissions": false,
+
+    // === Free Layout ===
+    "freeGridSize": 20,
+    "freeSnapSensitivity": 10,
+    "freeSnapEdges": true,
+    "freeSnapCenter": true,
+    "freeSnapGaps": 4,
+    "freeTileByDefault": false,
+    "freeMaximizedByDefault": false
 }

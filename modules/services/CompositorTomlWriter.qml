@@ -273,7 +273,9 @@ Singleton {
         // General
         toml += "\n[general]\n";
         if (GlobalStates.compositorLayout && GlobalStates.compositorLayout.length > 0) {
-            toml += `layout = "${GlobalStates.compositorLayout}"\n`;
+            if (GlobalStates.compositorLayout !== "free") {
+                toml += `layout = "${GlobalStates.compositorLayout}"\n`;
+            }
         }
         toml += `allow_tearing = ${Config.compositor.allowTearing}\n`;
         toml += `resize_on_border = ${Config.compositor.resizeOnBorder}\n`;
@@ -287,6 +289,18 @@ Singleton {
         toml += `monitor_gap = ${Config.compositor.snapMonitorGap}\n`;
         toml += `border_overlap = ${Config.compositor.snapBorderOverlap}\n`;
         toml += `respect_gaps = ${Config.compositor.snapRespectGaps}\n`;
+
+        // Free Layout (only when active)
+        if (GlobalStates.compositorLayout === "free") {
+            toml += "\n[general.free]\n";
+            toml += `grid_size = ${Config.compositor.freeGridSize}\n`;
+            toml += `snap_sensitivity = ${Config.compositor.freeSnapSensitivity}\n`;
+            toml += `snap_edges = ${Config.compositor.freeSnapEdges}\n`;
+            toml += `snap_center = ${Config.compositor.freeSnapCenter}\n`;
+            toml += `snap_gaps = ${Config.compositor.freeSnapGaps}\n`;
+            toml += `tile_by_default = ${Config.compositor.freeTileByDefault}\n`;
+            toml += `maximized_by_default = ${Config.compositor.freeMaximizedByDefault}\n`;
+        }
 
         // Keybinds
         if (Config.keybindsLoader.loaded && Config.keybindsLoader.adapter) {

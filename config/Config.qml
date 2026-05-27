@@ -891,6 +891,15 @@ Singleton {
             property bool scrollingFollowFocus: true
             property real scrollingFollowMinVisible: 0.1
 
+            // Free Layout
+            property int freeGridSize: 20
+            property int freeSnapSensitivity: 10
+            property bool freeSnapEdges: true
+            property bool freeSnapCenter: true
+            property int freeSnapGaps: 4
+            property bool freeTileByDefault: false
+            property bool freeMaximizedByDefault: false
+
             // XWayland
             property bool xwaylandEnabled: true
             property bool xwaylandForceZeroScaling: false

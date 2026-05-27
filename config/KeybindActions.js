@@ -100,6 +100,20 @@ var ACTION_CATALOG = [
         return "movecoltoworkspace " + String(args.index || "").trim();
     } },
 
+    // Free Layout Actions
+    { id: "free.snap-left", label: "Snap Left", category: "Free Layout", dispatcher: "axctl", argument: "movesnap left" },
+    { id: "free.snap-right", label: "Snap Right", category: "Free Layout", dispatcher: "axctl", argument: "movesnap right" },
+    { id: "free.snap-top", label: "Snap Top", category: "Free Layout", dispatcher: "axctl", argument: "movesnap up" },
+    { id: "free.snap-bottom", label: "Snap Bottom", category: "Free Layout", dispatcher: "axctl", argument: "movesnap down" },
+    { id: "free.snap-center", label: "Snap Center", category: "Free Layout", dispatcher: "axctl", argument: "movesnap center" },
+    { id: "free.snap-maximize", label: "Snap Maximize", category: "Free Layout", dispatcher: "axctl", argument: "movesnap maximize" },
+    { id: "free.snap-restore", label: "Snap Restore", category: "Free Layout", dispatcher: "axctl", argument: "movesnap restore" },
+    { id: "free.snap-top-left", label: "Snap Top Left", category: "Free Layout", dispatcher: "axctl", argument: "movesnap topleft" },
+    { id: "free.snap-top-right", label: "Snap Top Right", category: "Free Layout", dispatcher: "axctl", argument: "movesnap topright" },
+    { id: "free.snap-bottom-left", label: "Snap Bottom Left", category: "Free Layout", dispatcher: "axctl", argument: "movesnap bottomleft" },
+    { id: "free.snap-bottom-right", label: "Snap Bottom Right", category: "Free Layout", dispatcher: "axctl", argument: "movesnap bottomright" },
+    { id: "free.toggle-tile", label: "Toggle Tile/Float", category: "Free Layout", dispatcher: "togglefloating" },
+
     { id: "media.play-pause", label: "Play/Pause", category: "Media", dispatcher: "exec", argument: "playerctl play-pause" },
     { id: "media.play-pause-locked", label: "Play/Pause (Locked)", category: "Media", dispatcher: "exec", argument: "playerctl play-pause", flags: "l" },
     { id: "media.prev", label: "Previous Track", category: "Media", dispatcher: "exec", argument: "playerctl previous" },
@@ -270,6 +284,22 @@ function actionFromLegacy(dispatcher, argument, flags) {
         if (arg === "togglefit") return { id: "scrolling.toggle-fit", args: {} };
         if (arg.startsWith("swapcol ")) return { id: "scrolling.swap-column", args: { direction: arg.split(" ")[1] } };
         if (arg.startsWith("movecoltoworkspace ")) return { id: "scrolling.move-column-workspace", args: { index: arg.split(" ")[1] } };
+    }
+    if (dispatcher === "axctl") {
+        if (arg.startsWith("movesnap ")) {
+            const pos = arg.split(" ")[1] || "";
+            const snapMap = {
+                "left": "free.snap-left", "right": "free.snap-right",
+                "up": "free.snap-top", "down": "free.snap-bottom",
+                "center": "free.snap-center", "maximize": "free.snap-maximize",
+                "restore": "free.snap-restore",
+                "topleft": "free.snap-top-left", "topright": "free.snap-top-right",
+                "bottomleft": "free.snap-bottom-left", "bottomright": "free.snap-bottom-right",
+            };
+            const id = snapMap[pos];
+            if (id) return { id: id, args: {} };
+        }
+        return { id: "command.run", args: { command: arg } };
     }
     if (dispatcher === "exec") {
         if (arg === "playerctl play-pause" && flags === "l") return { id: "media.play-pause-locked", args: {} };
