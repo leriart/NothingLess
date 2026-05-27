@@ -313,16 +313,11 @@ Item {
                         property var _cardData: ({ wsNum: wsNum, addr: addr, cls: cls, title: title, cardW: cardW, cardH: cardH, cardX: cardX, cardY: cardY, cellX: cell.x, cellY: cell.y })
                         // No Component.onCompleted - findCardAt walks children directly
 
-                        // Drag: card se mueve con Translate dentro de su cell
+                        // Drag: card se queda en su sitio, overlay replica la sigue
                         property bool _dragActive: false
-                        property real _dragTx: 0
-                        property real _dragTy: 0
-                        x: cardX; y: cardY; z: _dragActive ? 99999 : 1; width: cardW; height: cardH
+                        x: cardX; y: cardY; z: 1; width: cardW; height: cardH
                         scale: _dragActive ? 1.04 : 1.0
-                        transform: Translate {
-                            x: _dragActive ? _dragTx : 0
-                            y: _dragActive ? _dragTy : 0
-                        }
+                        visible: !(overviewRoot.isDragging && addr === overviewRoot.dragWindowAddr)
 
                         Behavior on scale {
                             enabled: Anim.animationsEnabled
@@ -484,12 +479,55 @@ Item {
 
     }
 
-    // ── Drag overlay: la card se mueve aqui durante drag ──
+    // ── Drag overlay: replica visual de la card que sigue al mouse ──
+    // Se renderiza a nivel root (z:100001) entre cells (0) y dragTracker (100002)
     Item {
         id: dragOverlay
-        z: 1
-        width: parent.width
-        height: parent.height
+        visible: overviewRoot.isDragging && overviewRoot.dragGhostAddr.length > 0
+        z: 100001
+        x: overviewRoot.dragGhostX
+        y: overviewRoot.dragGhostY
+        width: overviewRoot.dragGhostW
+        height: overviewRoot.dragGhostH
+
+        Rectangle {
+            anchors.fill: parent
+            radius: Styling.radius(-2)
+            color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.5)
+            border.color: Styling.srItem("overprimary")
+            border.width: 2
+
+            Rectangle {
+                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                height: Math.max(2, Math.round(parent.height * 0.04))
+                color: overviewRoot.colorForClass(overviewRoot.dragGhostCls)
+                radius: parent.radius
+            }
+
+            Image {
+                anchors.centerIn: parent
+                anchors.verticalCenterOffset: Math.round(-parent.height * 0.02)
+                width: Math.round(Math.min(parent.width, parent.height) * 0.30)
+                height: width
+                source: Quickshell.iconPath(overviewRoot.iconForClass(overviewRoot.dragGhostCls), "image-missing")
+                sourceSize: Qt.size(width, height)
+                asynchronous: true; opacity: 0.7
+            }
+
+            Text {
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Math.max(1, Math.round(parent.height * 0.02))
+                anchors.left: parent.left; anchors.right: parent.right
+                anchors.leftMargin: 2; anchors.rightMargin: 2
+                text: overviewRoot.dragGhostTitle
+                font.family: Config.theme.font
+                font.pixelSize: Math.max(5, Math.round(parent.height * 0.07))
+                color: Colors.onSurface; opacity: 0.6
+                elide: Text.ElideRight; maximumLineCount: 1
+                horizontalAlignment: Text.AlignHCenter
+                visible: parent.height > 35
+            }
+        }
     }
 
     // ── SINGLE MouseArea: handles ALL interactions ──
@@ -578,15 +616,9 @@ Item {
             dragTracker._hoveredWs = dragTracker.wsAt(mouse.x, mouse.y);
 
             if (dragTracker._dragging) {
-                var card = dragTracker._pendingCard;
-                var d = dragTracker._pendingData;
-                if (card && d) {
-                    // Card follows mouse via Translate offset
-                    var offX = mouse.x - gridContainer.x - d.cellX - d.cardX - d.cardW / 2;
-                    var offY = mouse.y - gridContainer.y - d.cellY - d.cardY - d.cardH / 2;
-                    card._dragTx = offX;
-                    card._dragTy = offY;
-                }
+                // Overlay replica follows mouse at root level (floats above all cells)
+                overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
+                overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
                 overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
                 overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
 
@@ -615,8 +647,7 @@ Item {
                     var card = dragTracker._pendingCard;
                     if (d && card) {
                         card._dragActive = true;
-                        card._dragTx = 0;
-                        card._dragTy = 0;
+                        // Overlay muestra la card en el mouse (flota sobre todos los cells)
                         overviewRoot.isDragging = true;
                         overviewRoot.dragFromWorkspace = d.wsNum;
                         overviewRoot.dragWindowAddr = d.addr;
@@ -625,8 +656,8 @@ Item {
                         overviewRoot.dragGhostAddr = d.addr;
                         overviewRoot.dragGhostW = d.cardW;
                         overviewRoot.dragGhostH = d.cardH;
-                        overviewRoot.dragGhostX = d.cellX + d.cardX + gridContainer.x;
-                        overviewRoot.dragGhostY = d.cellY + d.cardY + gridContainer.y;
+                        overviewRoot.dragGhostX = mouse.x - d.cardW / 2;
+                        overviewRoot.dragGhostY = mouse.y - d.cardH / 2;
                     }
                 }
             }
@@ -638,7 +669,7 @@ Item {
                 var origWs = overviewRoot.dragFromWorkspace;
                 var dragAddr = overviewRoot.dragWindowAddr;
                 var card = dragTracker._pendingCard;
-                if (card) { card._dragActive = false; card._dragTx = 0; card._dragTy = 0; }
+                if (card) { card._dragActive = false; }
 
                 dragTracker._dragging = false;
                 dragTracker._holding = false;
