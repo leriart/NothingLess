@@ -690,6 +690,9 @@ Singleton {
             property string customText: "NothingLess"
             property bool disableHoverExpansion: true
             property bool showMetrics: false
+            property bool showDockInIsland: true
+            property int islandButtonSize: 36
+            property bool pinnedOnStartup: true
         }
     }
 

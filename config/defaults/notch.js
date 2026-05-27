@@ -8,5 +8,8 @@ var data = {
     "noMediaDisplay": "userHost",
     "customText": "NothingLess",
     "disableHoverExpansion": true,
-    "showMetrics": false
+    "showMetrics": false,
+    "showDockInIsland": true,
+    "islandButtonSize": 36,
+    "pinnedOnStartup": true
 }

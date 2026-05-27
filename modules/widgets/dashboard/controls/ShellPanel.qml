@@ -650,6 +650,10 @@ Item {
                             sectionId: "notch"
                         }
                         SectionButton {
+                            text: "Island"
+                            sectionId: "island"
+                        }
+                        SectionButton {
                             text: "Workspaces"
                             sectionId: "workspaces"
                         }
@@ -1225,6 +1229,90 @@ Item {
                                 if (newValue !== Config.notch.customText) {
                                     GlobalStates.markShellChanged();
                                     Config.notch.customText = newValue;
+                                }
+                            }
+                        }
+                    }
+
+                    Separator {
+                        Layout.fillWidth: true
+                        visible: false
+                    }
+
+                    // ═══════════════════════════════════════════════════════════════
+                    // ISLAND SECTION
+                    // ═══════════════════════════════════════════════════════════════
+                    ColumnLayout {
+                        visible: root.currentSection === "island"
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Text {
+                            text: "Dynamic Island"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-1)
+                            font.weight: Font.Medium
+                            color: Colors.overSurfaceVariant
+                            Layout.bottomMargin: -4
+                        }
+
+                        ToggleRow {
+                            label: "Pinned"
+                            checked: (Config.notch && Config.notch.pinnedOnStartup !== undefined) ? Config.notch.pinnedOnStartup : true
+                            onToggled: value => {
+                                if (value !== (Config.notch?.pinnedOnStartup ?? true)) {
+                                    GlobalStates.markShellChanged();
+                                    Config.notch.pinnedOnStartup = value;
+                                }
+                            }
+                        }
+
+                        ToggleRow {
+                            label: "Show Dock Apps"
+                            checked: Config.notch?.showDockInIsland ?? true
+                            onToggled: value => {
+                                if (value !== (Config.notch?.showDockInIsland ?? true)) {
+                                    GlobalStates.markShellChanged();
+                                    Config.notch.showDockInIsland = value;
+                                }
+                            }
+                        }
+
+                        NumberInputRow {
+                            label: "Button Size"
+                            value: Config.notch?.islandButtonSize ?? 36
+                            minValue: 28
+                            maxValue: 52
+                            suffix: "px"
+                            onValueEdited: newValue => {
+                                if (newValue !== (Config.notch?.islandButtonSize ?? 36)) {
+                                    GlobalStates.markShellChanged();
+                                    Config.notch.islandButtonSize = newValue;
+                                }
+                            }
+                        }
+
+                        NumberInputRow {
+                            label: "Hover Region"
+                            value: Config.notch?.hoverRegionHeight ?? 2
+                            minValue: 0
+                            maxValue: 16
+                            suffix: "px"
+                            onValueEdited: newValue => {
+                                if (newValue !== (Config.notch?.hoverRegionHeight ?? 2)) {
+                                    GlobalStates.markShellChanged();
+                                    Config.notch.hoverRegionHeight = newValue;
+                                }
+                            }
+                        }
+
+                        ToggleRow {
+                            label: "Available on Fullscreen"
+                            checked: Config.bar?.availableOnFullscreen ?? false
+                            onToggled: value => {
+                                if (value !== (Config.bar?.availableOnFullscreen ?? false)) {
+                                    GlobalStates.markShellChanged();
+                                    Config.bar.availableOnFullscreen = value;
                                 }
                             }
                         }

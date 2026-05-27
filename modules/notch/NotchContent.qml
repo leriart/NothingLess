@@ -129,9 +129,8 @@ Item {
 
     // Island button sizing: square buttons matching notch compact height
     readonly property int islandButtonSize: {
-        const baseSize = Config.showBackground ? (Config.notchTheme === "island" ? 36 : 44)
-                                               : (Config.notchTheme === "island" ? 36 : 40);
-        return Math.max(32, Math.min(48, baseSize));
+        const configured = (Config.notch && Config.notch.islandButtonSize) || 36;
+        return Math.max(28, Math.min(52, configured));
     }
 
     // Comprehensive bar proxy for island-mode buttons (mirrors BarContent root)
@@ -144,14 +143,19 @@ Item {
     }
 
     // Dock apps visible in island mode — only if dock shares position with bar/notch
-    readonly property bool islandDockEnabled: Config.dock && Config.dock.enabled && Config.dock.theme !== "integrated" && root.dockSamePosition
+    readonly property bool islandDockEnabled: (Config.notch?.showDockInIsland ?? true) && Config.dock && Config.dock.enabled && Config.dock.theme !== "integrated" && root.dockSamePosition
 
     // Notch state properties
     readonly property bool screenNotchOpen: screenVisibilities ? (screenVisibilities.launcher || screenVisibilities.dashboard || screenVisibilities.powermenu || screenVisibilities.tools) : false
     readonly property bool hasActiveNotifications: Notifications.popupList.length > 0
 
     // Pin state for island mode — when pinned, island stays visible
-    property bool notchPinned: true
+    property bool notchPinned: (Config.notch && Config.notch.pinnedOnStartup !== undefined) ? Config.notch.pinnedOnStartup : true
+    onNotchPinnedChanged: {
+        if (Config.notch && Config.notch.pinnedOnStartup !== notchPinned) {
+            Config.notch.pinnedOnStartup = notchPinned;
+        }
+    }
 
     // Hover state with delay to prevent flickering
     property bool hoverActive: false
