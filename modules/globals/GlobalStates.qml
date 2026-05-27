@@ -525,12 +525,20 @@ Singleton {
         compositorHasChanges = true;
     }
 
+    property Process _applyProcess: Process {
+        id: _applyProcess
+        command: ["sh", "-c", Quickshell.env("HOME") + "/Documentos/GitHub/NothingLess/scripts/apply-config.sh"]
+        running: false
+    }
+
     function applyCompositorChanges() {
         if (compositorHasChanges) {
             Config.saveCompositor();
             compositorHasChanges = false;
             compositorSnapshot = null;
             Config.pauseAutoSave = false;
+            // Apply directly via script (bypasses QML signal chain)
+            _applyProcess.running = true;
         }
     }
 
