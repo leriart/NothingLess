@@ -311,20 +311,15 @@ Item {
                         property var _cardData: ({ wsNum: wsNum, addr: addr, cls: cls, title: title, cardW: cardW, cardH: cardH, cardX: cardX, cardY: cardY, cellX: cell.x, cellY: cell.y })
                         // No Component.onCompleted - findCardAt walks children directly
 
-                        // Drag override: when active, x/y follow mouse instead of grid
+                        // Drag override: card se reparentea a dragOverlay
                         property bool _dragActive: false
-                        property real _dragOverrideX: 0
-                        property real _dragOverrideY: 0
-                        x: _dragActive ? _dragOverrideX : cardX
-                        y: _dragActive ? _dragOverrideY : cardY
-                        z: _dragActive ? 99999 : 1
+                        x: cardX; y: cardY; z: 1; width: cardW; height: cardH
                         scale: _dragActive ? 1.04 : 1.0
 
                         Behavior on scale {
                             enabled: Anim.animationsEnabled
                             SpringAnimation { spring: 4.0; damping: 0.35; mass: 0.3 }
                         }
-                        width: cardW; height: cardH
 
                         // ── Live per-window preview via WlrToplevelMapper ──
                         readonly property var toplevel: WlrToplevelMapper ? WlrToplevelMapper.find(cls, title) : null
@@ -572,16 +567,11 @@ Item {
         onPositionChanged: mouse => {
             if (dragTracker._dragging) {
                 var card = dragTracker._pendingCard;
-                var d = dragTracker._pendingData;
-                if (card && d) {
-                    // Card override position: mouse relative to cell, centered
-                    var mx = mouse.x - gridContainer.x - d.cellX;
-                    var my = mouse.y - gridContainer.y - d.cellY;
-                    card._dragOverrideX = mx - d.cardW / 2;
-                    card._dragOverrideY = my - d.cardH / 2;
+                if (card) {
+                    // Card is now child of dragOverlay (root level), x/y = root coords
+                    card.x = mouse.x - card.width / 2;
+                    card.y = mouse.y - card.height / 2;
                 }
-
-                // Ghost position for overlay (if used as fallback)
                 overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
                 overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
 
@@ -604,14 +594,18 @@ Item {
                 var dx = mouse.x - dragTracker._startX;
                 var dy = mouse.y - dragTracker._startY;
                 if (Math.sqrt(dx*dx + dy*dy) > 12) {
-                    // Movement detected → start drag instantly, no hold timer
+                    // Movement detected → start drag instantly
                     dragTracker._dragging = true;
                     var d = dragTracker._pendingData;
                     var card = dragTracker._pendingCard;
                     if (d && card) {
                         card._dragActive = true;
-                        card._dragOverrideX = d.cardX;
-                        card._dragOverrideY = d.cardY;
+                        // Reparent card to dragOverlay (root level = no cell constraints)
+                        var rx = d.cellX + d.cardX + gridContainer.x; // root-relative x
+                        var ry = d.cellY + d.cardY + gridContainer.y; // root-relative y
+                        card.parent = dragOverlay;
+                        card.x = rx;
+                        card.y = ry;
                         overviewRoot.isDragging = true;
                         overviewRoot.dragFromWorkspace = d.wsNum;
                         overviewRoot.dragWindowAddr = d.addr;
@@ -620,8 +614,8 @@ Item {
                         overviewRoot.dragGhostAddr = d.addr;
                         overviewRoot.dragGhostW = d.cardW;
                         overviewRoot.dragGhostH = d.cardH;
-                        overviewRoot.dragGhostX = d.cardX;
-                        overviewRoot.dragGhostY = d.cardY;
+                        overviewRoot.dragGhostX = rx;
+                        overviewRoot.dragGhostY = ry;
                     }
                 }
             }
@@ -633,7 +627,7 @@ Item {
                 var origWs = overviewRoot.dragFromWorkspace;
                 var dragAddr = overviewRoot.dragWindowAddr;
                 var card = dragTracker._pendingCard;
-                if (card) card._dragActive = false;
+                if (card) { card._dragActive = false; card.destroy(); }
 
                 dragTracker._dragging = false;
                 dragTracker._holding = false;
