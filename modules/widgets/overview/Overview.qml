@@ -49,6 +49,14 @@ Item {
         }
     }
 
+    // When rawWindows updates, tell the mapper to find unmatched windows
+    onRawWindowsChanged: {
+        if (GlobalStates.overviewOpen && WlrToplevelMapper) {
+            WlrToplevelMapper.updateUnmatched(rawWindows);
+            WlrToplevelMapper.captureAllUnmatched();
+        }
+    }
+
     Timer {
         id: refreshTimer
         interval: 600
@@ -138,6 +146,13 @@ Item {
                 _refreshCount = 0;
                 if (!clientProcess.running) clientProcess.running = true;
                 if (!monProcess.running) monProcess.running = true;
+                // Trigger grim fallback on next data refresh
+                Qt.callLater(function() {
+                    if (WlrToplevelMapper && rawWindows.length > 0) {
+                        WlrToplevelMapper.updateUnmatched(rawWindows);
+                        WlrToplevelMapper.captureAllUnmatched();
+                    }
+                });
             } else {
                 // Reset drag state on close
                 overviewRoot.isDragging = false;
@@ -368,7 +383,20 @@ Item {
                             }
                         }
 
-                        // ── App icon (shown when no live preview) ──
+                        // ── Grim fallback screenshot (when no live preview) ──
+                        Image {
+                            id: grimShot
+                            anchors.fill: parent
+                            source: (Config.performance.windowPreview && toplevel == null)
+                                ? WlrToplevelMapper.screenshotPath(addr) : ""
+                            sourceSize: Qt.size(parent.width, parent.height)
+                            asynchronous: true
+                            fillMode: Image.PreserveAspectCrop
+                            visible: status === Image.Ready && toplevel == null
+                            opacity: 0.5
+                        }
+
+                        // ── App icon (shown when no live preview AND no grim) ──
                         Image {
                             anchors.centerIn: parent
                             anchors.verticalCenterOffset: Math.round(-parent.height * 0.02)
@@ -378,7 +406,7 @@ Item {
                             sourceSize: Qt.size(width, height)
                             asynchronous: true
                             opacity: 0.6
-                            visible: !Config.performance.windowPreview || toplevel == null
+                            visible: (!Config.performance.windowPreview || toplevel == null) && (!grimShot.visible || grimShot.status !== Image.Ready)
                         }
 
                         // ── Window title ──
