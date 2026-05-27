@@ -102,20 +102,20 @@ var ACTION_CATALOG = [
         return "movecoltoworkspace " + String(args.index || "").trim();
     } },
 
-    // Free Layout Actions
-    { id: "free.snap-left", label: "Snap Left", category: "Free Layout", dispatcher: "axctl", argument: "movesnap left" },
-    { id: "free.snap-right", label: "Snap Right", category: "Free Layout", dispatcher: "axctl", argument: "movesnap right" },
-    { id: "free.snap-top", label: "Snap Top", category: "Free Layout", dispatcher: "axctl", argument: "movesnap up" },
-    { id: "free.snap-bottom", label: "Snap Bottom", category: "Free Layout", dispatcher: "axctl", argument: "movesnap down" },
-    { id: "free.snap-center", label: "Snap Center", category: "Free Layout", dispatcher: "axctl", argument: "movesnap center" },
-    { id: "free.snap-maximize", label: "Snap Maximize", category: "Free Layout", dispatcher: "axctl", argument: "movesnap maximize" },
-    { id: "free.snap-restore", label: "Snap Restore", category: "Free Layout", dispatcher: "axctl", argument: "movesnap restore" },
-    { id: "free.snap-top-left", label: "Snap Top Left", category: "Free Layout", dispatcher: "axctl", argument: "movesnap topleft" },
-    { id: "free.snap-top-right", label: "Snap Top Right", category: "Free Layout", dispatcher: "axctl", argument: "movesnap topright" },
-    { id: "free.snap-bottom-left", label: "Snap Bottom Left", category: "Free Layout", dispatcher: "axctl", argument: "movesnap bottomleft" },
-    { id: "free.snap-bottom-right", label: "Snap Bottom Right", category: "Free Layout", dispatcher: "axctl", argument: "movesnap bottomright" },
+    // Free Layout Actions (Windows-style)
+    { id: "free.snap-left", label: "Snap Left Half", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive -50% 0" },
+    { id: "free.snap-right", label: "Snap Right Half", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive 50% 0" },
+    { id: "free.snap-top", label: "Snap Top Half", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive 0 -50%" },
+    { id: "free.snap-bottom", label: "Snap Bottom Half", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive 0 50%" },
+    { id: "free.snap-center", label: "Center Window", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch centerwindow" },
+    { id: "free.snap-maximize", label: "Maximize", category: "Free Layout", dispatcher: "fullscreen", argument: "1" },
+    { id: "free.snap-restore", label: "Restore", category: "Free Layout", dispatcher: "fullscreen", argument: "0" },
+    { id: "free.snap-top-left", label: "Snap Top-Left Quarter", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch movewindow pixel exact 0 0,active && hyprctl dispatch resizeactive 50% 50%" },
+    { id: "free.snap-top-right", label: "Snap Top-Right Quarter", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch movewindow pixel exact 50% 0,active && hyprctl dispatch resizeactive 50% 50%" },
+    { id: "free.snap-bottom-left", label: "Snap Bottom-Left Quarter", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch movewindow pixel exact 0 50%,active && hyprctl dispatch resizeactive 50% 50%" },
+    { id: "free.snap-bottom-right", label: "Snap Bottom-Right Quarter", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch movewindow pixel exact 50% 50%,active && hyprctl dispatch resizeactive 50% 50%" },
     { id: "free.toggle-tile", label: "Toggle Tile/Float", category: "Free Layout", dispatcher: "togglefloating" },
-    { id: "free.show-desktop", label: "Show Desktop", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch workspaceopt allfloat allpseudo" },
+    { id: "free.show-desktop", label: "Show Desktop", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch workspaceopt allfloat" },
     { id: "free.workspace-left", label: "Move Window to Left Monitor", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch movewindow m:-1" },
     { id: "free.workspace-right", label: "Move Window to Right Monitor", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch movewindow m:+1" },
 

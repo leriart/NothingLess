@@ -79,20 +79,20 @@ ACTION_MAP = {
     "scrolling.swap-column":       ("layoutmsg", "direction", "", "swapcol "),
     "scrolling.move-column-workspace":("layoutmsg", "index", "", "movecoltoworkspace "),
 
-    # Free Layout actions (axctl movesnap)
-    "free.snap-left":              ("exec", "axctl movesnap left"),
-    "free.snap-right":             ("exec", "axctl movesnap right"),
-    "free.snap-top":               ("exec", "axctl movesnap up"),
-    "free.snap-bottom":            ("exec", "axctl movesnap down"),
-    "free.snap-center":            ("exec", "axctl movesnap center"),
-    "free.snap-maximize":          ("exec", "axctl movesnap maximize"),
-    "free.snap-restore":           ("exec", "axctl movesnap restore"),
-    "free.snap-top-left":          ("exec", "axctl movesnap topleft"),
-    "free.snap-top-right":         ("exec", "axctl movesnap topright"),
-    "free.snap-bottom-left":       ("exec", "axctl movesnap bottomleft"),
-    "free.snap-bottom-right":      ("exec", "axctl movesnap bottomright"),
+    # Free Layout actions (Windows-style hyprctl commands)
+    "free.snap-left":              ("exec", "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive -50% 0"),
+    "free.snap-right":             ("exec", "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive 50% 0"),
+    "free.snap-top":               ("exec", "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive 0 -50%"),
+    "free.snap-bottom":            ("exec", "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive 0 50%"),
+    "free.snap-center":            ("exec", "hyprctl dispatch centerwindow"),
+    "free.snap-maximize":          ("fullscreen", "1"),
+    "free.snap-restore":           ("fullscreen", "0"),
+    "free.snap-top-left":          ("exec", "hyprctl dispatch movewindow pixel exact 0 0,active && hyprctl dispatch resizeactive 50% 50%"),
+    "free.snap-top-right":         ("exec", "hyprctl dispatch movewindow pixel exact 50% 0,active && hyprctl dispatch resizeactive 50% 50%"),
+    "free.snap-bottom-left":       ("exec", "hyprctl dispatch movewindow pixel exact 0 50%,active && hyprctl dispatch resizeactive 50% 50%"),
+    "free.snap-bottom-right":      ("exec", "hyprctl dispatch movewindow pixel exact 50% 50%,active && hyprctl dispatch resizeactive 50% 50%"),
     "free.toggle-tile":            ("togglefloating", ""),
-    "free.show-desktop":           ("exec", "hyprctl dispatch workspaceopt allfloat allpseudo"),
+    "free.show-desktop":           ("exec", "hyprctl dispatch workspaceopt allfloat"),
     "free.workspace-left":         ("exec", "hyprctl dispatch movewindow m:-1"),
     "free.workspace-right":        ("exec", "hyprctl dispatch movewindow m:+1"),
 
@@ -339,6 +339,19 @@ def build_binds_block():
     block += "# Synced from NothingLess binds.json\n"
     for line in deduped:
         block += line + "\n"
+
+    # Windows-style default keybinds for Free layout
+    if cfg.get('layout') == 'free':
+        block += "\n# Windows-style keybinds (Free layout)\n"
+        block += "bind = SUPER, Left, exec, hyprctl dispatch centerwindow && hyprctl dispatch resizeactive -50% 0\n"
+        block += "bind = SUPER, Right, exec, hyprctl dispatch centerwindow && hyprctl dispatch resizeactive 50% 0\n"
+        block += "bind = SUPER, Up, exec, hyprctl dispatch fullscreen 1\n"
+        block += "bind = SUPER, Down, exec, hyprctl dispatch fullscreen 0\n"
+        block += "bind = SUPER SHIFT, Left, exec, hyprctl dispatch movewindow m:-1\n"
+        block += "bind = SUPER SHIFT, Right, exec, hyprctl dispatch movewindow m:+1\n"
+        block += "bind = SUPER, D, exec, hyprctl dispatch workspaceopt allfloat\n"
+        block += "\n"
+
     block += "# === END KEYBINDS ===\n"
 
     seen_lua = set()
@@ -405,33 +418,17 @@ def build_conf_block():
     # Determine if Free Layout (floating mode)
     _is_free = cfg.get('layout') == 'free'
 
-    # Free Layout: windowrule float BEFORE any section blocks
     if _is_free:
+        # Free Layout: windowrule float ALL windows
         lines.append('windowrule = match:class .*, float on')
         lines.append('')
-
-    # Smart Resize Anchors: controla resize_on_border + grab area
-    _smart_resize = cfg.get('smartResizeAnchors', True)
-    if _smart_resize:
-        _resize = 'true'
-        _grab = 10
-    else:
-        _resize = 'false'
-        _grab = 0
 
     # Smart Resize Anchors: override resize_on_border + grab area
     _smart = cfg.get('smartResizeAnchors', True)
     if _smart:
-        cfg_override = {
-            'resizeOnBorder': True,
-            'extendBorderGrabArea': 10
-        }
+        cfg.update({'resizeOnBorder': True, 'extendBorderGrabArea': 10})
     else:
-        cfg_override = {
-            'resizeOnBorder': False,
-            'extendBorderGrabArea': 0
-        }
-    cfg.update(cfg_override)
+        cfg.update({'resizeOnBorder': False, 'extendBorderGrabArea': 0})
 
     sec('general', [
         ('borderSize','border_size'), ('gapsIn','gaps_in'), ('gapsOut','gaps_out'),
