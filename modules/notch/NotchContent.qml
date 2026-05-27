@@ -276,6 +276,10 @@ Item {
 
     // The hitbox for the mask — includes island buttons when visible
     readonly property Item notchHitbox: root.islandMergedWithBar ? notchIslandContainer : (root.reveal ? notchRegionContainer : notchHoverRegion)
+    // Hover region (always exposed for mask — needed for edge detection)
+    readonly property Item notchHoverRegionRef: notchHoverRegion
+    // The pill/button area when active
+    readonly property Item notchActiveRegion: root.islandMergedWithBar ? notchIslandContainer : notchRegionContainer
 
     // Combined container for island mode: notch pill + flanking buttons
     // Combined container for island mode: notch pill + flanking buttons
