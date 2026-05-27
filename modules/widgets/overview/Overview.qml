@@ -21,32 +21,37 @@ Item {
         id: wsSwitchProcess
     }
 
-    // Fetch all workspace states via hyprctl -j (includes empty/off-screen)
-    property var workspaceStates: []
+    // ── Direct window data from hyprctl ──
+    property var rawWindows: []
+
     Process {
-        id: wsStateProcess
-        command: ["hyprctl", "workspaces", "-j"]
+        id: clientProcess
+        command: ["hyprctl", "clients", "-j"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
                     var raw = JSON.parse(text);
-                    if (Array.isArray(raw))
-                        overviewRoot.workspaceStates = raw;
+                    if (Array.isArray(raw)) {
+                        overviewRoot.rawWindows = raw;
+                    }
                 } catch (e) {}
             }
         }
     }
-    // Refresh workspace states when overview opens + periodically
+
+    // Refresh window list periodically while overview is open
     Timer {
-        id: wsStateTimer
-        interval: 800
+        id: refreshTimer
+        interval: 600
         running: GlobalStates.overviewOpen
         repeat: true
-        onTriggered: { if (!wsStateProcess.running) wsStateProcess.running = true; }
+        onTriggered: {
+            if (!clientProcess.running)
+                clientProcess.running = true;
+        }
     }
 
-    // Config
-    readonly property real scale: Config.overview.scale
+    // ── Config ──
     readonly property int rows: Config.overview.rows
     readonly property int columns: Config.overview.columns
     readonly property int workspacesShown: rows * columns
@@ -55,15 +60,6 @@ Item {
     readonly property color activeBorderColor: Styling.srItem("overprimary")
 
     property var currentScreen: null
-    readonly property var monitor: currentScreen ? AxctlService.monitorFor(currentScreen) : AxctlService.focusedMonitor
-    readonly property var windowList: CompositorData.windowList
-    readonly property var allMonitors: CompositorData.monitors
-    readonly property int monitorId: monitor?.id ?? -1
-    readonly property var monitorData: allMonitors.find(m => m.id === monitorId) ?? null
-    readonly property string barPosition: Config.bar.position
-    readonly property var barPanel: monitor ? Visibilities.getBarPanelForScreen(monitor.name) : null
-    readonly property bool isBarPinned: barPanel ? barPanel.pinned : (Config.bar.pinnedOnStartup ?? true)
-    readonly property int barReserved: isBarPinned ? (Config.showBackground ? 44 : 40) : 0
 
     // Workspace cell size — fills available space manteniendo 16:9
     readonly property real _spacingW: (columns - 1) * workspaceSpacing + workspacePadding * 2
@@ -72,56 +68,56 @@ Item {
     readonly property real _cellHfromW: Math.max(60, Math.round(_cellWfromW * 9 / 16))
     readonly property real _cellHfromH: Math.max(60, Math.round((height - _spacingH) / rows))
     readonly property real _cellWfromH: Math.max(80, Math.round(_cellHfromH * 16 / 9))
-    // Prefer width-based calc if total height fits, else use height-based
     readonly property bool _useWbase: (rows * _cellHfromW + _spacingH) <= height
     readonly property real wsCellW: _useWbase ? _cellWfromW : _cellWfromH
     readonly property real wsCellH: _useWbase ? _cellHfromW : _cellHfromH
     readonly property real gridTotalW: columns * wsCellW + _spacingW
     readonly property real gridTotalH: rows * wsCellH + _spacingH
 
-    // Drag state
-    property int draggingFromWorkspace: -1
-    property int draggingTargetWorkspace: -1
-
-    // Search
-    property string searchQuery: ""
-    property var matchingWindows: []
-    property int selectedMatchIndex: 0
-    function resetSearch() { searchQuery = ""; matchingWindows = []; selectedMatchIndex = 0; }
-    onSearchQueryChanged: updateMatchingWindows()
-
-    // Force refresh after user actions (drag, click)
-    function refreshOverview() {
-        if (typeof CompositorData !== "undefined" && CompositorData.refreshFromHyprctl)
-            CompositorData.refreshFromHyprctl();
-    }
-
-    // Poll for position/size updates while overview is visible.
-    Timer {
-        id: positionPollTimer
-        interval: 300
-        running: GlobalStates.overviewOpen
-        repeat: true
-        onTriggered: {
-            if (typeof CompositorData !== "undefined" && CompositorData.refreshFromHyprctl)
-                CompositorData.refreshFromHyprctl();
+    // ── Windows grouped by workspace ──
+    readonly property var windowsByWs: {
+        var map = {};
+        var list = overviewRoot.rawWindows;
+        for (var i = 0; i < list.length; i++) {
+            var w = list[i];
+            var wsId = w.workspace && w.workspace.id ? w.workspace.id : 0;
+            if (wsId < 1 || wsId > workspacesShown) continue;
+            if (!map[wsId]) map[wsId] = [];
+            map[wsId].push(w);
         }
+        return map;
     }
 
-    // Force refresh from hyprctl when overview opens so window list is current
-    property int _openRefreshCount: 0
+    function windowsForWs(wsNum) {
+        var arr = overviewRoot.windowsByWs[String(wsNum)];
+        return arr || [];
+    }
 
-    // Rapid-fire refreshes when overview opens to catch async compositor data
+    function iconForClass(cls) {
+        return AppSearch.guessIcon(cls || "");
+    }
+
+    // Accent color from class
+    function colorForClass(cls) {
+        var c = (cls || "").toLowerCase();
+        var hash = 0;
+        for (var i = 0; i < c.length; i++) hash = ((hash << 5) - hash) + c.charCodeAt(i);
+        var hue = ((hash % 360) + 360) % 360;
+        return Qt.hsla(hue / 360, 0.5, 0.4, 1.0);
+    }
+
+    // ── Force refresh when overview opens ──
+    property int _refreshCount: 0
+
     Timer {
         id: openRefreshTimer
-        interval: 250
-        running: GlobalStates.overviewOpen && overviewRoot._openRefreshCount < 6
+        interval: 200
+        running: GlobalStates.overviewOpen && _refreshCount < 8
         repeat: true
         onTriggered: {
-            if (typeof CompositorData !== "undefined" && CompositorData.refreshFromHyprctl) {
-                CompositorData.refreshFromHyprctl();
-            }
-            overviewRoot._openRefreshCount++;
+            if (!clientProcess.running)
+                clientProcess.running = true;
+            _refreshCount++;
         }
     }
 
@@ -129,136 +125,26 @@ Item {
         target: GlobalStates
         function onOverviewOpenChanged() {
             if (GlobalStates.overviewOpen) {
-                overviewRoot._openRefreshCount = 0;
-                if (typeof CompositorData !== "undefined" && CompositorData.refreshFromHyprctl) {
-                    CompositorData.refreshFromHyprctl();
-                }
+                _refreshCount = 0;
+                if (!clientProcess.running)
+                    clientProcess.running = true;
             }
         }
     }
 
+    // ── LAYOUT ──
     Component.onCompleted: {
-        wsStateProcess.running = true;
+        if (!clientProcess.running)
+            clientProcess.running = true;
     }
 
-    // Compute filtered windows as reactive binding
-    readonly property var filteredWindows: {
-        var list = overviewRoot.windowList;
-        var result = [];
-        for (var i = 0; i < list.length; i++) {
-            var w = list[i];
-            if (!w || !w.workspace || !w.workspace.id || w.workspace.id <= 0 || w.workspace.id > workspacesShown)
-                continue;
-            var winMon = overviewRoot.allMonitors.find(function(m) { return m.id === w.monitor; });
-            result.push({
-                windowData: w,
-                winMonData: winMon
-            });
-        }
-        return _computeFillSizes(result);
-    }
-
-    function _computeFillSizes(items) {
-        var i, j, a, b;
-        var bp = overviewRoot.barPosition;
-        var br = overviewRoot.barReserved;
-        for (i = 0; i < items.length; i++) {
-            a = items[i];
-            var wd = a.windowData;
-            var wsId = wd.workspace?.id ?? 0;
-            var md = a.winMonData;
-            var ro = md && (md.transform % 2 === 1);
-            var monW = md ? (ro ? (md.height || 1080) : (md.width || 1920)) : 1920;
-            var monH = md ? (ro ? (md.width || 1920) : (md.height || 1080)) : 1080;
-            monW = monW > 0 ? monW : 1920;
-            monH = monH > 0 ? monH : 1080;
-
-            var ax = (wd.at?.[0] ?? 0) - (md?.x ?? 0);
-            var ay = (wd.at?.[1] ?? 0) - (md?.y ?? 0);
-            if (bp === "left") ax -= br;
-            if (bp === "top") ay -= br;
-            ax = Math.max(0, ax);
-            ay = Math.max(0, ay);
-            var aw = wd.size?.[0] ?? monW;
-            var ah = wd.size?.[1] ?? monH;
-            var effW = monW - (bp === "left" || bp === "right" ? br : 0);
-            var effH = monH - (bp === "top" || bp === "bottom" ? br : 0);
-
-            var rightLimit = effW;
-            var bottomLimit = effH;
-
-            for (j = 0; j < items.length; j++) {
-                if (i === j) continue;
-                b = items[j];
-                if ((b.windowData.workspace?.id ?? 0) !== wsId) continue;
-                if ((b.winMonData?.id ?? -1) !== (md?.id ?? -1)) continue;
-
-                var bx = (b.windowData.at?.[0] ?? 0) - (b.winMonData?.x ?? 0);
-                var by = (b.windowData.at?.[1] ?? 0) - (b.winMonData?.y ?? 0);
-                if (bp === "left") bx -= br;
-                if (bp === "top") by -= br;
-                var bw = b.windowData.size?.[0] ?? monW;
-                var bh = b.windowData.size?.[1] ?? monH;
-
-                var bContainedInA = (bx >= ax && by >= ay && bx + bw <= ax + aw && by + bh <= ay + ah);
-                if (!bContainedInA && bx > ax && by < ay + ah && by + bh > ay)
-                    rightLimit = Math.min(rightLimit, bx);
-                if (!bContainedInA && by > ay && bx < ax + aw && bx + bw > ax)
-                    bottomLimit = Math.min(bottomLimit, by);
-            }
-
-            var relW = aw > 200 ? Math.max(0.05, Math.min(1, aw / effW)) : 0.85;
-            var relH = ah > 200 ? Math.max(0.05, Math.min(1, ah / effH)) : 0.85;
-            a.fillW = effW > 0 ? Math.max(relW, Math.min(1, (rightLimit - ax) / effW)) : 0.85;
-            a.fillH = effH > 0 ? Math.max(relH, Math.min(1, (bottomLimit - ay) / effH)) : 0.85;
-        }
-        return items;
-    }
-
-    function fuzzyMatch(q, t) {
-        if (q.length === 0) return true;
-        if (t.length === 0) return false;
-        var qi = 0;
-        for (var i = 0; i < t.length && qi < q.length; i++) { if (t[i] === q[qi]) qi++; }
-        return qi === q.length;
-    }
-    function fuzzyScore(q, t) {
-        if (q.length === 0) return 0;
-        if (t.length === 0) return -1;
-        if (t.includes(q)) return 1000 + (100 - t.length);
-        var qi = 0, cons = 0, maxc = 0, score = 0;
-        for (var i = 0; i < t.length && qi < q.length; i++) {
-            if (t[i] === q[qi]) { qi++; cons++; maxc = Math.max(maxc, cons);
-                if (i === 0 || t[i-1] === ' ' || t[i-1] === '-' || t[i-1] === '_') score += 10; }
-            else cons = 0;
-        }
-        if (qi !== q.length) return -1;
-        return score + maxc * 5;
-    }
-    function updateMatchingWindows() {
-        if (searchQuery.length === 0) { matchingWindows = []; selectedMatchIndex = 0; return; }
-        var q = searchQuery.toLowerCase();
-        var m = windowList.filter(function(w) {
-            if (!w) return false;
-            return fuzzyMatch(q, (w.title || "").toLowerCase()) || fuzzyMatch(q, (w.class || "").toLowerCase());
-        }).map(function(w) {
-            return { window: w, score: Math.max(fuzzyScore(q, (w.title || "").toLowerCase()), fuzzyScore(q, (w.class || "").toLowerCase())) };
-        }).sort(function(a,b) { return b.score - a.score; }).map(function(i) { return i.window; });
-        matchingWindows = m; selectedMatchIndex = m.length > 0 ? 0 : -1;
-    }
-    function isWindowMatched(addr) { return searchQuery.length > 0 && matchingWindows.some(function(w) { return w?.address === addr; }); }
-    function isWindowSelected(addr) { return matchingWindows.length > 0 && selectedMatchIndex >= 0 && matchingWindows[selectedMatchIndex]?.address === addr; }
-
-    // ═══════════════════════════════════════════════════════════════
-    // FULL-SCREEN GRID
-    // ═══════════════════════════════════════════════════════════════
     Item {
         id: gridContainer
         anchors.centerIn: parent
         width: gridTotalW
         height: gridTotalH
 
-        // Workspace cells — drawn first so window cards overlay on top
+        // Workspace cells
         Repeater {
             model: workspacesShown
 
@@ -268,26 +154,22 @@ Item {
                 readonly property int wsNum: index + 1
                 readonly property int col: index % columns
                 readonly property int row: Math.floor(index / columns)
-                readonly property bool isDropTarget: overviewRoot.draggingTargetWorkspace === wsNum
+                readonly property var cellWindows: overviewRoot.windowsForWs(wsNum)
                 readonly property int staggerDelay: (row * columns + col) * 40
 
                 x: col * (wsCellW + workspaceSpacing) + workspacePadding
                 y: row * (wsCellH + workspaceSpacing) + workspacePadding
                 width: wsCellW
                 height: wsCellH
-                color: "transparent"
+                color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.15)
                 radius: Styling.radius(2)
-                border.width: 2
-                border.color: isDropTarget ? Colors.outline : "transparent"
+                border.width: 0
                 clip: true
 
-                // Staggered entrance animation
+                // Staggered entrance
                 opacity: 0
                 scale: 0.85
-                Component.onCompleted: {
-                    opacity = 1;
-                    scale = 1;
-                }
+                Component.onCompleted: { opacity = 1; scale = 1; }
                 Behavior on opacity {
                     enabled: Anim.animationsEnabled
                     SequentialAnimation {
@@ -313,26 +195,109 @@ Item {
 
                 // Wallpaper thumbnail
                 TintedWallpaper {
-                    anchors.fill: parent
-                    radius: Styling.radius(2)
+                    anchors.fill: parent; radius: Styling.radius(2)
                     tintEnabled: GlobalStates.wallpaperManager ? GlobalStates.wallpaperManager.tintEnabled : false
                     property string lfp: GlobalStates.wallpaperManager ? GlobalStates.wallpaperManager.getLockscreenFramePath(GlobalStates.wallpaperManager.currentWallpaper) : ""
                     source: lfp ? "file://" + lfp : ""
                 }
 
+                // ── Window cards dentro del cell ──
+                Repeater {
+                    model: cellWindows
+
+                    Rectangle {
+                        required property var modelData
+                        readonly property var win: modelData
+                        readonly property var winSize: win.size || [100, 100]
+                        readonly property var winAt: win.at || [0, 0]
+                        readonly property int winW: winSize[0]
+                        readonly property int winH: winSize[1]
+                        readonly property string cls: win.class || ""
+                        readonly property string title: win.title || cls
+
+                        // Scale window to fit inside cell manteniendo proporcion
+                        readonly property real scaleX: wsCellW / winW
+                        readonly property real scaleY: wsCellH / winH
+                        readonly property real fitScale: Math.min(scaleX, scaleY) * 0.9
+                        readonly property real cardW: Math.round(winW * fitScale)
+                        readonly property real cardH: Math.round(winH * fitScale)
+                        readonly property real posX: {
+                            var mx = 0;
+                            if (cellWindows.length <= 1) return (wsCellW - cardW) / 2;
+                            return Math.round((winAt[0] / (1920)) * wsCellW * 0.7) + wsCellW * 0.15;
+                        }
+                        readonly property real posY: {
+                            if (cellWindows.length <= 1) return (wsCellH - cardH) / 2;
+                            return Math.round((winAt[1] / (1080)) * wsCellH * 0.7) + wsCellH * 0.15;
+                        }
+
+                        x: posX
+                        y: posY
+                        width: cardW
+                        height: cardH
+                        radius: Styling.radius(-2)
+                        color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.5)
+                        border.color: Qt.rgba(Colors.onSurface.r, Colors.onSurface.g, Colors.onSurface.b, 0.12)
+                        border.width: 1
+
+                        // Accent strip
+                        Rectangle {
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            height: Math.max(2, Math.round(parent.height * 0.04))
+                            color: overviewRoot.colorForClass(cls)
+                            radius: parent.radius
+                        }
+
+                        // App icon
+                        Image {
+                            anchors.centerIn: parent
+                            anchors.verticalCenterOffset: Math.round(-parent.height * 0.03)
+                            width: Math.round(parent.width * 0.35)
+                            height: Math.round(parent.height * 0.35)
+                            source: Quickshell.iconPath(overviewRoot.iconForClass(cls), "image-missing")
+                            sourceSize: Qt.size(width, height)
+                            asynchronous: true
+                            opacity: 0.7
+                        }
+
+                        // Title
+                        Text {
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: Math.max(1, Math.round(parent.height * 0.02))
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: Math.max(1, Math.round(parent.width * 0.02))
+                            anchors.rightMargin: Math.max(1, Math.round(parent.width * 0.02))
+                            text: title
+                            font.family: Config.theme.font
+                            font.pixelSize: Math.max(5, Math.round(parent.height * 0.08))
+                            color: Colors.onSurface
+                            opacity: 0.6
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                            horizontalAlignment: Text.AlignHCenter
+                            visible: parent.height > 40
+                        }
+                    }
+                }
+
                 // Workspace number
                 Text {
-                    anchors.centerIn: parent
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.margins: 4
                     text: String(wsNum)
                     font.family: Config.theme.font
-                    font.pixelSize: Math.max(20, Math.round(wsCellH * 0.12))
+                    font.pixelSize: Math.max(10, Math.round(wsCellH * 0.08))
                     font.bold: true
                     color: Colors.onSurface
-                    opacity: 0.3
+                    opacity: 0.25
                     z: 5
                 }
 
-                // Click cell to switch workspace
+                // Click → switch
                 MouseArea {
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton
@@ -345,77 +310,6 @@ Item {
                         wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
                         wsSwitchProcess.running = true;
                     }
-                }
-
-                // Drop target for dragged windows
-                DropArea {
-                    anchors.fill: parent
-                    onEntered: overviewRoot.draggingTargetWorkspace = wsNum
-                    onExited: { if (overviewRoot.draggingTargetWorkspace === wsNum) overviewRoot.draggingTargetWorkspace = -1; }
-                }
-            }
-        }
-
-        // Window overlay — on top of workspace cells
-        Item {
-            id: winLayer
-            anchors.fill: parent
-
-            // Fallback click on empty space (when no window cards cover the cell)
-            MouseArea {
-                anchors.fill: parent
-                acceptedButtons: Qt.LeftButton
-                onClicked: mouse => {
-                    var cw = wsCellW + workspaceSpacing;
-                    var ch = wsCellH + workspaceSpacing;
-                    var col = Math.floor((mouse.x - workspacePadding) / cw);
-                    var row = Math.floor((mouse.y - workspacePadding) / ch);
-                    if (col >= 0 && col < columns && row >= 0 && row < rows) {
-                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace",
-                            String(row * columns + col + 1)];
-                        wsSwitchProcess.running = true;
-                        Qt.callLater(refreshOverview);
-                    }
-                }
-            }
-
-            // Window cards
-            Repeater {
-                model: filteredWindows
-
-                delegate: OverviewWindow {
-                    id: win
-                    required property var modelData
-                    windowData: modelData.windowData
-                    availableWorkspaceWidth: wsCellW
-                    availableWorkspaceHeight: wsCellH
-                    monitorData: modelData.winMonData || overviewRoot.monitorData
-                    barPosition: overviewRoot.barPosition
-                    barReserved: overviewRoot.barReserved
-
-                    overviewRootRef: overviewRoot
-                    isSearchMatch: overviewRoot.isWindowMatched(windowData?.address)
-                    isSearchSelected: overviewRoot.isWindowSelected(windowData?.address)
-
-                    // Grid cell offset based on workspace ID
-                    property int wCol: (windowData?.workspace.id - 1) % columns
-                    property int wRow: Math.floor((windowData?.workspace.id - 1) / columns)
-                    xOffset: Math.round(wCol * (wsCellW + workspaceSpacing) + workspacePadding)
-                    yOffset: Math.round(wRow * (wsCellH + workspaceSpacing) + workspacePadding)
-
-                    onDragStarted: overviewRoot.draggingFromWorkspace = windowData?.workspace.id || -1
-                    onDragFinished: function(targetWs) {
-                        overviewRoot.draggingFromWorkspace = -1;
-                        if (targetWs > 0 && targetWs !== windowData?.workspace.id) {
-                            AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + (windowData?.address || ""));
-                            Qt.callLater(function() { CompositorData.refreshFromHyprctl(); });
-                        }
-                    }
-                    onWindowClicked: {
-                        Visibilities.setActiveModule("", true);
-                        Qt.callLater(function() { AxctlService.dispatch("focuswindow address:" + windowData.address); });
-                    }
-                    onWindowClosed: { AxctlService.dispatch("closewindow address:" + windowData.address); }
                 }
             }
         }

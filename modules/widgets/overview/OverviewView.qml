@@ -33,7 +33,6 @@ Item {
 
         sourceComponent: isScrollingLayout ? scrollingOverviewComponent : standardOverviewComponent
 
-        // Smooth opacity transition with bloom-like entrance
         opacity: status === Loader.Ready ? 1 : 0
 
         Behavior on opacity {
@@ -45,7 +44,6 @@ Item {
             }
         }
 
-        // Elegant scale entrance — starts slightly small and blooms out with spring
         scale: status === Loader.Ready ? 1 : 0.92
 
         Behavior on scale {
@@ -57,7 +55,6 @@ Item {
             }
         }
 
-        // Subtle vertical slide — starts slightly below and rises into place
         transform: Translate {
             y: overviewLoader.status === Loader.Ready ? 0 : 24
             Behavior on y {
@@ -106,43 +103,6 @@ Item {
             Component.onCompleted: {
                 forceActiveFocus();
             }
-        }
-    }
-
-    // Expose search-related properties for parent components (read from child)
-    readonly property var matchingWindows: overviewLoader.item ? overviewLoader.item.matchingWindows : []
-    readonly property int selectedMatchIndex: overviewLoader.item ? overviewLoader.item.selectedMatchIndex : 0
-
-    // Search query - writable, synced to child
-    property string searchQuery: ""
-    onSearchQueryChanged: {
-        if (overviewLoader.item) {
-            overviewLoader.item.searchQuery = searchQuery;
-        }
-    }
-
-    function resetSearch() {
-        searchQuery = "";
-        if (overviewLoader.item && overviewLoader.item.resetSearch) {
-            overviewLoader.item.resetSearch();
-        }
-    }
-
-    function navigateToSelectedWindow() {
-        if (overviewLoader.item && overviewLoader.item.navigateToSelectedWindow) {
-            overviewLoader.item.navigateToSelectedWindow();
-        }
-    }
-
-    function selectNextMatch() {
-        if (overviewLoader.item && overviewLoader.item.selectNextMatch) {
-            overviewLoader.item.selectNextMatch();
-        }
-    }
-
-    function selectPrevMatch() {
-        if (overviewLoader.item && overviewLoader.item.selectPrevMatch) {
-            overviewLoader.item.selectPrevMatch();
         }
     }
 }
