@@ -99,20 +99,22 @@ Item {
         return false;
     }
 
+    // Hover state (tracked from MouseArea to avoid forward reference issues)
+    property bool _mouseHovered: false
+
     // Reveal logic
     property bool reveal: {
         // Priority: Fullscreen check
         if (activeWindowFullscreen) {
-            return (Config.dock?.availableOnFullscreen ?? false) && (Config.dock?.hoverToReveal && dockMouseArea.containsMouse);
+            return (Config.dock?.availableOnFullscreen ?? false) && (Config.dock?.hoverToReveal && root._mouseHovered);
         }
 
         // If keepHidden is true, ONLY show on hover
-        // IMPORTANT: keepHidden overrides pinned and desktop mode
         if (keepHidden) {
-            return (Config.dock?.hoverToReveal && dockMouseArea.containsMouse);
+            return (Config.dock?.hoverToReveal && root._mouseHovered);
         }
 
-        return root.pinned || (Config.dock?.hoverToReveal && dockMouseArea.containsMouse) || !hasWindows
+        return root.pinned || (Config.dock?.hoverToReveal && root._mouseHovered) || !hasWindows
     }
 
     readonly property int totalMargin: root.windowSideMargin + root.edgeSideMargin
@@ -162,6 +164,8 @@ Item {
     MouseArea {
         id: dockMouseArea
         hoverEnabled: true
+        onEntered: root._mouseHovered = true
+        onExited: root._mouseHovered = false
 
         // Size
         width: root.isVertical ? (root.reveal ? root.dockSize + root.totalMargin + root.shadowSpace : Math.max(root._effectiveHoverRegion, 2) + root.frameOffset) : dockContent.implicitWidth + 20
