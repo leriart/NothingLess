@@ -163,7 +163,9 @@ PanelWindow {
                 item: !unifiedPanel._islandActive && barContent.visible ? barContent.barHitbox : null
             },
             Region {
-                item: notchContent.notchHitbox
+                // When notch is idle (no modules open, not hovered): use hover region only
+                // When active: use full notch hitbox
+                item: (unifiedPanel.needsFullScreenInput || unifiedPanel.notchReveal || unifiedPanel.notchOpen) ? notchContent.notchHitbox : null
             },
             Region {
                 // Only include the dock hitbox if the dock is actually enabled and visible on this screen.
