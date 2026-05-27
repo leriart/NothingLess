@@ -206,7 +206,7 @@ Item {
                 height: wsCellH
                 color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.12)
                 radius: Styling.radius(2)
-                clip: true
+                clip: !overviewRoot.isDragging
 
                 // Staggered entrance
                 opacity: 0; scale: 0.85
@@ -328,8 +328,19 @@ Item {
                         property bool _isCard: true
                         property var _cardData: ({ wsNum: wsNum, addr: addr, cls: cls, title: title, cardW: cardW, cardH: cardH, cardX: cardX, cardY: cardY, cellX: cell.x, cellY: cell.y })
 
-                        x: cardX; y: cardY
-                        z: 1
+                        // Drag override: when active, x/y follow mouse instead of grid
+                        property bool _dragActive: false
+                        property real _dragOverrideX: 0
+                        property real _dragOverrideY: 0
+                        x: _dragActive ? _dragOverrideX : cardX
+                        y: _dragActive ? _dragOverrideY : cardY
+                        z: _dragActive ? 9999 : 1
+                        scale: _dragActive ? 1.04 : 1.0
+
+                        Behavior on scale {
+                            enabled: Anim.animationsEnabled
+                            SpringAnimation { spring: 4.0; damping: 0.35; mass: 0.3 }
+                        }
                         width: cardW; height: cardH
 
                         // ── Live per-window preview via WlrToplevelMapper ──
@@ -487,116 +498,11 @@ Item {
 
     }
 
-    // ── Drag ghost card (outside gridContainer, at overviewRoot level) ──
+    // ── Drag overlay (inactivo: la card se mueve por si misma) ──
     Item {
-        id: dragGhost
-        visible: overviewRoot.isDragging && overviewRoot.dragGhostAddr.length > 0
+        id: dragOverlay
+        visible: false
         z: 9999
-        x: overviewRoot.dragGhostX
-        y: overviewRoot.dragGhostY
-        width: overviewRoot.dragGhostW
-        height: overviewRoot.dragGhostH
-        clip: true
-
-        Behavior on x {
-            enabled: Anim.animationsEnabled
-            SpringAnimation { spring: 2.5; damping: 0.22; mass: 0.35 }
-        }
-        Behavior on y {
-            enabled: Anim.animationsEnabled
-            SpringAnimation { spring: 2.5; damping: 0.22; mass: 0.35 }
-        }
-
-        // ── Live ScreencopyView while dragging ──
-        readonly property var _toplevel: Config.performance.windowPreview && overviewRoot.dragGhostCls
-            ? (WlrToplevelMapper ? WlrToplevelMapper.find(overviewRoot.dragGhostCls, overviewRoot.dragGhostTitle) : null)
-            : null
-
-        Loader {
-            anchors.fill: parent
-            active: dragGhost._toplevel != null
-            visible: status === Loader.Ready
-            asynchronous: true
-
-            sourceComponent: ClippingRectangle {
-                anchors.fill: parent
-                radius: Styling.radius(-2)
-                antialiasing: true
-                color: "transparent"
-
-                ScreencopyView {
-                    id: ghostPreview
-                    width: Math.max(1, overviewRoot.dragGhostW * 1.2)
-                    height: Math.max(1, overviewRoot.dragGhostH * 1.2)
-                    captureSource: dragGhost._toplevel
-                    live: true
-
-                    transform: Scale {
-                        origin.x: 0; origin.y: 0
-                        xScale: parent.width / ghostPreview.width
-                        yScale: parent.height / ghostPreview.height
-                    }
-                }
-
-                // Dim overlay
-                Rectangle {
-                    anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.2)
-                }
-            }
-        }
-
-        // ── Grim screenshot fallback ──
-        Image {
-            anchors.fill: parent
-            source: Config.performance.windowPreview && dragGhost._toplevel == null && overviewRoot.dragGhostAddr
-                ? WlrToplevelMapper.screenshotPath(overviewRoot.dragGhostAddr) : ""
-            sourceSize: Qt.size(parent.width, parent.height)
-            asynchronous: true
-            fillMode: Image.PreserveAspectCrop
-            visible: status === Image.Ready && dragGhost._toplevel == null
-            opacity: 0.55
-        }
-
-        // ── Card background (always visible, underneath previews) ──
-        Rectangle {
-            anchors.fill: parent
-            radius: Styling.radius(-2)
-            color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.5)
-            border.color: Styling.srItem("overprimary")
-            border.width: 2
-            z: 0
-
-            Rectangle {
-                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
-                height: Math.max(2, Math.round(parent.height * 0.04))
-                color: overviewRoot.colorForClass(overviewRoot.dragGhostCls)
-                radius: parent.radius
-            }
-
-            Image {
-                anchors.centerIn: parent
-                anchors.verticalCenterOffset: Math.round(-parent.height * 0.02)
-                width: Math.round(Math.min(parent.width, parent.height) * 0.30)
-                height: width
-                source: Quickshell.iconPath(overviewRoot.iconForClass(overviewRoot.dragGhostCls), "image-missing")
-                sourceSize: Qt.size(width, height)
-                asynchronous: true; opacity: 0.7
-            }
-
-            Text {
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: Math.max(1, Math.round(parent.height * 0.02))
-                anchors.left: parent.left; anchors.right: parent.right
-                anchors.leftMargin: 2; anchors.rightMargin: 2
-                text: overviewRoot.dragGhostTitle
-                font.family: Config.theme.font
-                font.pixelSize: Math.max(5, Math.round(parent.height * 0.07))
-                color: Colors.onSurface; opacity: 0.6
-                elide: Text.ElideRight; maximumLineCount: 1
-                horizontalAlignment: Text.AlignHCenter
-                visible: parent.height > 35
-            }
-        }
     }
 
     // ── SINGLE MouseArea: handles ALL interactions ──
@@ -634,7 +540,14 @@ Item {
                 if (dragTracker._holding && !dragTracker._dragging) {
                     dragTracker._dragging = true;
                     var d = dragTracker._pendingData;
-                    if (!d) return;
+                    var card = dragTracker._pendingCard;
+                    if (!d || !card) return;
+
+                    // Activate card override: card moves freely
+                    card._dragActive = true;
+                    card._dragOverrideX = d.cardX;
+                    card._dragOverrideY = d.cardY;
+
                     overviewRoot.isDragging = true;
                     overviewRoot.dragFromWorkspace = d.wsNum;
                     overviewRoot.dragWindowAddr = d.addr;
@@ -643,8 +556,8 @@ Item {
                     overviewRoot.dragGhostAddr = d.addr;
                     overviewRoot.dragGhostW = d.cardW;
                     overviewRoot.dragGhostH = d.cardH;
-                    overviewRoot.dragGhostX = d.cellX + d.cardX + gridContainer.x;
-                    overviewRoot.dragGhostY = d.cellY + d.cardY + gridContainer.y;
+                    overviewRoot.dragGhostX = d.cardX;
+                    overviewRoot.dragGhostY = d.cardY;
                 }
             }
         }
@@ -686,10 +599,15 @@ Item {
             holdTimer.stop();
 
             if (dragTracker._dragging) {
-                // Drag complete — dispatch move
                 var targetWs = overviewRoot.dragToWorkspace;
                 var origWs = overviewRoot.dragFromWorkspace;
                 var dragAddr = overviewRoot.dragWindowAddr;
+                var card = dragTracker._pendingCard;
+
+                // Reset card override
+                if (card) {
+                    card._dragActive = false;
+                }
 
                 dragTracker._dragging = false;
                 dragTracker._holding = false;
@@ -710,7 +628,6 @@ Item {
                 });
 
             } else if (dragTracker._holding && mouse.button === Qt.LeftButton) {
-                // Quick click on card — focus window
                 var d = dragTracker._pendingData;
                 if (d && d.addr) {
                     Visibilities.setActiveModule("", true);
@@ -720,22 +637,14 @@ Item {
                         wsSwitchProcess.running = true;
                     });
                 }
-                dragTracker._holding = false;
-                dragTracker._pendingCard = null;
-                dragTracker._pendingData = null;
 
             } else if (mouse.button === Qt.MiddleButton || mouse.button === Qt.RightButton) {
-                // Middle/right click — close window
                 var card = findCard(dragTracker.childAt(mouse.x, mouse.y));
                 if (card && card._cardData && card._cardData.addr) {
                     AxctlService.dispatch("closewindow address:" + card._cardData.addr);
                 }
-                dragTracker._holding = false;
-                dragTracker._pendingCard = null;
-                dragTracker._pendingData = null;
 
             } else if (mouse.button === Qt.LeftButton && !dragTracker._holding) {
-                // Click on empty space — switch workspace
                 var ws = dragTracker.wsAt(mouse.x, mouse.y);
                 if (ws > 0) {
                     wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(ws)];
@@ -754,11 +663,21 @@ Item {
 
         onPositionChanged: mouse => {
             if (dragTracker._dragging) {
-                // Ghost follows mouse at root level
+                var card = dragTracker._pendingCard;
+                var d = dragTracker._pendingData;
+                if (card && d) {
+                    // Card override position: mouse relative to cell, centered
+                    var mx = mouse.x - gridContainer.x - d.cellX;
+                    var my = mouse.y - gridContainer.y - d.cellY;
+                    card._dragOverrideX = mx - d.cardW / 2;
+                    card._dragOverrideY = my - d.cardH / 2;
+                }
+
+                // Ghost position for overlay (if used as fallback)
                 overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
                 overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
 
-                // Target cell from grid-relative position
+                // Target cell
                 var gx = mouse.x - gridContainer.x;
                 var gy = mouse.y - gridContainer.y;
                 var cw = overviewRoot.wsCellW + overviewRoot.workspaceSpacing;
@@ -774,7 +693,6 @@ Item {
                     overviewRoot.dragToWorkspace = -1;
                 }
             } else if (dragTracker._holding && !dragTracker._dragging) {
-                // Cancel hold if mouse moved too far (it's a scroll, not a drag)
                 var dx = mouse.x - dragTracker._startX;
                 var dy = mouse.y - dragTracker._startY;
                 if (Math.sqrt(dx*dx + dy*dy) > 15) {
