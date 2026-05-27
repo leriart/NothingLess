@@ -80,7 +80,7 @@ PanelWindow {
     readonly property bool _islandActive: (Config.bar && Config.bar.barMode === "dynamic") && (Config.notchTheme || "default") === "island" && barContent.barPosition === (Config.notchPosition || "top")
     readonly property bool _dockHiddenByIsland: _islandActive && (dockContent.position === barContent.barPosition || (dockContent.position === "center" && (barContent.barPosition === "top" || barContent.barPosition === "bottom")))
     // Dock standalone is always hidden in island mode (apps shown in island buttons)
-    readonly property bool dockActuallyVisible: dockEnabled && !_islandActive
+    readonly property bool dockActuallyVisible: dockEnabled && !root._dockHiddenByIsland
 
     readonly property alias notchHoverActive: notchContent.hoverActive
     readonly property alias notchOpen: notchContent.screenNotchOpen
