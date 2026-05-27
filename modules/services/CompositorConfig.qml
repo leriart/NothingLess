@@ -685,20 +685,30 @@ QtObject {
         let block = marker + "\n# Applied by NothingLess\n";
         block += lines.join("\n") + "\n" + endMarker + "\n";
 
-        // Write via Python passed stdin: clean, no escaping issues
+        // Write block to temp file, then use Python to merge into hyprland.conf
+        const tmpFile = "/tmp/nl_cfg.txt";
         const pyCode = "import re,sys;" +
-            "p=sys.argv[1];" +
-            "m=sys.argv[2];" +
-            "e=sys.argv[3];" +
-            "b=sys.stdin.read();" +
-            "try:f=open(p);c=f.read();f.close()\n" +
+            "p=sys.argv[1];t=sys.argv[2];" +
+            "m=sys.argv[3];e=sys.argv[4];" +
+            "b=open(t).read();" +
+            "try:c=open(p).read();" +
             "except:c='';" +
             "c=re.sub(re.escape(m)+'.*?'+re.escape(e),'',c,flags=re.DOTALL).strip();" +
             "c+=('\\n' if c else '')+b;" +
-            "f=open(p,'w');f.write(c);f.close()";
+            "open(p,'w').write(c);" +
+            "import os;os.remove(t)";
 
-        writeConfProcess.command = ["python3", "-c", pyCode, confPath, marker, endMarker];
-        writeConfProcess.write(block);
+        // Write block to tmpFile using shell printf (block has no problematic chars)
+        // Then run Python -c to merge
+        const escBlock = block.replace(/'/g, "'\\''");
+        const escPy = pyCode.replace(/'/g, "'\\''");
+        const cmd = "printf '%s' '" + escBlock + "' > " + tmpFile + " && " +
+            "python3 -c '" + escPy + "' " + confPath + " " + tmpFile + " " +
+            "'" + marker.replace(/'/g, "'\\''") + "' " +
+            "'" + endMarker.replace(/'/g, "'\\''") + "'";
+
+        writeConfProcess.command = ["sh", "-c", cmd];
+        writeConfProcess.running = true;
     }
 
     property Process writeConfProcess: Process {
