@@ -407,7 +407,7 @@ def build_conf_block():
 
     # Free Layout: windowrule float BEFORE any section blocks
     if _is_free:
-        lines.append('windowrule = float, class:.*')
+        lines.append('windowrule = match:class .*, float on')
         lines.append('')
 
     sec('general', [
@@ -620,7 +620,8 @@ def build_lua_block():
     if _is_free:
         # Insert at the top, right after the marker
         lines.insert(2, '-- Free Layout: float all windows')
-        lines.insert(3, 'hl.windowrule("float, class:.*")')
+        lines.insert(3, '-- hl.windowrule("float, class:.*") - old syntax')
+        lines.insert(4, 'hl.windowrule("match:class .*, float on")')
         lines.insert(4, '')
 
     lines.append('-- === END COMPOSITOR ===')

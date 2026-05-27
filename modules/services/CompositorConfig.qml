@@ -174,7 +174,7 @@ QtObject {
         if (GlobalStates.compositorLayout) {
             if (GlobalStates.compositorLayout === "free") {
                 // Free layout: NOT a real hyprland layout, use windowrule float for all windows
-                batchCommand += ` ; keyword windowrule float,.*`;
+                batchCommand += ` ; keyword windowrule match:class .*, float on`;
             } else {
                 // Regular tiling layouts
                 batchCommand += ` ; keyword general:layout ${GlobalStates.compositorLayout}`;
