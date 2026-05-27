@@ -311,16 +311,10 @@ Item {
                         property var _cardData: ({ wsNum: wsNum, addr: addr, cls: cls, title: title, cardW: cardW, cardH: cardH, cardX: cardX, cardY: cardY, cellX: cell.x, cellY: cell.y })
                         // No Component.onCompleted - findCardAt walks children directly
 
-                        // Drag override: card se mueve con Translate, no con reparent
+                        // Drag override: card se reparentea a dragOverlay (root level)
                         property bool _dragActive: false
-                        property real _dragTx: 0
-                        property real _dragTy: 0
-                        x: cardX; y: cardY; z: 99999; width: cardW; height: cardH
+                        x: cardX; y: cardY; z: 1; width: cardW; height: cardH
                         scale: _dragActive ? 1.04 : 1.0
-                        transform: Translate {
-                            x: _dragActive ? _dragTx : 0
-                            y: _dragActive ? _dragTy : 0
-                        }
 
                         Behavior on scale {
                             enabled: Anim.animationsEnabled
@@ -572,13 +566,10 @@ Item {
         onPositionChanged: mouse => {
             if (dragTracker._dragging) {
                 var card = dragTracker._pendingCard;
-                var d = dragTracker._pendingData;
-                if (card && d) {
-                    // Card stays in grid, Translate shifts it to follow mouse
-                    var newTx = mouse.x - gridContainer.x - d.cellX - card.x - card.width / 2;
-                    var newTy = mouse.y - gridContainer.y - d.cellY - card.y - card.height / 2;
-                    card._dragTx = newTx;
-                    card._dragTy = newTy;
+                if (card) {
+                    // Card is child of dragOverlay (root level), x/y = root coords
+                    card.x = mouse.x - card.width / 2;
+                    card.y = mouse.y - card.height / 2;
                 }
                 overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
                 overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
@@ -608,8 +599,12 @@ Item {
                     var card = dragTracker._pendingCard;
                     if (d && card) {
                         card._dragActive = true;
-                        card._dragTx = 0;
-                        card._dragTy = 0; // Reset translate, starts at grid position
+                        // Reparent to dragOverlay (root level = sibling of all cells)
+                        var rootX = d.cellX + d.cardX + gridContainer.x;
+                        var rootY = d.cellY + d.cardY + gridContainer.y;
+                        card.parent = dragOverlay;
+                        card.x = rootX;
+                        card.y = rootY;
                         overviewRoot.isDragging = true;
                         overviewRoot.dragFromWorkspace = d.wsNum;
                         overviewRoot.dragWindowAddr = d.addr;
@@ -618,8 +613,8 @@ Item {
                         overviewRoot.dragGhostAddr = d.addr;
                         overviewRoot.dragGhostW = d.cardW;
                         overviewRoot.dragGhostH = d.cardH;
-                        overviewRoot.dragGhostX = rx;
-                        overviewRoot.dragGhostY = ry;
+                        overviewRoot.dragGhostX = rootX;
+                        overviewRoot.dragGhostY = rootY;
                     }
                 }
             }
@@ -631,7 +626,7 @@ Item {
                 var origWs = overviewRoot.dragFromWorkspace;
                 var dragAddr = overviewRoot.dragWindowAddr;
                 var card = dragTracker._pendingCard;
-                if (card) { card._dragActive = false; card._dragTx = 0; card._dragTy = 0; }
+                if (card) { card._dragActive = false; card.destroy(); }
 
                 dragTracker._dragging = false;
                 dragTracker._holding = false;
