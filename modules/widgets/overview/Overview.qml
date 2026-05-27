@@ -16,13 +16,11 @@ Item {
     id: overviewRoot
     anchors.fill: parent
 
-    // Direct hyprctl for workspace switching
-    Process {
-        id: wsSwitchProcess
-    }
+    Process { id: wsSwitchProcess }
 
-    // ── Direct window data from hyprctl ──
+    // ── Window data from hyprctl ──
     property var rawWindows: []
+    property var rawMonitors: []
 
     Process {
         id: clientProcess
@@ -31,23 +29,33 @@ Item {
             onStreamFinished: {
                 try {
                     var raw = JSON.parse(text);
-                    if (Array.isArray(raw)) {
-                        overviewRoot.rawWindows = raw;
-                    }
+                    if (Array.isArray(raw)) overviewRoot.rawWindows = raw;
                 } catch (e) {}
             }
         }
     }
 
-    // Refresh window list periodically while overview is open
+    Process {
+        id: monProcess
+        command: ["hyprctl", "monitors", "-j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    var raw = JSON.parse(text);
+                    if (Array.isArray(raw)) overviewRoot.rawMonitors = raw;
+                } catch (e) {}
+            }
+        }
+    }
+
     Timer {
         id: refreshTimer
         interval: 600
         running: GlobalStates.overviewOpen
         repeat: true
         onTriggered: {
-            if (!clientProcess.running)
-                clientProcess.running = true;
+            if (!clientProcess.running) clientProcess.running = true;
+            if (!monProcess.running) monProcess.running = true;
         }
     }
 
@@ -58,10 +66,17 @@ Item {
     readonly property real workspaceSpacing: Config.overview.workspaceSpacing
     readonly property real workspacePadding: 8
     readonly property color activeBorderColor: Styling.srItem("overprimary")
-
     property var currentScreen: null
 
-    // Workspace cell size — fills available space manteniendo 16:9
+    // Monitor lookup by ID
+    readonly property var monMap: {
+        var m = {};
+        var list = overviewRoot.rawMonitors;
+        for (var i = 0; i < list.length; i++) m[list[i].id] = list[i];
+        return m;
+    }
+
+    // ── Cell size — 16:9 ──
     readonly property real _spacingW: (columns - 1) * workspaceSpacing + workspacePadding * 2
     readonly property real _spacingH: (rows - 1) * workspaceSpacing + workspacePadding * 2
     readonly property real _cellWfromW: Math.max(80, Math.round((width - _spacingW) / columns))
@@ -88,16 +103,10 @@ Item {
         return map;
     }
 
-    function windowsForWs(wsNum) {
-        var arr = overviewRoot.windowsByWs[String(wsNum)];
-        return arr || [];
-    }
+    function winsForWs(wsNum) { return overviewRoot.windowsByWs[String(wsNum)] || []; }
 
-    function iconForClass(cls) {
-        return AppSearch.guessIcon(cls || "");
-    }
+    function iconForClass(cls) { return AppSearch.guessIcon(cls || ""); }
 
-    // Accent color from class
     function colorForClass(cls) {
         var c = (cls || "").toLowerCase();
         var hash = 0;
@@ -106,7 +115,7 @@ Item {
         return Qt.hsla(hue / 360, 0.5, 0.4, 1.0);
     }
 
-    // ── Force refresh when overview opens ──
+    // ── Refresh when overview opens ──
     property int _refreshCount: 0
 
     Timer {
@@ -115,8 +124,8 @@ Item {
         running: GlobalStates.overviewOpen && _refreshCount < 8
         repeat: true
         onTriggered: {
-            if (!clientProcess.running)
-                clientProcess.running = true;
+            if (!clientProcess.running) clientProcess.running = true;
+            if (!monProcess.running) monProcess.running = true;
             _refreshCount++;
         }
     }
@@ -126,25 +135,24 @@ Item {
         function onOverviewOpenChanged() {
             if (GlobalStates.overviewOpen) {
                 _refreshCount = 0;
-                if (!clientProcess.running)
-                    clientProcess.running = true;
+                if (!clientProcess.running) clientProcess.running = true;
+                if (!monProcess.running) monProcess.running = true;
             }
         }
     }
 
-    // ── LAYOUT ──
     Component.onCompleted: {
-        if (!clientProcess.running)
-            clientProcess.running = true;
+        if (!clientProcess.running) clientProcess.running = true;
+        if (!monProcess.running) monProcess.running = true;
     }
 
+    // ── Grid layout ──
     Item {
         id: gridContainer
         anchors.centerIn: parent
         width: gridTotalW
         height: gridTotalH
 
-        // Workspace cells
         Repeater {
             model: workspacesShown
 
@@ -154,21 +162,19 @@ Item {
                 readonly property int wsNum: index + 1
                 readonly property int col: index % columns
                 readonly property int row: Math.floor(index / columns)
-                readonly property var cellWindows: overviewRoot.windowsForWs(wsNum)
+                readonly property var cellWindows: overviewRoot.winsForWs(wsNum)
                 readonly property int staggerDelay: (row * columns + col) * 40
 
                 x: col * (wsCellW + workspaceSpacing) + workspacePadding
                 y: row * (wsCellH + workspaceSpacing) + workspacePadding
                 width: wsCellW
                 height: wsCellH
-                color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.15)
+                color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.12)
                 radius: Styling.radius(2)
-                border.width: 0
                 clip: true
 
                 // Staggered entrance
-                opacity: 0
-                scale: 0.85
+                opacity: 0; scale: 0.85
                 Component.onCompleted: { opacity = 1; scale = 1; }
                 Behavior on opacity {
                     enabled: Anim.animationsEnabled
@@ -193,111 +199,244 @@ Item {
                     }
                 }
 
-                // Wallpaper thumbnail
+                // ── Live screen capture background ──
+                ScreencopyView {
+                    id: bgCap
+                    anchors.fill: parent
+                    captureSource: {
+                        // Find the first window's monitor, or use current
+                        var mons = overviewRoot.rawMonitors;
+                        if (cellWindows.length > 0) {
+                            var monId = cellWindows[0].monitor;
+                            var target = mons.find(function(m) { return m.id === monId; });
+                            if (target) return target;
+                        }
+                        return mons.length > 0 ? mons[0] : null;
+                    }
+                    live: GlobalStates.overviewOpen
+                    visible: !GlobalStates.lockscreenVisible
+                    opacity: 0.7
+                }
+
+                // ── Wallpaper fallback ──
                 TintedWallpaper {
                     anchors.fill: parent; radius: Styling.radius(2)
                     tintEnabled: GlobalStates.wallpaperManager ? GlobalStates.wallpaperManager.tintEnabled : false
                     property string lfp: GlobalStates.wallpaperManager ? GlobalStates.wallpaperManager.getLockscreenFramePath(GlobalStates.wallpaperManager.currentWallpaper) : ""
                     source: lfp ? "file://" + lfp : ""
+                    visible: !bgCap.hasContent || !GlobalStates.overviewOpen
                 }
 
-                // ── Window cards dentro del cell ──
+                // ── Window cards: positioned by % of monitor ──
                 Repeater {
                     model: cellWindows
 
-                    Rectangle {
+                    Item {
                         required property var modelData
                         readonly property var win: modelData
-                        readonly property var winSize: win.size || [100, 100]
-                        readonly property var winAt: win.at || [0, 0]
-                        readonly property int winW: winSize[0]
-                        readonly property int winH: winSize[1]
+                        readonly property var mon: overviewRoot.monMap[String(win.monitor)]
+
+                        // Window position & size as fraction of its monitor
+                        readonly property real monW: mon ? (mon.width || 1920) : 1920
+                        readonly property real monH: mon ? (mon.height || 1080) : 1080
+                        readonly property real relX: monW > 0 ? ((win.at?.[0] || 0) - (mon?.x || 0)) / monW : 0
+                        readonly property real relY: monH > 0 ? ((win.at?.[1] || 0) - (mon?.y || 0)) / monH : 0
+                        readonly property real relW: monW > 0 ? Math.max(0.05, Math.min(1, (win.size?.[0] || 100) / monW)) : 0.85
+                        readonly property real relH: monH > 0 ? Math.max(0.05, Math.min(1, (win.size?.[1] || 100) / monH)) : 0.85
+
+                        // Fill to neighbor algorithm: expand until hitting another window edge
+                        readonly property real fillW: {
+                            var base = relW;
+                            var r = relX + relW;
+                            var others = cellWindows;
+                            for (var i = 0; i < others.length; i++) {
+                                if (others[i].address === win.address) continue;
+                                var ox = ((others[i].at?.[0] || 0) - (mon?.x || 0)) / monW;
+                                var oy = ((others[i].at?.[1] || 0) - (mon?.y || 0)) / monH;
+                                var ow = (others[i].size?.[0] || 100) / monW;
+                                var oh = (others[i].size?.[1] || 100) / monH;
+                                if (ox > relX && oy < relY + relH && oy + oh > relY)
+                                    r = Math.min(r, ox);
+                            }
+                            return Math.max(base, r - relX);
+                        }
+                        readonly property real fillH: {
+                            var base = relH;
+                            var b = relY + relH;
+                            var others = cellWindows;
+                            for (var i = 0; i < others.length; i++) {
+                                if (others[i].address === win.address) continue;
+                                var ox = ((others[i].at?.[0] || 0) - (mon?.x || 0)) / monW;
+                                var oy = ((others[i].at?.[1] || 0) - (mon?.y || 0)) / monH;
+                                var ow = (others[i].size?.[0] || 100) / monW;
+                                var oh = (others[i].size?.[1] || 100) / monH;
+                                if (oy > relY && ox < relX + relW && ox + ow > relX)
+                                    b = Math.min(b, oy);
+                            }
+                            return Math.max(base, b - relY);
+                        }
+
+                        readonly property real cardX: Math.round(relX * wsCellW)
+                        readonly property real cardY: Math.round(relY * wsCellH)
+                        readonly property real cardW: Math.max(12, Math.round(fillW * wsCellW))
+                        readonly property real cardH: Math.max(12, Math.round(fillH * wsCellH))
+
                         readonly property string cls: win.class || ""
+                        readonly property string addr: win.address || ""
                         readonly property string title: win.title || cls
 
-                        // Scale window to fit inside cell manteniendo proporcion
-                        readonly property real scaleX: wsCellW / winW
-                        readonly property real scaleY: wsCellH / winH
-                        readonly property real fitScale: Math.min(scaleX, scaleY) * 0.9
-                        readonly property real cardW: Math.round(winW * fitScale)
-                        readonly property real cardH: Math.round(winH * fitScale)
-                        readonly property real posX: {
-                            var mx = 0;
-                            if (cellWindows.length <= 1) return (wsCellW - cardW) / 2;
-                            return Math.round((winAt[0] / (1920)) * wsCellW * 0.7) + wsCellW * 0.15;
-                        }
-                        readonly property real posY: {
-                            if (cellWindows.length <= 1) return (wsCellH - cardH) / 2;
-                            return Math.round((winAt[1] / (1080)) * wsCellH * 0.7) + wsCellH * 0.15;
+                        x: cardX; y: cardY
+                        width: cardW; height: cardH
+
+                        // ── Live per-window preview via toplevel matching ──
+                        // Try to find the WlrToplevel for this window
+                        readonly property var toplevel: {
+                            var tls = ToplevelManager.toplevels.values;
+                            if (!tls || tls.length === 0) return null;
+                            // Match by address (most reliable)
+                            var byAddr = tls.find(function(t) { return String(t.handle || t.surface || "").indexOf(addr) >= 0 || addr.indexOf(String(t.handle || t.surface || "")) >= 0; });
+                            if (byAddr) return byAddr;
+                            // Match by appId + title
+                            var clsMatch = cls ? tls.filter(function(t) { return (t.appId || "").toLowerCase() === cls.toLowerCase() || cls.toLowerCase().indexOf((t.appId || "").toLowerCase()) >= 0; }) : [];
+                            if (clsMatch.length === 0) return null;
+                            var titleMatch = clsMatch.find(function(t) { return t.title === title; });
+                            if (titleMatch) return titleMatch;
+                            var partial = clsMatch.find(function(t) { var tt = (t.title || "").toLowerCase(); return title.toLowerCase().indexOf(tt) >= 0 || tt.indexOf(title.toLowerCase()) >= 0; });
+                            return partial || clsMatch[0]; // fallback: first match by class
                         }
 
-                        x: posX
-                        y: posY
-                        width: cardW
-                        height: cardH
-                        radius: Styling.radius(-2)
-                        color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.5)
-                        border.color: Qt.rgba(Colors.onSurface.r, Colors.onSurface.g, Colors.onSurface.b, 0.12)
-                        border.width: 1
-
-                        // Accent strip
+                        // Card background
                         Rectangle {
-                            anchors.top: parent.top
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            height: Math.max(2, Math.round(parent.height * 0.04))
-                            color: overviewRoot.colorForClass(cls)
-                            radius: parent.radius
+                            anchors.fill: parent
+                            radius: Styling.radius(-2)
+                            color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.45)
+                            border.color: Qt.rgba(Colors.onSurface.r, Colors.onSurface.g, Colors.onSurface.b, 0.15)
+                            border.width: 1
+
+                            // Accent strip
+                            Rectangle {
+                                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                                height: Math.max(2, Math.round(parent.height * 0.04))
+                                color: overviewRoot.colorForClass(cls); radius: parent.radius
+                            }
+
+                            // Gradient overlay for depth
+                            Rectangle {
+                                anchors.fill: parent; radius: parent.radius
+                                gradient: Gradient {
+                                    orientation: Gradient.Diagonal
+                                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.03) }
+                                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.12) }
+                                }
+                            }
                         }
 
-                        // App icon
+                        // ── Live window preview (when Toplevel available) ──
+                        Loader {
+                            anchors.fill: parent
+                            active: Config.performance.windowPreview && toplevel != null
+                            visible: status === Loader.Ready
+                            asynchronous: true
+
+                            sourceComponent: ClippingRectangle {
+                                anchors.fill: parent
+                                radius: Styling.radius(-2)
+                                antialiasing: true
+                                color: "transparent"
+
+                                ScreencopyView {
+                                    id: winPreview
+                                    width: Math.max(1, win.size?.[0] || 640)
+                                    height: Math.max(1, win.size?.[1] || 480)
+                                    captureSource: toplevel
+                                    live: GlobalStates.overviewOpen
+
+                                    transform: Scale {
+                                        origin.x: 0; origin.y: 0
+                                        xScale: parent.width / winPreview.width
+                                        yScale: parent.height / winPreview.height
+                                    }
+                                }
+
+                                // Dim overlay so text is readable
+                                Rectangle {
+                                    anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.15)
+                                }
+                            }
+                        }
+
+                        // ── App icon (shown when no live preview) ──
                         Image {
                             anchors.centerIn: parent
-                            anchors.verticalCenterOffset: Math.round(-parent.height * 0.03)
-                            width: Math.round(parent.width * 0.35)
-                            height: Math.round(parent.height * 0.35)
+                            anchors.verticalCenterOffset: Math.round(-parent.height * 0.02)
+                            width: Math.round(Math.min(parent.width, parent.height) * 0.30)
+                            height: width
                             source: Quickshell.iconPath(overviewRoot.iconForClass(cls), "image-missing")
                             sourceSize: Qt.size(width, height)
                             asynchronous: true
-                            opacity: 0.7
+                            opacity: 0.6
+                            visible: !Config.performance.windowPreview || toplevel == null
                         }
 
-                        // Title
+                        // ── Window title ──
                         Text {
                             anchors.bottom: parent.bottom
                             anchors.bottomMargin: Math.max(1, Math.round(parent.height * 0.02))
-                            anchors.left: parent.left
-                            anchors.right: parent.right
+                            anchors.left: parent.left; anchors.right: parent.right
                             anchors.leftMargin: Math.max(1, Math.round(parent.width * 0.02))
                             anchors.rightMargin: Math.max(1, Math.round(parent.width * 0.02))
                             text: title
                             font.family: Config.theme.font
-                            font.pixelSize: Math.max(5, Math.round(parent.height * 0.08))
+                            font.pixelSize: Math.max(5, Math.round(parent.height * 0.07))
                             color: Colors.onSurface
-                            opacity: 0.6
-                            elide: Text.ElideRight
-                            maximumLineCount: 1
+                            opacity: 0.5
+                            elide: Text.ElideRight; maximumLineCount: 1
                             horizontalAlignment: Text.AlignHCenter
-                            visible: parent.height > 40
+                            visible: parent.height > 35
+                        }
+
+                        // ── Address debug (small) ──
+                        // Uncomment for debugging
+                        // Text {
+                        //     anchors.top: parent.top; anchors.right: parent.right
+                        //     anchors.margins: 2
+                        //     text: addr.substring(addr.length-8)
+                        //     font.pixelSize: 6; color: Colors.onSurface; opacity: 0.3
+                        // }
+
+                        // ── Interaction ──
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+
+                            onClicked: mouse => {
+                                if (mouse.button === Qt.LeftButton) {
+                                    Visibilities.setActiveModule("", true);
+                                    Qt.callLater(function() {
+                                        AxctlService.dispatch("focuswindow address:" + addr);
+                                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
+                                        wsSwitchProcess.running = true;
+                                    });
+                                } else if (mouse.button === Qt.MiddleButton) {
+                                    AxctlService.dispatch("closewindow address:" + addr);
+                                }
+                            }
                         }
                     }
                 }
 
-                // Workspace number
+                // ── Workspace number ──
                 Text {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
+                    anchors.right: parent.right; anchors.bottom: parent.bottom
                     anchors.margins: 4
                     text: String(wsNum)
                     font.family: Config.theme.font
                     font.pixelSize: Math.max(10, Math.round(wsCellH * 0.08))
-                    font.bold: true
-                    color: Colors.onSurface
-                    opacity: 0.25
-                    z: 5
+                    font.bold: true; color: Colors.onSurface; opacity: 0.2; z: 5
                 }
 
-                // Click → switch
+                // ── Click cell (empty space) ──
                 MouseArea {
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton
