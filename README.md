@@ -3,18 +3,18 @@
   <br><br>
   A high-performance, deeply customizable Wayland shell built with Quickshell.
   <br><br>
-  <i>Forked from <a href="https://github.com/Axenide/Ambxst">Ambxst</a> — less is more.</i>
+  <i>Less is more.</i>
 </p>
 
 <p align="center">
   <a href="https://github.com/Leriart/NothingLess">
     <img src="https://img.shields.io/badge/NothingLess-0A0A0A?style=for-the-badge&logo=github&logoColor=FFFFFF" alt="repo">
   </a>
-  <a href="https://github.com/Axenide/Ambxst">
-    <img src="https://img.shields.io/badge/Fork%20of-Ambxst-E80012?style=for-the-badge&logo=github&logoColor=FFFFFF&labelColor=0A0A0A" alt="fork">
-  </a>
   <a href="https://discord.gg/ehQYYW36Up">
     <img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=FFFFFF" alt="discord">
+  </a>
+  <a href="https://github.com/Axenide/Ambxst">
+    <img src="https://img.shields.io/badge/Fork%20of-Ambxst-E80012?style=for-the-badge&logo=github&logoColor=FFFFFF&labelColor=0A0A0A" alt="fork">
   </a>
 </p>
 
@@ -77,7 +77,7 @@ Supported on **Arch**, **Fedora**, and **NixOS**.
 - **Configuración de monitores** — backends gráfico y por línea de comandos
 - **Music Recognition** — identificación de canciones vía SongRec/Shazam
 - **Screen Translation** — traducción de pantalla vía translate-shell
-- **Snap Assistant** — alineación inteligente de ventanas vía axctl
+- **Snap Assistant** — intelligent window snapping via axctl
 - **Animaciones M3** — perfiles Material You, Windows Classic y macOS
 
 ---
