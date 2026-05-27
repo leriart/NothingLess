@@ -288,22 +288,8 @@ Item {
                         x: cardX; y: cardY
                         width: cardW; height: cardH
 
-                        // ── Live per-window preview via toplevel matching ──
-                        // Try to find the WlrToplevel for this window
-                        readonly property var toplevel: {
-                            var tls = ToplevelManager.toplevels.values;
-                            if (!tls || tls.length === 0) return null;
-                            // Match by address (most reliable)
-                            var byAddr = tls.find(function(t) { return String(t.handle || t.surface || "").indexOf(addr) >= 0 || addr.indexOf(String(t.handle || t.surface || "")) >= 0; });
-                            if (byAddr) return byAddr;
-                            // Match by appId + title
-                            var clsMatch = cls ? tls.filter(function(t) { return (t.appId || "").toLowerCase() === cls.toLowerCase() || cls.toLowerCase().indexOf((t.appId || "").toLowerCase()) >= 0; }) : [];
-                            if (clsMatch.length === 0) return null;
-                            var titleMatch = clsMatch.find(function(t) { return t.title === title; });
-                            if (titleMatch) return titleMatch;
-                            var partial = clsMatch.find(function(t) { var tt = (t.title || "").toLowerCase(); return title.toLowerCase().indexOf(tt) >= 0 || tt.indexOf(title.toLowerCase()) >= 0; });
-                            return partial || clsMatch[0]; // fallback: first match by class
-                        }
+                        // ── Live per-window preview via WlrToplevelMapper ──
+                        readonly property var toplevel: WlrToplevelMapper ? WlrToplevelMapper.find(cls, title) : null
 
                         // Card background
                         Rectangle {
