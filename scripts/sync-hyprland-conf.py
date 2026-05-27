@@ -127,10 +127,17 @@ kw_map = {
     'noUpdateNews': 'misc:no_update_news',
 }
 
+def fmt(val):
+    if isinstance(val, bool):
+        return 'true' if val else 'false'
+    if isinstance(val, list):
+        return ' '.join(str(v) for v in val)
+    return str(val)
+
 lines = []
 for key, keyword in kw_map.items():
     if key in config:
-        lines.append(f'{keyword} = {config[key]}')
+        lines.append(f'{keyword} = {fmt(config[key])}')
 
 marker = '# === NOTHINGLESS COMPOSITOR ==='
 end_marker = '# === END COMPOSITOR ==='
