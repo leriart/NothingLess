@@ -405,16 +405,17 @@ def build_conf_block():
     # Determine if Free Layout (floating mode)
     _is_free = cfg.get('layout') == 'free'
 
+    # Free Layout: windowrule float BEFORE any section blocks
+    if _is_free:
+        lines.append('windowrulev2 = float, class:.*')
+        lines.append('')
+
     sec('general', [
         ('borderSize','border_size'), ('gapsIn','gaps_in'), ('gapsOut','gaps_out'),
         ('allowTearing','allow_tearing'), ('resizeOnBorder','resize_on_border'),
         ('extendBorderGrabArea','extend_border_grab_area'),
         ('hoverIconOnBorder','hover_icon_on_border'),
     ] + ([] if _is_free else [('layout','layout')]))
-
-    # Free Layout: windowrule float for all windows
-    if _is_free:
-        lines.append('windowrule = float,.*')
 
     lines.append('')
 
@@ -617,7 +618,10 @@ def build_lua_block():
 
     # Free Layout: windowrule float for all windows (lua syntax)
     if _is_free:
-        lines.append('hl.windowrule("float,.*")')
+        # Insert at the top, right after the marker
+        lines.insert(2, '-- Free Layout: float all windows')
+        lines.insert(3, 'hl.windowrule("float, class:.*")')
+        lines.insert(4, '')
 
     lines.append('-- === END COMPOSITOR ===')
     return '\n'.join(lines) + '\n'
