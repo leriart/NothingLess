@@ -239,11 +239,9 @@ Item {
                 ScreencopyView {
                     id: bgCap
                     anchors.fill: parent
-                    captureSource: {
-                        var mons = overviewRoot.rawMonitors;
-                        var idx = cellWindows.length > 0 ? cellWindows[0].monitor : -1;
-                        return idx >= 0 && idx < mons.length ? mons[idx] : (mons.length > 0 ? mons[0] : null);
-                    }
+                    captureSource: cellWindows.length > 0 && overviewRoot.rawMonitors.length > cellWindows[0].monitor
+                        ? overviewRoot.rawMonitors[cellWindows[0].monitor]
+                        : (overviewRoot.rawMonitors.length > 0 ? overviewRoot.rawMonitors[0] : null)
                     live: GlobalStates.overviewOpen
                     visible: !GlobalStates.lockscreenVisible
                     opacity: 0.7
