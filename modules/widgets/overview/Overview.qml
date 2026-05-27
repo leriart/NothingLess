@@ -142,6 +142,12 @@ Item {
         }
     }
 
+    // ── Drag state ──
+    property int dragFromWorkspace: -1
+    property int dragToWorkspace: -1
+    property string dragWindowAddr: ""
+    property bool isDragging: false
+
     Component.onCompleted: {
         if (!clientProcess.running) clientProcess.running = true;
         if (!monProcess.running) monProcess.running = true;
@@ -386,34 +392,177 @@ Item {
                             visible: parent.height > 35
                         }
 
-                        // ── Address debug (small) ──
-                        // Uncomment for debugging
-                        // Text {
-                        //     anchors.top: parent.top; anchors.right: parent.right
-                        //     anchors.margins: 2
-                        //     text: addr.substring(addr.length-8)
-                        //     font.pixelSize: 6; color: Colors.onSurface; opacity: 0.3
-                        // }
+                        // ── Hover/focus overlay ──
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: Styling.radius(-2)
+                            color: cardMouse.containsMouse && !overviewRoot.isDragging
+                                ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
+                            border.color: cardMouse.containsMouse && !overviewRoot.isDragging
+                                ? Styling.srItem("overprimary") : "transparent"
+                            border.width: cardMouse.containsMouse && !overviewRoot.isDragging ? 2 : 0
+                            z: 6
+                            Behavior on color {
+                                enabled: Anim.animationsEnabled
+                                ColorAnimation { duration: 80 }
+                            }
+                            Behavior on border.width {
+                                enabled: Anim.animationsEnabled
+                                NumberAnimation { duration: 80 }
+                            }
+                        }
 
-                        // ── Interaction ──
+                        // ── Interaction: click, drag, close ──
                         MouseArea {
+                            id: cardMouse
                             anchors.fill: parent
                             hoverEnabled: true
                             acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+                            cursorShape: containsMouse ? Qt.PointingHandCursor : Qt.ArrowCursor
 
-                            onClicked: mouse => {
+                            property bool _holding: false
+                            property bool _dragging: false
+                            property int _startX: 0
+                            property int _startY: 0
+
+                            Timer {
+                                id: holdTimer
+                                interval: 180
+                                onTriggered: {
+                                    if (cardMouse._holding && !cardMouse._dragging) {
+                                        cardMouse._dragging = true;
+                                        overviewRoot.dragFromWorkspace = wsNum;
+                                        overviewRoot.dragWindowAddr = addr;
+                                        overviewRoot.isDragging = true;
+                                    }
+                                }
+                            }
+
+                            onPressed: mouse => {
                                 if (mouse.button === Qt.LeftButton) {
-                                    Visibilities.setActiveModule("", true);
-                                    Qt.callLater(function() {
-                                        AxctlService.dispatch("focuswindow address:" + addr);
-                                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
-                                        wsSwitchProcess.running = true;
-                                    });
+                                    cardMouse._holding = true;
+                                    cardMouse._startX = mouse.x;
+                                    cardMouse._startY = mouse.y;
+                                    holdTimer.restart();
+                                } else if (mouse.button === Qt.RightButton) {
+                                    // Right-click: close window
+                                    AxctlService.dispatch("closewindow address:" + addr);
+                                }
+                            }
+
+                            onMouseXChanged: {
+                                if (cardMouse._holding && !cardMouse._dragging) {
+                                    var dx = cardMouse.mouseX - cardMouse._startX;
+                                    var dy = cardMouse.mouseY - cardMouse._startY;
+                                    if (Math.sqrt(dx*dx + dy*dy) > 12) {
+                                        holdTimer.stop();
+                                        cardMouse._holding = false;
+                                    }
+                                }
+                            }
+
+                            onMouseYChanged: {
+                                if (cardMouse._holding && !cardMouse._dragging) {
+                                    var dx = cardMouse.mouseX - cardMouse._startX;
+                                    var dy = cardMouse.mouseY - cardMouse._startY;
+                                    if (Math.sqrt(dx*dx + dy*dy) > 12) {
+                                        holdTimer.stop();
+                                        cardMouse._holding = false;
+                                    }
+                                }
+                            }
+
+                            // While dragging, track which cell we're over
+                            property int _lastCellX: -1
+                            property int _lastCellY: -1
+
+                            onPositionChanged: {
+                                if (cardMouse._dragging) {
+                                    // Calculate which cell the mouse is over in the grid
+                                    var mx = cardMouse.mouseX + cardX + gridContainer.x;
+                                    var my = cardMouse.mouseY + cardY + gridContainer.y;
+                                    var cw = wsCellW + workspaceSpacing;
+                                    var ch = wsCellH + workspaceSpacing;
+                                    var col = Math.floor((mx - workspacePadding) / cw);
+                                    var row = Math.floor((my - workspacePadding) / ch);
+                                    if (col >= 0 && col < columns && row >= 0 && row < rows) {
+                                        var target = row * columns + col + 1;
+                                        if (target !== overviewRoot.dragToWorkspace) {
+                                            overviewRoot.dragToWorkspace = target;
+                                        }
+                                    } else {
+                                        overviewRoot.dragToWorkspace = -1;
+                                    }
+                                }
+                            }
+
+                            onReleased: mouse => {
+                                if (mouse.button === Qt.LeftButton) {
+                                    holdTimer.stop();
+                                    if (cardMouse._dragging) {
+                                        // Drag finished
+                                        cardMouse._dragging = false;
+                                        overviewRoot.isDragging = false;
+                                        var targetWs = overviewRoot.dragToWorkspace;
+                                        overviewRoot.dragToWorkspace = -1;
+                                        overviewRoot.dragFromWorkspace = -1;
+                                        if (targetWs > 0 && targetWs !== wsNum) {
+                                            AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + addr);
+                                            Qt.callLater(function() {
+                                                if (!clientProcess.running) clientProcess.running = true;
+                                            });
+                                        }
+                                    } else if (cardMouse._holding) {
+                                        // Click (no drag): focus window
+                                        Visibilities.setActiveModule("", true);
+                                        Qt.callLater(function() {
+                                            AxctlService.dispatch("focuswindow address:" + addr);
+                                            wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
+                                            wsSwitchProcess.running = true;
+                                        });
+                                    }
+                                    cardMouse._holding = false;
                                 } else if (mouse.button === Qt.MiddleButton) {
                                     AxctlService.dispatch("closewindow address:" + addr);
                                 }
                             }
                         }
+                    }
+                }
+
+                // ── Cell background click (empty space, behind window cards) ──
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton
+                    enabled: !overviewRoot.isDragging
+                    z: -1
+                    onClicked: {
+                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
+                        wsSwitchProcess.running = true;
+                    }
+                    onDoubleClicked: {
+                        Visibilities.setActiveModule("");
+                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
+                        wsSwitchProcess.running = true;
+                    }
+                }
+
+                // ── Drop target highlight ──
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Styling.radius(2)
+                    color: "transparent"
+                    border.color: overviewRoot.dragToWorkspace === wsNum ? Colors.primary : "transparent"
+                    border.width: overviewRoot.dragToWorkspace === wsNum ? 3 : 0
+                    opacity: overviewRoot.dragToWorkspace === wsNum ? 0.7 : 0
+                    z: 10
+                    Behavior on opacity {
+                        enabled: Anim.animationsEnabled
+                        NumberAnimation { duration: 100 }
+                    }
+                    Behavior on border.width {
+                        enabled: Anim.animationsEnabled
+                        NumberAnimation { duration: 100 }
                     }
                 }
 
@@ -425,21 +574,6 @@ Item {
                     font.family: Config.theme.font
                     font.pixelSize: Math.max(10, Math.round(wsCellH * 0.08))
                     font.bold: true; color: Colors.onSurface; opacity: 0.2; z: 5
-                }
-
-                // ── Click cell (empty space) ──
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton
-                    onClicked: {
-                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
-                        wsSwitchProcess.running = true;
-                    }
-                    onDoubleClicked: {
-                        Visibilities.setActiveModule("");
-                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
-                        wsSwitchProcess.running = true;
-                    }
                 }
             }
         }
