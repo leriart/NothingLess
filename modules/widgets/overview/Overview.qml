@@ -235,25 +235,13 @@ Item {
                     }
                 }
 
-                // ── Live screen capture background ──
-                ScreencopyView {
-                    id: bgCap
-                    anchors.fill: parent
-                    captureSource: cellWindows.length > 0 && overviewRoot.rawMonitors.length > cellWindows[0].monitor
-                        ? overviewRoot.rawMonitors[cellWindows[0].monitor]
-                        : (overviewRoot.rawMonitors.length > 0 ? overviewRoot.rawMonitors[0] : null)
-                    live: GlobalStates.overviewOpen
-                    visible: !GlobalStates.lockscreenVisible
-                    opacity: 0.7
-                }
-
-                // ── Wallpaper fallback ──
+                // ── Wallpaper background (no ScreencopyView - QJSValue limitation) ──
                 TintedWallpaper {
                     anchors.fill: parent; radius: Styling.radius(2)
                     tintEnabled: GlobalStates.wallpaperManager ? GlobalStates.wallpaperManager.tintEnabled : false
                     property string lfp: GlobalStates.wallpaperManager ? GlobalStates.wallpaperManager.getLockscreenFramePath(GlobalStates.wallpaperManager.currentWallpaper) : ""
                     source: lfp ? "file://" + lfp : ""
-                    visible: !bgCap.hasContent || !GlobalStates.overviewOpen
+                    visible: true
                 }
 
                 // ── Window cards: positioned by % of monitor ──
