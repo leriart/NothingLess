@@ -555,9 +555,30 @@ Item {
                                 if (mouse.button === Qt.LeftButton) {
                                     holdTimer.stop();
                                     if (cardMouse._dragging) {
-                                        // Drag handled by global dragTracker overlay
+                                        // Dragging: the card grabbed the press, so we handle
+                                        // the drop here (dragTracker can't get the release)
                                         cardMouse._dragging = false;
                                         cardMouse._holding = false;
+                                        var targetWs = overviewRoot.dragToWorkspace;
+                                        var origWs = overviewRoot.dragFromWorkspace;
+                                        var dragAddr = overviewRoot.dragWindowAddr;
+
+                                        overviewRoot._dragCardLifted = false;
+                                        overviewRoot.isDragging = false;
+                                        overviewRoot.dragToWorkspace = -1;
+                                        overviewRoot.dragFromWorkspace = -1;
+                                        overviewRoot.dragWindowAddr = "";
+
+                                        if (targetWs > 0 && dragAddr) {
+                                            AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + dragAddr);
+                                        } else if (dragAddr && origWs > 0) {
+                                            AxctlService.dispatch("movetoworkspacesilent " + origWs + ",address:" + dragAddr);
+                                        }
+
+                                        Qt.callLater(function() {
+                                            if (!clientProcess.running) clientProcess.running = true;
+                                            if (!monProcess.running) monProcess.running = true;
+                                        });
                                     } else if (cardMouse._holding) {
                                         // Quick click: focus + switch
                                         Visibilities.setActiveModule("", true);
@@ -688,27 +709,26 @@ Item {
         }
     }
 
-    // ── Global drag tracker at ROOT level (captures release even outside grid) ──
+    // ── Global drag tracker at ROOT level (position tracking solo) ──
+    // The release is handled by the card's onReleased (it has the press grab).
     MouseArea {
         id: dragTracker
         anchors.fill: parent
         enabled: overviewRoot.isDragging
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.NoButton  // Don't grab, just track hover
         hoverEnabled: true
         z: 9998
         cursorShape: Qt.ClosedHandCursor
 
         onPositionChanged: mouse => {
             if (!overviewRoot.isDragging) return;
-            // Ghost follows mouse (coordinates relative to overviewRoot = full screen)
+            // Ghost follows mouse
             overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
             overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
 
-            // Convert mouse to grid-relative coords
+            // Target cell from grid-relative position
             var gx = mouse.x - gridContainer.x;
             var gy = mouse.y - gridContainer.y;
-
-            // Find target cell
             var cw = overviewRoot.wsCellW + overviewRoot.workspaceSpacing;
             var ch = overviewRoot.wsCellH + overviewRoot.workspaceSpacing;
             var col = Math.floor((gx - overviewRoot.workspacePadding) / cw);
@@ -720,32 +740,6 @@ Item {
                 }
             } else {
                 overviewRoot.dragToWorkspace = -1;
-            }
-        }
-
-        onReleased: mouse => {
-            if (mouse.button === Qt.LeftButton && overviewRoot.isDragging) {
-                var targetWs = overviewRoot.dragToWorkspace;
-                var addr = overviewRoot.dragWindowAddr;
-                var origWs = overviewRoot.dragFromWorkspace;
-
-                overviewRoot._dragCardLifted = false;
-                overviewRoot.isDragging = false;
-                overviewRoot.dragToWorkspace = -1;
-                overviewRoot.dragFromWorkspace = -1;
-                overviewRoot.dragWindowAddr = "";
-
-                if (targetWs > 0 && addr) {
-                    AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + addr);
-                } else if (addr && origWs > 0) {
-                    AxctlService.dispatch("movetoworkspacesilent " + origWs + ",address:" + addr);
-                }
-
-                // Force immediate refresh so workspace cells re-render
-                Qt.callLater(function() {
-                    if (!clientProcess.running) clientProcess.running = true;
-                    if (!monProcess.running) monProcess.running = true;
-                });
             }
         }
     }
