@@ -656,12 +656,15 @@ QtObject {
     }
 
     // Write config to hyprland.conf and hyprland.lua for persistence
+    // Uses the Python sync script which reads compositor.json directly
     function writeConfigToFile(batchCmd) {
         if (!batchCmd) return;
-        // Use the Python sync script to write both hyprland.conf and .lua
         const scriptPath = Quickshell.env("HOME") + "/Documentos/GitHub/NothingLess/scripts/sync-hyprland-conf.py";
-        writeConfProcess.command = ["python3", scriptPath];
-        writeConfProcess.running = true;
+        // Add a small delay to ensure compositor.json has been written to disk
+        Qt.callLater(() => {
+            writeConfProcess.command = ["python3", scriptPath];
+            writeConfProcess.running = true;
+        });
     }
 
     property Process writeConfProcess: Process {
@@ -677,11 +680,18 @@ QtObject {
     }
 
     // Force re-apply when Config.compositor adapter becomes available
+    // Also reassign the connections target (QML Connections may not rebind target)
     property QtObject compWatch: Config.compositor
     onCompWatchChanged: {
         if (root.compWatch) {
             root.applyCompositorConfig();
         }
+        // Re-assign Connections target in case it was null during init
+        Qt.callLater(() => {
+            if (root.compWatch && !root.compositorConfigConnections.target) {
+                root.compositorConfigConnections.target = root.compWatch;
+            }
+        });
     }
 
     // Direct signal from Config when compositor settings change
