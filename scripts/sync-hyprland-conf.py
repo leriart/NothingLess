@@ -410,11 +410,35 @@ def build_conf_block():
         lines.append('windowrule = match:class .*, float on')
         lines.append('')
 
+    # Smart Resize Anchors: controla resize_on_border + grab area
+    _smart_resize = cfg.get('smartResizeAnchors', True)
+    if _smart_resize:
+        _resize = 'true'
+        _grab = 10
+    else:
+        _resize = 'false'
+        _grab = 0
+
+    # Smart Resize Anchors: override resize_on_border + grab area
+    _smart = cfg.get('smartResizeAnchors', True)
+    if _smart:
+        cfg_override = {
+            'resizeOnBorder': True,
+            'extendBorderGrabArea': 10
+        }
+    else:
+        cfg_override = {
+            'resizeOnBorder': False,
+            'extendBorderGrabArea': 0
+        }
+    cfg.update(cfg_override)
+
     sec('general', [
         ('borderSize','border_size'), ('gapsIn','gaps_in'), ('gapsOut','gaps_out'),
-        ('allowTearing','allow_tearing'), ('resizeOnBorder','resize_on_border'),
-        ('extendBorderGrabArea','extend_border_grab_area'),
+        ('allowTearing','allow_tearing'),
         ('hoverIconOnBorder','hover_icon_on_border'),
+        ('resizeOnBorder','resize_on_border'),
+        ('extendBorderGrabArea','extend_border_grab_area'),
     ] + ([] if _is_free else [('layout','layout')]))
 
     lines.append('')

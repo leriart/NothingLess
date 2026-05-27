@@ -1981,6 +1981,15 @@ Item {
                                     Config.compositor.freeMaximizedByDefault = value;
                                 }
                             }
+
+                            ToggleRow {
+                                label: "Smart Resize Anchors"
+                                checked: Config.compositor.smartResizeAnchors ?? true
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.smartResizeAnchors = value;
+                                }
+                            }
                         }
 
                         // Advanced Section

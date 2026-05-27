@@ -899,6 +899,7 @@ Singleton {
             property int freeSnapGaps: 4
             property bool freeTileByDefault: false
             property bool freeMaximizedByDefault: false
+            property bool smartResizeAnchors: true
 
             // XWayland
             property bool xwaylandEnabled: true

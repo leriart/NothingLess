@@ -191,5 +191,8 @@ var data = {
     "freeSnapCenter": true,
     "freeSnapGaps": 4,
     "freeTileByDefault": false,
-    "freeMaximizedByDefault": false
+    "freeMaximizedByDefault": false,
+
+    // === Smart Resize Anchors ===
+    "smartResizeAnchors": true
 }
