@@ -159,7 +159,8 @@ PanelWindow {
         item: unifiedPanel.needsFullScreenInput ? fullScreenMask : null
         regions: [
             Region {
-                item: barContent.visible ? barContent.barHitbox : null
+                // In island mode, exclude bar hitbox so clicks reach the notch
+                item: !unifiedPanel._islandActive && barContent.visible ? barContent.barHitbox : null
             },
             Region {
                 item: notchContent.notchHitbox
