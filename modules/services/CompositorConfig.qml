@@ -655,16 +655,58 @@ QtObject {
         }
     }
 
-    // Write config to hyprland.conf and hyprland.lua for persistence
-    // Uses the Python sync script which reads compositor.json directly
+    // Write config to hyprland.conf — entirely QML-native, no Python scripts, no files
+    // Converts the batchCommand keywords directly to hyprland.conf block syntax
     function writeConfigToFile(batchCmd) {
         if (!batchCmd) return;
-        const scriptPath = Quickshell.env("HOME") + "/Documentos/GitHub/NothingLess/scripts/sync-hyprland-conf.py";
-        // Add a small delay to ensure compositor.json has been written to disk
-        Qt.callLater(() => {
-            writeConfProcess.command = ["python3", scriptPath];
-            writeConfProcess.running = true;
-        });
+        const confPath = Quickshell.env("HOME") + "/.local/share/nothingless/hyprland.conf";
+        const luaPath = Quickshell.env("HOME") + "/.local/share/nothingless/hyprland.lua";
+
+        // Build hyprland.conf content directly from batch command keywords
+        let confContent = "# === NOTHINGLESS COMPOSITOR ===\n";
+        confContent += "# Applied by NothingLess\n\n";
+
+        // Organize keywords into sections (build sections from keyword prefixes)
+        let sections = {};
+        const commands = batchCmd.split(" ; ");
+        for (let i = 0; i < commands.length; i++) {
+            const cmd = commands[i].trim();
+            if (!cmd || !cmd.startsWith("keyword")) continue;
+            let kv = cmd.replace("keyword ", "");
+            const sep = kv.indexOf(" ");
+            if (sep < 0) continue;
+            const key = kv.substring(0, sep);
+            const val = kv.substring(sep + 1);
+
+            // Skip animations, beziers, layerrules — handled separately
+            if (key.startsWith("bezier") || key.startsWith("animation ") || key.startsWith("layerrule")) continue;
+
+            // Parse key into section and option
+            // e.g. "general:border_size" → section "general", option "border_size"
+            const colonIdx = key.indexOf(":");
+            if (colonIdx > 0) {
+                const section = key.substring(0, colonIdx);
+                const option = key.substring(colonIdx + 1);
+                if (!sections[section]) sections[section] = [];
+                sections[section].push(option + " = " + val);
+            }
+        }
+
+        // Build block syntax from sections
+        for (const [section, options] of Object.entries(sections)) {
+            confContent += section + " {\n";
+            for (let j = 0; j < options.length; j++) {
+                confContent += "  " + options[j] + "\n";
+            }
+            confContent += "}\n\n";
+        }
+        confContent += "# === END COMPOSITOR ===\n";
+
+        // Write via shell: printf with single-quote escaping
+        // Only single quotes need escaping (replace ' with '\'')
+        const escaped = confContent.replace(/'/g, "'\\''");
+        writeConfProcess.command = ["sh", "-c", "printf '%s' '" + escaped + "' > " + confPath];
+        writeConfProcess.running = true;
     }
 
     property Process writeConfProcess: Process {
