@@ -168,6 +168,7 @@ Item {
     property int dragToWorkspace: -1
     property string dragWindowAddr: ""
     property bool isDragging: false
+    property bool _dragCardLifted: false
     property real dragGhostX: 0
     property real dragGhostY: 0
     property real dragGhostW: 100
@@ -176,15 +177,8 @@ Item {
     property string dragGhostTitle: ""
     property string dragGhostAddr: ""
 
-    // Reset all card drag overrides immediately
-    function resetCardOverrides() {
-        // Traverse all workspace cells in the grid
-        for (var ws = 1; ws <= workspacesShown; ws++) {
-            var items = winsForWs(ws);
-            // We can't directly access Repeater children, but we can set a flag
-            // that the card items check. They'll reset on next position update.
-        }
-    }
+    // Silent workspace where dragged windows go
+    readonly property int _dragSilentWs: 99
 
     Component.onCompleted: {
         if (!clientProcess.running) clientProcess.running = true;
@@ -334,21 +328,8 @@ Item {
                         readonly property string addr: win.address || ""
                         readonly property string title: win.title || cls
 
-                        // Drag override: card itself follows mouse via global tracker
-                        property bool _dragOverride: false
-                        x: _dragOverride && overviewRoot.dragWindowAddr === addr
-                            ? overviewRoot.dragGhostX : cardX
-                        y: _dragOverride && overviewRoot.dragWindowAddr === addr
-                            ? overviewRoot.dragGhostY : cardY
-                        z: _dragOverride ? 9999 : 1
-                        scale: _dragOverride ? 1.06 : 1.0
-
-                        Behavior on scale {
-                            enabled: Anim.animationsEnabled
-                            SpringAnimation {
-                                spring: 5.0; damping: 0.4; mass: 0.3
-                            }
-                        }
+                        x: cardX; y: cardY
+                        z: 1
                         width: cardW; height: cardH
 
                         // ── Live per-window preview via WlrToplevelMapper ──
@@ -491,8 +472,6 @@ Item {
                                 onTriggered: {
                                     if (cardMouse._holding && !cardMouse._dragging) {
                                         cardMouse._dragging = true;
-                                        // Activate card self-drag: override position, bump z+scale
-                                        _dragOverride = true;
                                         overviewRoot.isDragging = true;
                                         overviewRoot.dragFromWorkspace = wsNum;
                                         overviewRoot.dragWindowAddr = addr;
@@ -501,9 +480,17 @@ Item {
                                         overviewRoot.dragGhostAddr = addr;
                                         overviewRoot.dragGhostW = cardW;
                                         overviewRoot.dragGhostH = cardH;
-                                        // Initial position: card stays where it is (no jump)
-                                        overviewRoot.dragGhostX = cardX;
-                                        overviewRoot.dragGhostY = cardY;
+                                        // Move window to silent workspace (it disappears from grid)
+                                        AxctlService.dispatch("movetoworkspacesilent " + overviewRoot._dragSilentWs + ",address:" + addr);
+                                        // Position ghost at the card's grid location
+                                        overviewRoot.dragGhostX = cardX + cell.x;
+                                        overviewRoot.dragGhostY = cardY + cell.y;
+                                        // Flag: ghost rendering starts now
+                                        overviewRoot._dragCardLifted = true;
+                                        // Refresh data so window disappears from its old cell
+                                        Qt.callLater(function() {
+                                            if (!clientProcess.running) clientProcess.running = true;
+                                        });
                                     }
                                 }
                             }
@@ -639,7 +626,6 @@ Item {
         }
 
         // ── Global mouse tracker during drag ──
-        // Updates the card's OWN position + tracks target cell
         MouseArea {
             id: dragTracker
             anchors.fill: parent
@@ -651,7 +637,7 @@ Item {
 
             onPositionChanged: mouse => {
                 if (!overviewRoot.isDragging) return;
-                // The card itself reads dragGhostX/Y and follows the mouse
+                // Ghost follows mouse
                 overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
                 overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
 
@@ -674,26 +660,84 @@ Item {
             onReleased: mouse => {
                 if (mouse.button === Qt.LeftButton && overviewRoot.isDragging) {
                     var targetWs = overviewRoot.dragToWorkspace;
-                    var srcWs = overviewRoot.dragFromWorkspace;
                     var addr = overviewRoot.dragWindowAddr;
+                    var origWs = overviewRoot.dragFromWorkspace;
 
-                    // Reset all drag state
+                    // Save these before resetting
+                    overviewRoot._dragCardLifted = false;
                     overviewRoot.isDragging = false;
                     overviewRoot.dragToWorkspace = -1;
                     overviewRoot.dragFromWorkspace = -1;
                     overviewRoot.dragWindowAddr = "";
 
-                    // Animate the card back to its grid position (reset override)
-                    // The card's _dragOverride stays true briefly, then we reset it
-                    // after the animation. For now, just reset immediately.
-                    // Cards will be re-rendered on next data refresh anyway.
-
-                    if (targetWs > 0 && targetWs !== srcWs && addr) {
+                    if (targetWs > 0 && addr) {
+                        // Drop on a workspace cell
                         AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + addr);
-                        Qt.callLater(function() {
-                            if (!clientProcess.running) clientProcess.running = true;
-                        });
+                    } else if (addr && origWs > 0) {
+                        // Dropped outside grid — return to original workspace
+                        AxctlService.dispatch("movetoworkspacesilent " + origWs + ",address:" + addr);
                     }
+
+                    Qt.callLater(function() {
+                        if (!clientProcess.running) clientProcess.running = true;
+                    });
+                }
+            }
+        }
+
+        // ── Drag card ghost (clean card that follows mouse) ──
+        Item {
+            id: dragGhost
+            visible: overviewRoot._dragCardLifted && overviewRoot.dragGhostAddr.length > 0
+            z: 9999
+            x: overviewRoot.dragGhostX
+            y: overviewRoot.dragGhostY
+            width: overviewRoot.dragGhostW
+            height: overviewRoot.dragGhostH
+
+            // Clean card
+            Rectangle {
+                anchors.fill: parent
+                radius: Styling.radius(-2)
+                color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.7)
+                border.color: Styling.srItem("overprimary")
+                border.width: 2
+
+                // Accent strip
+                Rectangle {
+                    anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                    height: Math.max(2, Math.round(parent.height * 0.04))
+                    color: overviewRoot.colorForClass(overviewRoot.dragGhostCls)
+                    radius: parent.radius
+                }
+
+                // Icon
+                Image {
+                    anchors.centerIn: parent
+                    anchors.verticalCenterOffset: Math.round(-parent.height * 0.02)
+                    width: Math.round(Math.min(parent.width, parent.height) * 0.30)
+                    height: width
+                    source: Quickshell.iconPath(overviewRoot.iconForClass(overviewRoot.dragGhostCls), "image-missing")
+                    sourceSize: Qt.size(width, height)
+                    asynchronous: true
+                    opacity: 0.7
+                }
+
+                // Title
+                Text {
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: Math.max(1, Math.round(parent.height * 0.02))
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.leftMargin: 2; anchors.rightMargin: 2
+                    text: overviewRoot.dragGhostTitle
+                    font.family: Config.theme.font
+                    font.pixelSize: Math.max(5, Math.round(parent.height * 0.07))
+                    color: Colors.onSurface
+                    opacity: 0.6
+                    elide: Text.ElideRight
+                    maximumLineCount: 1
+                    horizontalAlignment: Text.AlignHCenter
+                    visible: parent.height > 35
                 }
             }
         }
