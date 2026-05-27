@@ -208,6 +208,8 @@ Item {
                 color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.12)
                 radius: Styling.radius(2)
                 clip: !overviewRoot.isDragging
+                // Cell z: drag target > hovered > normal
+                z: overviewRoot.dragToWorkspace === wsNum ? 99999 : (dragTracker._hoveredWs === wsNum ? 99998 : 0)
 
                 // Staggered entrance
                 opacity: 0; scale: 0.85
@@ -315,7 +317,7 @@ Item {
                         property bool _dragActive: false
                         property real _dragTx: 0
                         property real _dragTy: 0
-                        x: cardX; y: cardY; z: (overviewRoot.isDragging && addr === overviewRoot.dragWindowAddr) ? 99999 : (dragTracker._hoveredAddr === addr ? 99998 : 1); width: cardW; height: cardH
+                        x: cardX; y: cardY; z: (overviewRoot.isDragging && addr === overviewRoot.dragWindowAddr) ? 99999 : 1; width: cardW; height: cardH
                         scale: _dragActive ? 1.04 : 1.0
                         transform: Translate {
                             x: _dragActive ? _dragTx : 0
@@ -534,8 +536,8 @@ Item {
         property var _pendingData: null
         property bool _holding: false
         property bool _dragging: false
-        // Updated on every mouse move: card addr currently under cursor
-        property string _hoveredAddr: ""
+        // Updated on every mouse move: workspace number under cursor
+        property int _hoveredWs: -1
 
         // Helper: find workspace number from root-level coordinates
         function wsAt(mx, my) {
@@ -572,14 +574,12 @@ Item {
         property real _startY: 0
 
         onPositionChanged: mouse => {
-            // Track hovered card for z-ordering
-            var hovered = findCardAt(mouse.x, mouse.y);
-            dragTracker._hoveredAddr = hovered ? hovered._cardData.addr : "";
+            // Track which workspace cell the mouse is over
+            dragTracker._hoveredWs = dragTracker.wsAt(mouse.x, mouse.y);
 
             if (dragTracker._dragging) {
                 var card = dragTracker._pendingCard;
                 if (card) {
-                    // Card follows mouse via Translate
                     card._dragTx = mouse.x - gridContainer.x - card.x - card.width / 2;
                     card._dragTy = mouse.y - gridContainer.y - card.y - card.height / 2;
                 }
