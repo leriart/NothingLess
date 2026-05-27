@@ -1,159 +1,287 @@
 #!/usr/bin/env python3
-"""Sync NothingLess compositor config to hyprland.conf"""
-import json, re, os, sys
+"""Sync NothingLess compositor config to hyprland.conf and hyprland.lua"""
+import json, re, os
 
-config_dir = os.path.expanduser('~/.config/nothingless/config')
-conf_path = os.path.expanduser('~/.local/share/nothingless/hyprland.conf')
-config_path = os.path.join(config_dir, 'compositor.json')
+BASE = os.path.expanduser('~/.config/nothingless/config')
+CONF_PATH = os.path.expanduser('~/.local/share/nothingless/hyprland.conf')
+LUA_PATH = os.path.expanduser('~/.local/share/nothingless/hyprland.lua')
+COMPOSITOR_PATH = os.path.join(BASE, 'compositor.json')
 
-with open(config_path) as f:
-    config = json.load(f)
-
-# Keyword map
-kw_map = {
-    'borderSize': 'general:border_size', 'gapsIn': 'general:gaps_in',
-    'gapsOut': 'general:gaps_out', 'rounding': 'decoration:rounding',
-    'shadowEnabled': 'decoration:shadow:enabled', 'shadowRange': 'decoration:shadow:range',
-    'shadowRenderPower': 'decoration:shadow:render_power',
-    'shadowSharp': 'decoration:shadow:sharp',
-    'shadowIgnoreWindow': 'decoration:shadow:ignore_window',
-    'shadowColor': 'decoration:shadow:color',
-    'shadowColorInactive': 'decoration:shadow:color_inactive',
-    'shadowOpacity': 'decoration:shadow:opacity',
-    'shadowOffset': 'decoration:shadow:offset', 'shadowScale': 'decoration:shadow:scale',
-    'blurEnabled': 'decoration:blur:enabled', 'blurSize': 'decoration:blur:size',
-    'blurPasses': 'decoration:blur:passes',
-    'blurIgnoreOpacity': 'decoration:blur:ignore_opacity',
-    'blurNewOptimizations': 'decoration:blur:new_optimizations',
-    'blurXray': 'decoration:blur:xray', 'blurNoise': 'decoration:blur:noise',
-    'blurContrast': 'decoration:blur:contrast',
-    'blurBrightness': 'decoration:blur:brightness',
-    'blurVibrancy': 'decoration:blur:vibrancy',
-    'blurVibrancyDarkness': 'decoration:blur:vibrancy_darkness',
-    'blurSpecial': 'decoration:blur:special',
-    'blurPopups': 'decoration:blur:popups',
-    'blurInputMethods': 'decoration:blur:input_methods',
-    'activeOpacity': 'decoration:active_opacity',
-    'inactiveOpacity': 'decoration:inactive_opacity',
-    'fullscreenOpacity': 'decoration:fullscreen_opacity',
-    'dimInactive': 'decoration:dim_inactive',
-    'dimStrength': 'decoration:dim_strength', 'dimAround': 'decoration:dim_around',
-    'dimSpecial': 'decoration:dim_special',
-    'roundingPower': 'decoration:rounding_power',
-    'allowTearing': 'general:allow_tearing',
-    'resizeOnBorder': 'general:resize_on_border',
-    'extendBorderGrabArea': 'general:extend_border_grab_area',
-    'hoverIconOnBorder': 'general:hover_icon_on_border',
-    'snapEnabled': 'general:snap:enabled',
-    'snapWindowGap': 'general:snap:window_gap',
-    'snapMonitorGap': 'general:snap:monitor_gap',
-    'snapBorderOverlap': 'general:snap:border_overlap',
-    'snapRespectGaps': 'general:snap:respect_gaps',
-    'animationsEnabled': 'animations:enabled',
-    'kbLayout': 'input:kb_layout', 'kbVariant': 'input:kb_variant',
-    'kbOptions': 'input:kb_options', 'numlockByDefault': 'input:numlock_by_default',
-    'repeatRate': 'input:repeat_rate', 'repeatDelay': 'input:repeat_delay',
-    'mouseSensitivity': 'input:sensitivity',
-    'mouseAccelProfile': 'input:accel_profile',
-    'followMouse': 'input:follow_mouse',
-    'mouseNaturalScroll': 'input:natural_scroll',
-    'mouseScrollFactor': 'input:scroll_factor',
-    'mouseLeftHanded': 'input:left_handed',
-    'mouseRefocus': 'input:mouse_refocus',
-    'floatSwitchOverrideFocus': 'input:float_switch_override_focus',
-    'touchpadDisableWhileTyping': 'input:touchpad:disable_while_typing',
-    'touchpadNaturalScroll': 'input:touchpad:natural_scroll',
-    'touchpadTapToClick': 'input:touchpad:tap_to_click',
-    'touchpadClickfingerBehavior': 'input:touchpad:clickfinger_behavior',
-    'touchpadTapButtonMap': 'input:touchpad:tap_button_map',
-    'touchpadMiddleButtonEmulation': 'input:touchpad:middle_button_emulation',
-    'touchpadDragLock': 'input:touchpad:drag_lock',
-    'touchpadScrollFactor': 'input:touchpad:scroll_factor',
-    'noHardwareCursors': 'cursor:no_hardware_cursors',
-    'enableHyprcursor': 'cursor:enable_hyprcursor',
-    'noWarps': 'cursor:no_warps', 'persistentWarps': 'cursor:persistent_warps',
-    'warpOnChangeWorkspace': 'cursor:warp_on_change_workspace',
-    'cursorZoomFactor': 'cursor:zoom_factor',
-    'cursorInactiveTimeout': 'cursor:inactive_timeout',
-    'cursorHideOnKeyPress': 'cursor:hide_on_key_press',
-    'cursorHideOnTouch': 'cursor:hide_on_touch',
-    'cursorHideOnTablet': 'cursor:hide_on_tablet',
-    'workspaceSwipeCreateNew': 'gestures:workspace_swipe_create_new',
-    'workspaceSwipeForever': 'gestures:workspace_swipe_forever',
-    'workspaceSwipeCancelRatio': 'gestures:workspace_swipe_cancel_ratio',
-    'workspaceSwipeMinSpeedToForce': 'gestures:workspace_swipe_min_speed_to_force',
-    'workspaceSwipeDirectionLock': 'gestures:workspace_swipe_direction_lock',
-    'workspaceSwipeUseR': 'gestures:workspace_swipe_use_r',
-    'workspaceSwipeDistance': 'gestures:workspace_swipe_distance',
-    'workspaceSwipeInvert': 'gestures:workspace_swipe_invert',
-    'workspaceSwipeTouch': 'gestures:workspace_swipe_touch',
-    'workspaceSwipeTouchInvert': 'gestures:workspace_swipe_touch_invert',
-    'dwindlePreserveSplit': 'dwindle:preserve_split',
-    'dwindlePseudotile': 'dwindle:pseudotile',
-    'dwindleForceSplit': 'dwindle:force_split',
-    'dwindleSmartSplit': 'dwindle:smart_split',
-    'dwindleDefaultSplitRatio': 'dwindle:default_split_ratio',
-    'dwindleSplitWidthMultiplier': 'dwindle:split_width_multiplier',
-    'dwindlePermanentDirectionOverride': 'dwindle:permanent_direction_override',
-    'dwindleUseActiveForSplits': 'dwindle:use_active_for_splits',
-    'dwindleSmartResizing': 'dwindle:smart_resizing',
-    'dwindleSpecialScaleFactor': 'dwindle:special_scale_factor',
-    'masterOrientation': 'master:orientation', 'masterMfact': 'master:mfact',
-    'masterNewStatus': 'master:new_status', 'masterNewOnTop': 'master:new_on_top',
-    'masterNewOnActive': 'master:new_on_active',
-    'masterSmartResizing': 'master:smart_resizing',
-    'masterSpecialScaleFactor': 'master:special_scale_factor',
-    'masterAllowSmallSplit': 'master:allow_small_split',
-    'scrollingColumnWidth': 'scrolling:column_width',
-    'scrollingExplicitColumnWidths': 'scrolling:explicit_column_widths',
-    'scrollingDirection': 'scrolling:direction',
-    'scrollingFullscreenOnOneColumn': 'scrolling:fullscreen_on_one_column',
-    'scrollingFocusFitMethod': 'scrolling:focus_fit_method',
-    'scrollingFollowFocus': 'scrolling:follow_focus',
-    'scrollingFollowMinVisible': 'scrolling:follow_min_visible',
-    'xwaylandEnabled': 'xwayland:enabled',
-    'xwaylandForceZeroScaling': 'xwayland:force_zero_scaling',
-    'xwaylandUseNearestNeighbor': 'xwayland:use_nearest_neighbor',
-    'vrr': 'misc:vrr', 'vfr': 'misc:vfr',
-    'mouseMoveEnablesDpms': 'misc:mouse_move_enables_dpms',
-    'keyPressEnablesDpms': 'misc:key_press_enables_dpms',
-    'disableAutoreload': 'misc:disable_autoreload',
-    'focusOnActivate': 'misc:focus_on_activate',
-    'animateManualResizes': 'misc:animate_manual_resizes',
-    'animateMouseWindowdragging': 'misc:animate_mouse_windowdragging',
-    'disableHyprlandLogo': 'misc:disable_hyprland_logo',
-    'disableSplashRendering': 'misc:disable_splash_rendering',
-    'forceDefaultWallpaper': 'misc:force_default_wallpaper',
-    'noUpdateNews': 'misc:no_update_news',
-}
+with open(COMPOSITOR_PATH) as f:
+    cfg = json.load(f)
 
 def fmt(val):
     if isinstance(val, bool):
         return 'true' if val else 'false'
     if isinstance(val, list):
         return ' '.join(str(v) for v in val)
+    if isinstance(val, float):
+        s = f'{val:.2f}'.rstrip('0').rstrip('.')
+        return s if '.' in s else s + '.0'
+    if isinstance(val, str) and val == '':
+        return '""'
     return str(val)
 
-lines = []
-for key, keyword in kw_map.items():
-    if key in config:
-        lines.append(f'{keyword} = {fmt(config[key])}')
+def fmt_lua(val):
+    if isinstance(val, bool):
+        return 'true' if val else 'false'
+    if isinstance(val, list):
+        return '{ "' + '", "'.join(str(v) for v in val) + '" }'
+    if isinstance(val, float):
+        s = f'{val:.2f}'.rstrip('0').rstrip('.')
+        return s if '.' in s else s + '.0'
+    if isinstance(val, str):
+        return '"' + val + '"'
+    return str(val)
 
+# Resolve color: the batch command resolves aliases via Config.resolveColor
+# Here we use a sensible default since we can't access QML's resolveColor
+def resolve_color(name):
+    if not name or name == 'shadow':
+        return '0xee1a1a1a'
+    return name
+
+# ============================================================================
+#  hyprland.conf - BLOCK syntax
+# ============================================================================
+def build_conf_block():
+    lines = ['# === NOTHINGLESS COMPOSITOR ===', '# Applied by NothingLess', '']
+
+    def sec(name, keys, indent=''):
+        lines.append(indent + name + ' {')
+        for ck, kw in keys:
+            if ck in cfg:
+                lines.append(indent + '  ' + kw + ' = ' + fmt(cfg[ck]))
+        lines.append(indent + '}')
+
+    sec('general', [
+        ('borderSize','border_size'), ('gapsIn','gaps_in'), ('gapsOut','gaps_out'),
+        ('allowTearing','allow_tearing'), ('resizeOnBorder','resize_on_border'),
+        ('extendBorderGrabArea','extend_border_grab_area'),
+        ('hoverIconOnBorder','hover_icon_on_border'), ('layout','layout'),
+    ])
+    lines.append('')
+
+    lines.append('decoration {')
+    for k, kw in [('rounding','rounding'), ('roundingPower','rounding_power'),
+                  ('activeOpacity','active_opacity'), ('inactiveOpacity','inactive_opacity'),
+                  ('fullscreenOpacity','fullscreen_opacity'),
+                  ('dimInactive','dim_inactive'), ('dimStrength','dim_strength'),
+                  ('dimAround','dim_around'), ('dimSpecial','dim_special')]:
+        if k in cfg: lines.append('  ' + kw + ' = ' + fmt(cfg[k]))
+    lines.append('')
+    lines.append('  shadow {')
+    for k, kw in [('shadowRange','range'), ('shadowRenderPower','render_power'),
+                  ('shadowSharp','sharp'), ('shadowIgnoreWindow','ignore_window')]:
+        if k in cfg: lines.append('    ' + kw + ' = ' + fmt(cfg[k]))
+    lines.append('    color = ' + resolve_color(cfg.get('shadowColor', 'shadow')))
+    lines.append('    color_inactive = ' + resolve_color(cfg.get('shadowColorInactive', 'shadow')))
+    lines.append('  }')
+    lines.append('')
+    lines.append('  blur {')
+    for k, kw in [('blurSize','size'), ('blurPasses','passes'),
+                  ('blurIgnoreOpacity','ignore_opacity'),
+                  ('blurNewOptimizations','new_optimizations'),
+                  ('blurXray','xray'), ('blurNoise','noise'), ('blurContrast','contrast'),
+                  ('blurBrightness','brightness'), ('blurVibrancy','vibrancy'),
+                  ('blurVibrancyDarkness','vibrancy_darkness')]:
+        if k in cfg: lines.append('    ' + kw + ' = ' + fmt(cfg[k]))
+    lines.append('  }')
+    lines.append('}')
+
+    lines.append('')
+    lines.append('input {')
+    for k, kw in [('kbLayout','kb_layout'), ('kbVariant','kb_variant'),
+                  ('kbOptions','kb_options'),
+                  ('numlockByDefault','numlock_by_default'),
+                  ('repeatRate','repeat_rate'), ('repeatDelay','repeat_delay'),
+                  ('mouseSensitivity','sensitivity'),
+                  ('followMouse','follow_mouse'),
+                  ('mouseNaturalScroll','natural_scroll'),
+                  ('mouseScrollFactor','scroll_factor'),
+                  ('mouseLeftHanded','left_handed'),
+                  ('mouseRefocus','mouse_refocus'),
+                  ('floatSwitchOverrideFocus','float_switch_override_focus')]:
+        if k in cfg: lines.append('  ' + kw + ' = ' + fmt(cfg[k]))
+    if cfg.get('mouseAccelProfile'): lines.append('  accel_profile = ' + cfg['mouseAccelProfile'])
+    lines.append('')
+    lines.append('  touchpad {')
+    for k, kw in [('touchpadDisableWhileTyping','disable_while_typing'),
+                  ('touchpadNaturalScroll','natural_scroll'),
+                  ('touchpadTapToClick','tap_to_click'),
+                  ('touchpadClickfingerBehavior','clickfinger_behavior'),
+                  ('touchpadMiddleButtonEmulation','middle_button_emulation'),
+                  ('touchpadDragLock','drag_lock'),
+                  ('touchpadScrollFactor','scroll_factor')]:
+        if k in cfg: lines.append('    ' + kw + ' = ' + fmt(cfg[k]))
+    if cfg.get('touchpadTapButtonMap'): lines.append('    tap_button_map = ' + cfg['touchpadTapButtonMap'])
+    lines.append('  }')
+    lines.append('}')
+
+    for sec_name, keys in [
+        ('cursor', [('noHardwareCursors','no_hardware_cursors'),
+                    ('enableHyprcursor','enable_hyprcursor'), ('noWarps','no_warps'),
+                    ('persistentWarps','persistent_warps'),
+                    ('warpOnChangeWorkspace','warp_on_change_workspace'),
+                    ('cursorZoomFactor','zoom_factor'),
+                    ('cursorInactiveTimeout','inactive_timeout'),
+                    ('cursorHideOnKeyPress','hide_on_key_press'),
+                    ('cursorHideOnTouch','hide_on_touch'),
+                    ('cursorHideOnTablet','hide_on_tablet')]),
+        ('gestures', [('workspaceSwipeCreateNew','workspace_swipe_create_new'),
+                      ('workspaceSwipeForever','workspace_swipe_forever'),
+                      ('workspaceSwipeCancelRatio','workspace_swipe_cancel_ratio'),
+                      ('workspaceSwipeMinSpeedToForce','workspace_swipe_min_speed_to_force'),
+                      ('workspaceSwipeDirectionLock','workspace_swipe_direction_lock'),
+                      ('workspaceSwipeDistance','workspace_swipe_distance'),
+                      ('workspaceSwipeInvert','workspace_swipe_invert'),
+                      ('workspaceSwipeTouch','workspace_swipe_touch'),
+                      ('workspaceSwipeTouchInvert','workspace_swipe_touch_invert')]),
+        ('misc', [('vrr','vrr'), ('vfr','vfr'),
+                  ('mouseMoveEnablesDpms','mouse_move_enables_dpms'),
+                  ('keyPressEnablesDpms','key_press_enables_dpms'),
+                  ('disableAutoreload','disable_autoreload'),
+                  ('focusOnActivate','focus_on_activate'),
+                  ('animateManualResizes','animate_manual_resizes'),
+                  ('animateMouseWindowdragging','animate_mouse_windowdragging'),
+                  ('disableHyprlandLogo','disable_hyprland_logo'),
+                  ('disableSplashRendering','disable_splash_rendering'),
+                  ('forceDefaultWallpaper','force_default_wallpaper'),
+                  ('noUpdateNews','no_update_news')]),
+        ('xwayland', [('xwaylandEnabled','enabled'),
+                      ('xwaylandForceZeroScaling','force_zero_scaling'),
+                      ('xwaylandUseNearestNeighbor','use_nearest_neighbor')]),
+    ]:
+        lines.append('')
+        lines.append(sec_name + ' {')
+        for ck, kw in keys:
+            if ck in cfg: lines.append('  ' + kw + ' = ' + fmt(cfg[ck]))
+        lines.append('}')
+
+    lines.append('# === END COMPOSITOR ===')
+    return '\n'.join(lines) + '\n'
+
+# ============================================================================
+#  hyprland.lua - hl.config() syntax  
+# ============================================================================
+def build_lua_block():
+    lines = [
+        '-- === NOTHINGLESS COMPOSITOR ===',
+        '-- NothingLess compositor settings',
+        'hl.config({',
+    ]
+
+    sections = {
+        'general': [('borderSize','border_size'), ('gapsIn','gaps_in'), ('gapsOut','gaps_out'),
+                    ('allowTearing','allow_tearing'), ('resizeOnBorder','resize_on_border'),
+                    ('extendBorderGrabArea','extend_border_grab_area'),
+                    ('hoverIconOnBorder','hover_icon_on_border'), ('layout','layout')],
+        'decoration': [('rounding','rounding'), ('roundingPower','rounding_power'),
+                       ('activeOpacity','active_opacity'), ('inactiveOpacity','inactive_opacity'),
+                       ('fullscreenOpacity','fullscreen_opacity'),
+                       ('dimInactive','dim_inactive'), ('dimStrength','dim_strength'),
+                       ('dimAround','dim_around'), ('dimSpecial','dim_special')],
+        'input': [('kbLayout','kb_layout'), ('kbVariant','kb_variant'),
+                  ('kbOptions','kb_options'),
+                  ('numlockByDefault','numlock_by_default'),
+                  ('repeatRate','repeat_rate'), ('repeatDelay','repeat_delay'),
+                  ('mouseSensitivity','sensitivity'),
+                  ('followMouse','follow_mouse'),
+                  ('mouseNaturalScroll','natural_scroll'),
+                  ('mouseScrollFactor','scroll_factor'),
+                  ('mouseLeftHanded','left_handed'),
+                  ('mouseRefocus','mouse_refocus'),
+                  ('floatSwitchOverrideFocus','float_switch_override_focus')],
+        'cursor': [('noHardwareCursors','no_hardware_cursors'),
+                   ('enableHyprcursor','enable_hyprcursor'), ('noWarps','no_warps'),
+                   ('persistentWarps','persistent_warps'),
+                   ('warpOnChangeWorkspace','warp_on_change_workspace'),
+                   ('cursorZoomFactor','zoom_factor'),
+                   ('cursorInactiveTimeout','inactive_timeout'),
+                   ('cursorHideOnKeyPress','hide_on_key_press'),
+                   ('cursorHideOnTouch','hide_on_touch'),
+                   ('cursorHideOnTablet','hide_on_tablet')],
+        'gestures': [('workspaceSwipeCreateNew','workspace_swipe_create_new'),
+                     ('workspaceSwipeForever','workspace_swipe_forever'),
+                     ('workspaceSwipeCancelRatio','workspace_swipe_cancel_ratio'),
+                     ('workspaceSwipeMinSpeedToForce','workspace_swipe_min_speed_to_force'),
+                     ('workspaceSwipeDirectionLock','workspace_swipe_direction_lock'),
+                     ('workspaceSwipeDistance','workspace_swipe_distance'),
+                     ('workspaceSwipeInvert','workspace_swipe_invert'),
+                     ('workspaceSwipeTouch','workspace_swipe_touch'),
+                     ('workspaceSwipeTouchInvert','workspace_swipe_touch_invert')],
+        'misc': [('vrr','vrr'), ('vfr','vfr'),
+                 ('mouseMoveEnablesDpms','mouse_move_enables_dpms'),
+                 ('keyPressEnablesDpms','key_press_enables_dpms'),
+                 ('disableAutoreload','disable_autoreload'),
+                 ('focusOnActivate','focus_on_activate'),
+                 ('animateManualResizes','animate_manual_resizes'),
+                 ('animateMouseWindowdragging','animate_mouse_windowdragging'),
+                 ('disableHyprlandLogo','disable_hyprland_logo'),
+                 ('disableSplashRendering','disable_splash_rendering'),
+                 ('forceDefaultWallpaper','force_default_wallpaper'),
+                 ('noUpdateNews','no_update_news')],
+        'xwayland': [('xwaylandEnabled','enabled'),
+                     ('xwaylandForceZeroScaling','force_zero_scaling'),
+                     ('xwaylandUseNearestNeighbor','use_nearest_neighbor')],
+        'dwindle': [('dwindlePreserveSplit','preserve_split'),
+                    ('dwindlePseudotile','pseudotile'),
+                    ('dwindleForceSplit','force_split'),
+                    ('dwindleSmartSplit','smart_split'),
+                    ('dwindleDefaultSplitRatio','default_split_ratio'),
+                    ('dwindleSplitWidthMultiplier','split_width_multiplier'),
+                    ('dwindlePermanentDirectionOverride','permanent_direction_override'),
+                    ('dwindleUseActiveForSplits','use_active_for_splits'),
+                    ('dwindleSmartResizing','smart_resizing')],
+        'master': [('masterOrientation','orientation'), ('masterMfact','mfact'),
+                   ('masterNewStatus','new_status'), ('masterNewOnTop','new_on_top'),
+                   ('masterNewOnActive','new_on_active'),
+                   ('masterSmartResizing','smart_resizing'),
+                   ('masterAllowSmallSplit','allow_small_split')],
+        'scrolling': [('scrollingColumnWidth','column_width'),
+                      ('scrollingExplicitColumnWidths','explicit_column_widths'),
+                      ('scrollingDirection','direction'),
+                      ('scrollingFullscreenOnOneColumn','fullscreen_on_one_column'),
+                      ('scrollingFocusFitMethod','focus_fit_method'),
+                      ('scrollingFollowFocus','follow_focus'),
+                      ('scrollingFollowMinVisible','follow_min_visible')],
+    }
+
+    for section, keys in sections.items():
+        lines.append(f'    {section} = {{')
+        for ck, kw in keys:
+            if ck in cfg:
+                lines.append(f'        {kw} = {fmt_lua(cfg[ck])},')
+        lines.append('    },')
+
+    lines.append('})')
+    lines.append('-- === END COMPOSITOR ===')
+    return '\n'.join(lines) + '\n'
+
+# ============================================================================
+#  WRITE FILES
+# ============================================================================
 marker = '# === NOTHINGLESS COMPOSITOR ==='
 end_marker = '# === END COMPOSITOR ==='
-block = marker + '\n# Applied by NothingLess\n'
-block += '\n'.join(lines) + '\n' + end_marker + '\n'
+lua_marker = '-- === NOTHINGLESS COMPOSITOR ==='
+lua_end_marker = '-- === END COMPOSITOR ==='
 
-try:
-    with open(conf_path) as f:
-        content = f.read()
-except:
-    content = ''
-
+conf_block = build_conf_block()
+with open(CONF_PATH) as f:
+    content = f.read()
 content = re.sub(re.escape(marker) + '.*?' + re.escape(end_marker), '', content, flags=re.DOTALL).strip()
-content += '\n' + block
-
-with open(conf_path, 'w') as f:
+content += '\n' + conf_block
+with open(CONF_PATH, 'w') as f:
     f.write(content)
+print(f'hyprland.conf: {len(conf_block)} chars')
 
-print(f'Synced {len(lines)} settings to {conf_path}')
+lua_block = build_lua_block()
+with open(LUA_PATH) as f:
+    content = f.read()
+content = re.sub(re.escape(lua_marker) + '.*?' + re.escape(lua_end_marker), '', content, flags=re.DOTALL).strip()
+content += '\n' + lua_block
+with open(LUA_PATH, 'w') as f:
+    f.write(content)
+print(f'hyprland.lua: {len(lua_block)} chars')
+
+print('Done - hyprctl reload recommended')

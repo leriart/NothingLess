@@ -658,56 +658,12 @@ QtObject {
         }
     }
 
-    // Write config to hyprland.conf for persistence
+    // Write config to hyprland.conf and hyprland.lua for persistence
     function writeConfigToFile(batchCmd) {
         if (!batchCmd) return;
-        const confPath = Quickshell.env("HOME") + "/.local/share/nothingless/hyprland.conf";
-        const marker = "# === NOTHINGLESS COMPOSITOR ===";
-        const endMarker = "# === END COMPOSITOR ===";
-
-        // Parse batchCmd into key=value lines
-        let lines = [];
-        const commands = batchCmd.split(" ; ");
-        for (let i = 0; i < commands.length; i++) {
-            const cmd = commands[i].trim();
-            if (!cmd || !cmd.startsWith("keyword")) continue;
-            const kv = cmd.replace("keyword ", "");
-            const sep = kv.indexOf(" ");
-            if (sep < 0) continue;
-            const key = kv.substring(0, sep);
-            const val = kv.substring(sep + 1);
-            // Skip bezier and animation keywords (handled by writeAnimationConfig)
-            if (key.startsWith("bezier") || key.startsWith("animation ")) continue;
-            lines.push(key + " = " + val);
-        }
-        if (lines.length === 0) return;
-
-        let block = marker + "\n# Applied by NothingLess\n";
-        block += lines.join("\n") + "\n" + endMarker + "\n";
-
-        // Write block to temp file, then use Python to merge into hyprland.conf
-        const tmpFile = "/tmp/nl_cfg.txt";
-        const pyCode = "import re,sys;" +
-            "p=sys.argv[1];t=sys.argv[2];" +
-            "m=sys.argv[3];e=sys.argv[4];" +
-            "b=open(t).read();" +
-            "try:c=open(p).read();" +
-            "except:c='';" +
-            "c=re.sub(re.escape(m)+'.*?'+re.escape(e),'',c,flags=re.DOTALL).strip();" +
-            "c+=('\\n' if c else '')+b;" +
-            "open(p,'w').write(c);" +
-            "import os;os.remove(t)";
-
-        // Write block to tmpFile using shell printf (block has no problematic chars)
-        // Then run Python -c to merge
-        const escBlock = block.replace(/'/g, "'\\''");
-        const escPy = pyCode.replace(/'/g, "'\\''");
-        const cmd = "printf '%s' '" + escBlock + "' > " + tmpFile + " && " +
-            "python3 -c '" + escPy + "' " + confPath + " " + tmpFile + " " +
-            "'" + marker.replace(/'/g, "'\\''") + "' " +
-            "'" + endMarker.replace(/'/g, "'\\''") + "'";
-
-        writeConfProcess.command = ["sh", "-c", cmd];
+        // Use the Python sync script which handles proper syntax
+        const scriptPath = __dirname + "/../../scripts/sync-hyprland-conf.py";
+        writeConfProcess.command = ["python3", scriptPath];
         writeConfProcess.running = true;
     }
 
