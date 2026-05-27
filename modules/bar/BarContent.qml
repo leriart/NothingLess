@@ -88,6 +88,33 @@ Item {
     readonly property bool pinButtonVisible: (Config.bar && Config.bar.showPinButton !== undefined ? Config.bar.showPinButton : true)
     // Whether hover-to-reveal is enabled
     readonly property bool _hoverRevealEnabled: (Config.bar && Config.bar.hoverToReveal !== undefined ? Config.bar.hoverToReveal : true)
+    // Check if there's an adjacent monitor on the bar's edge side
+    readonly property bool _hasAdjacentMonitor: {
+        const mon = root.compositorMonitor;
+        if (!mon || !AxctlService.monitors || !AxctlService.monitors.values) return false;
+        const edgeX = root.barPosition === "left" ? mon.x : (root.barPosition === "right" ? mon.x + mon.width : 0);
+        const edgeY = root.barPosition === "top" ? mon.y : (root.barPosition === "bottom" ? mon.y + mon.height : 0);
+        const others = AxctlService.monitors.values.filter(m => m.name !== mon.name);
+        for (let i = 0; i < others.length; i++) {
+            const o = others[i];
+            if (root.barPosition === "left" || root.barPosition === "right") {
+                // Check horizontal adjacency (same Y range, touching at X edge)
+                if (o.y + o.height > mon.y && o.y < mon.y + mon.height) {
+                    if (root.barPosition === "left" && o.x + o.width === edgeX) return true;
+                    if (root.barPosition === "right" && o.x === edgeX) return true;
+                }
+            } else {
+                // Check vertical adjacency (same X range, touching at Y edge)
+                if (o.x + o.width > mon.x && o.x < mon.x + mon.width) {
+                    if (root.barPosition === "top" && o.y + o.height === edgeY) return true;
+                    if (root.barPosition === "bottom" && o.y === edgeY) return true;
+                }
+            }
+        }
+        return false;
+    }
+    // Effective hover region height: 2px when at screen edge, 8px when adjacent monitor exists
+    readonly property int _effectiveHoverRegion: root._hasAdjacentMonitor ? 8 : (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 2)
     // Reveal logic
     readonly property bool reveal: {
         // If not auto-hiding, always reveal
@@ -206,20 +233,20 @@ Item {
         }
         // Size includes margins
         width: {
-            if (root.orientation === "vertical") return root.reveal ? root.totalBarWidth : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 2), 2) + root.frameOffset;
+            if (root.orientation === "vertical") return root.reveal ? root.totalBarWidth : Math.max(root._effectiveHoverRegion, 2) + root.frameOffset;
             // Dynamic mode: always wrap content, never full width
             if (root.barMode === "dynamic") {
                 const contentW = root.contentImplicitWidth + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2);
-                return root.reveal ? contentW : Math.max(contentW, (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 2));
+                return root.reveal ? contentW : Math.max(contentW, root._effectiveHoverRegion);
             }
             return root.width; // extended mode: full width
         }
         height: {
-            if (root.orientation === "horizontal") return root.reveal ? root.totalBarHeight : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 2), 2) + root.frameOffset;
+            if (root.orientation === "horizontal") return root.reveal ? root.totalBarHeight : Math.max(root._effectiveHoverRegion, 2) + root.frameOffset;
             // Dynamic mode: always wrap content, never full height
             if (root.barMode === "dynamic") {
                 const contentH = root.contentImplicitHeight + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2);
-                return root.reveal ? contentH : Math.max(contentH, (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 2));
+                return root.reveal ? contentH : Math.max(contentH, root._effectiveHoverRegion);
             }
             return root.height; // extended mode: full height
         }

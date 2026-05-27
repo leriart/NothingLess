@@ -124,6 +124,31 @@ Item {
 
     readonly property int frameOffset: Config.bar?.frameEnabled ? (Config.bar?.frameThickness ?? 6) : 0
 
+    // Check if there's an adjacent monitor on the dock's edge side
+    readonly property bool _hasAdjacentMonitor: {
+        const mon = root.compositorMonitor;
+        if (!mon || !AxctlService.monitors || !AxctlService.monitors.values) return false;
+        const edgeX = root.position === "left" ? mon.x : (root.position === "right" ? mon.x + mon.width : 0);
+        const edgeY = root.position === "top" ? mon.y : (root.position === "bottom" ? mon.y + mon.height : 0);
+        const others = AxctlService.monitors.values.filter(m => m.name !== mon.name);
+        for (let i = 0; i < others.length; i++) {
+            const o = others[i];
+            if (root.position === "left" || root.position === "right") {
+                if (o.y + o.height > mon.y && o.y < mon.y + mon.height) {
+                    if (root.position === "left" && o.x + o.width === edgeX) return true;
+                    if (root.position === "right" && o.x === edgeX) return true;
+                }
+            } else {
+                if (o.x + o.width > mon.x && o.x < mon.x + mon.width) {
+                    if (root.position === "top" && o.y + o.height === edgeY) return true;
+                    if (root.position === "bottom" && o.y === edgeY) return true;
+                }
+            }
+        }
+        return false;
+    }
+    readonly property int _effectiveHoverRegion: root._hasAdjacentMonitor ? 8 : (Config.dock?.hoverRegionHeight ?? 2)
+
     // The hitbox for the mask
     readonly property Item dockHitbox: dockMouseArea
 
@@ -139,8 +164,8 @@ Item {
         hoverEnabled: true
 
         // Size
-        width: root.isVertical ? (root.reveal ? root.dockSize + root.totalMargin + root.shadowSpace : (Config.dock?.hoverRegionHeight ?? 4) + root.frameOffset) : dockContent.implicitWidth + 20
-        height: root.isVertical ? dockContent.implicitHeight + 20 : (root.reveal ? root.dockSize + root.totalMargin + root.shadowSpace : (Config.dock?.hoverRegionHeight ?? 4) + root.frameOffset)
+        width: root.isVertical ? (root.reveal ? root.dockSize + root.totalMargin + root.shadowSpace : Math.max(root._effectiveHoverRegion, 2) + root.frameOffset) : dockContent.implicitWidth + 20
+        height: root.isVertical ? dockContent.implicitHeight + 20 : (root.reveal ? root.dockSize + root.totalMargin + root.shadowSpace : Math.max(root._effectiveHoverRegion, 2) + root.frameOffset)
 
         // Position using x/y
         x: {

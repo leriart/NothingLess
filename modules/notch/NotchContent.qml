@@ -210,6 +210,30 @@ Item {
 
     // Whether hover-to-reveal is enabled (reads bar config since island replaces bar)
     readonly property bool _hoverRevealEnabled: (Config.bar && Config.bar.hoverToReveal !== undefined ? Config.bar.hoverToReveal : true)
+    // Check if there's an adjacent monitor on the notch's edge side
+    readonly property bool _hasAdjacentMonitor: {
+        const mon = root.compositorMonitor;
+        if (!mon || !AxctlService.monitors || !AxctlService.monitors.values) return false;
+        const edgeX = root.notchPosition === "left" ? mon.x : (root.notchPosition === "right" ? mon.x + mon.width : 0);
+        const edgeY = root.notchPosition === "top" ? mon.y : (root.notchPosition === "bottom" ? mon.y + mon.height : 0);
+        const others = AxctlService.monitors.values.filter(m => m.name !== mon.name);
+        for (let i = 0; i < others.length; i++) {
+            const o = others[i];
+            if (root.notchPosition === "left" || root.notchPosition === "right") {
+                if (o.y + o.height > mon.y && o.y < mon.y + mon.height) {
+                    if (root.notchPosition === "left" && o.x + o.width === edgeX) return true;
+                    if (root.notchPosition === "right" && o.x === edgeX) return true;
+                }
+            } else {
+                if (o.x + o.width > mon.x && o.x < mon.x + mon.width) {
+                    if (root.notchPosition === "top" && o.y + o.height === edgeY) return true;
+                    if (root.notchPosition === "bottom" && o.y === edgeY) return true;
+                }
+            }
+        }
+        return false;
+    }
+    readonly property int _effectiveHoverRegion: root._hasAdjacentMonitor ? 8 : (Config.notch && Config.notch.hoverRegionHeight !== undefined ? Config.notch.hoverRegionHeight : 2)
 
     // Show delay timer — requires hovering edge for 200ms
     property bool _mousePending: false
@@ -312,7 +336,7 @@ Item {
         // In island mode: full-width edge strip so mouse can trigger from anywhere
         // In normal mode: centered below the notch position
         width: root.islandMergedWithBar ? parent.width : (notchRegionContainer.width + 20)
-        height: root.reveal ? notchRegionContainer.height : Math.max((Config.notch && Config.notch.hoverRegionHeight !== undefined) ? Config.notch.hoverRegionHeight : 2, 2)
+        height: root.reveal ? notchRegionContainer.height : Math.max(root._effectiveHoverRegion, 2)
 
         x: root.islandMergedWithBar ? 0 : (parent.width - width) / 2
         y: root.notchPosition === "top" ? 0 : parent.height - height
