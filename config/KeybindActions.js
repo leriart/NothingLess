@@ -115,6 +115,9 @@ var ACTION_CATALOG = [
     { id: "free.snap-bottom-left", label: "Snap Bottom Left", category: "Free Layout", dispatcher: "axctl", argument: "movesnap bottomleft" },
     { id: "free.snap-bottom-right", label: "Snap Bottom Right", category: "Free Layout", dispatcher: "axctl", argument: "movesnap bottomright" },
     { id: "free.toggle-tile", label: "Toggle Tile/Float", category: "Free Layout", dispatcher: "togglefloating" },
+    { id: "free.show-desktop", label: "Show Desktop", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch workspaceopt allfloat allpseudo" },
+    { id: "free.workspace-left", label: "Move Window to Left Monitor", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch movewindow m:-1" },
+    { id: "free.workspace-right", label: "Move Window to Right Monitor", category: "Free Layout", dispatcher: "exec", argument: "hyprctl dispatch movewindow m:+1" },
 
     { id: "media.play-pause", label: "Play/Pause", category: "Media", dispatcher: "exec", argument: "playerctl play-pause" },
     { id: "media.play-pause-locked", label: "Play/Pause (Locked)", category: "Media", dispatcher: "exec", argument: "playerctl play-pause", flags: "l" },
