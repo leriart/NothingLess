@@ -61,22 +61,19 @@ nothingless remove hyprland            # Remove config
 
 On first boot, `exec-once = nothingless` launches the shell, which starts the axctl daemon internally. All compositor settings are managed live via axctl and persisted to `~/.local/share/nothingless/`.
 
-
-
 ---
 
 ## Features
 
-- **Free Layout** — Windows-like desktop mode (floating windows, edge snap, show desktop)
-- **Dynamic Island** — notificaciones y métricas integradas en la barra
-- **Task tray** — system tray con show/hide
-- **Overview** — gestor de workspaces con drag & drop y live preview
-- **Dashboard** — panel de configuración visual con 200+ opciones
-
-- **FPS Monitoring** — MangoHud parcheado con overlay de FPS en el notch
+- **Free Layout** — Windows-like floating desktop with edge snap
+- **Dynamic Island** — integrated notifications and metrics in the bar
+- **Task tray** — system tray with icon show/hide
+- **Overview** — workspace manager with drag & drop and live preview
+- **Dashboard** — visual config panel with 200+ options
+- **FPS Monitoring** — patched MangoHud with notch overlay
 - **Monitor configuration** — GUI panel and CLI backend
 - **Snap Assistant** — intelligent window snapping via axctl
-- **Animaciones M3** — perfiles Material You, Windows Classic y macOS
+- **M3 Animations** — Material You, Windows Classic, and macOS profiles
 
 ---
 
@@ -102,17 +99,16 @@ nothingless suspend                  # Suspend system
 |------|--------|-------------|
 | Compositor settings | ~25 options | **~100+ options** (4x more) |
 | Layouts | Dwindle, Master, Scrolling | **+ Free Layout** (floating desktop) |
-| Services | 30 | **39** (+9 nuevos) |
-| Scripts | 22 | **38** (+16 nuevos) |
+| Services | 30 | **39** (+9 new) |
+| Scripts | 22 | **38** (+16 new) |
 | Config reload handling | None | `configreloaded` detection with instant recovery |
 | Dynamic Island | Not available | Unified notch + bar in island mode |
 | Task tray | Not available | System tray with icon show/hide |
-| Animations | `animDuration` global | **Anim.qml** — perfiles M3, Windows Classic, macOS |
+| Animations | `animDuration` global | **Anim.qml** — M3, Windows Classic, macOS profiles |
 | Video wallpaper | mpv-based | **QtMultimedia + FFmpeg** (hardware-accelerated) |
 | Bar mode | Static bar | **Extended/dynamic modes** with per-monitor config |
 | Monitor configuration | Manual (hyprctl) | **GUI panel + CLI** in NothingLess |
 | FPS overlay | Not available | **Patched MangoHud** with notch display |
-
 | Axctl daemon | Basic | **Health check, auto-reconnect, restart on failure** |
 | Config sync with hyprland | None | **hyprland.conf/lua generated** from binds.json |
 | CLI commands | 9 | **20+** commands |
