@@ -317,7 +317,7 @@ Item {
                         property bool _dragActive: false
                         property real _dragTx: 0
                         property real _dragTy: 0
-                        x: cardX; y: cardY; z: (overviewRoot.isDragging && addr === overviewRoot.dragWindowAddr) ? 99999 : 1; width: cardW; height: cardH
+                        x: cardX; y: cardY; z: (overviewRoot.isDragging && addr === overviewRoot.dragWindowAddr) ? 100001 : 1; width: cardW; height: cardH
                         scale: _dragActive ? 1.04 : 1.0
                         transform: Translate {
                             x: _dragActive ? _dragTx : 0
@@ -500,7 +500,7 @@ Item {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
         hoverEnabled: true
-        z: 100000
+        z: 100002
         cursorShape: overviewRoot.isDragging ? Qt.ClosedHandCursor : Qt.ArrowCursor
 
         // Find card at mouse position by walking cell children directly
