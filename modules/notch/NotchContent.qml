@@ -184,12 +184,10 @@ Item {
             return true;
         }
 
-        // Island mode: pinned = always show, otherwise show on interaction (if hoverToReveal enabled)
+        // Island mode: pinned = always show, otherwise show on interaction
         if (root.islandMergedWithBar) {
             if (root.notchPinned) return true;
-            if (screenNotchOpen || hasActiveNotifications) return true;
-            if (root._hoverRevealEnabled && (hoverActive || barHoverActive)) return true;
-            return false;
+            return screenNotchOpen || hasActiveNotifications || hoverActive || barHoverActive;
         }
 
         // If keepHidden is true and NOT merged with bar, ONLY show on interaction
@@ -208,8 +206,6 @@ Item {
         return false;
     }
 
-    // Whether hover-to-reveal is enabled (reads bar config since island replaces bar)
-    readonly property bool _hoverRevealEnabled: (Config.bar && Config.bar.hoverToReveal !== undefined ? Config.bar.hoverToReveal : true)
     // Check if there's an adjacent monitor on the notch's edge side
     readonly property bool _hasAdjacentMonitor: {
         const mon = root.compositorMonitor;
@@ -242,7 +238,7 @@ Item {
         interval: 200
         repeat: false
         onTriggered: {
-            if (root._hoverRevealEnabled && root.isMouseOverIsland) {
+            if (root.isMouseOverIsland) {
                 root.hoverActive = true;
             }
             root._mousePending = false;
