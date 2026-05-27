@@ -47,12 +47,14 @@ ACTION_MAP = {
     "nothingless.lock":            ("exec", "nothingless lock"),
 
     # Window actions
-    # Note: resizewindow is axctl-only, native hyprland uses resizeactive
+    # Note: resizewindow is axctl-only. For native hyprland:
+    # - window.drag becomes bindm (move+resize in one)
+    # - window.resize-drag is handled by bindm, no separate bind needed
     "window.close":                ("killactive", ""),
     "window.focus":                ("movefocus", "direction"),
     "window.move":                 ("movewindow", "direction"),
-    "window.drag":                 ("movewindow", "", "m"),
-    "window.resize-drag":          ("resizeactive", "", "m"),
+    "window.drag":                 ("movewindow", "", "bindm"),
+    "window.resize-drag":          ("", "", ""),  # Handled by bindm
     "window.resize":               ("resizeactive", "delta"),
     "window.resize-expand":        ("resizeactive", "50 50"),
     "window.resize-shrink":        ("resizeactive", "-50 -50"),
@@ -170,23 +172,29 @@ def resolve_action(action):
 
 def build_bind_line(modifiers, key, dispatcher, argument, flags):
     """Build a hyprland.conf bind line."""
-    if not key or not dispatcher:
+    if not key:
         return None
 
     mods_str = " ".join(modifiers) if modifiers else ""
 
-    # Mouse bind (flags has 'm'): use bind with 'm' flag at end
-    # Format: bind = MODS, mouse:XYZ, dispatcher, arg, m
-    # Skip empty arg to avoid trailing comma before flag
-    # Mouse bind (flags has 'm'): use bind with 'm' flag at end
-    # Format: bind = MODS, mouse:XYZ, dispatcher, arg, m
+    # bindm: native hyprland move+resize in one (no dispatcher needed)
+    if "bindm" in flags:
+        if key == "mouse:272":
+            if not mods_str:
+                return f"bindm = , {key}"
+            return f"bindm = {mods_str}, {key}"
+        return None  # Only left mouse for bindm
+
+    if not dispatcher:
+        return None
+
+    # Mouse bind with 'm' flag
     if "m" in flags:
         if argument:
             if not mods_str:
                 return f"bind = , {key}, {dispatcher}, {argument}, m"
             return f"bind = {mods_str}, {key}, {dispatcher}, {argument}, m"
         else:
-            # No argument — just dispatcher with m flag
             if not mods_str:
                 return f"bind = , {key}, {dispatcher}, m"
             return f"bind = {mods_str}, {key}, {dispatcher}, m"
@@ -209,7 +217,17 @@ def build_bind_line(modifiers, key, dispatcher, argument, flags):
 
 def build_lua_bind(modifiers, key, dispatcher, argument, flags):
     """Build a hyprland.lua hl.bind() call."""
-    if not key or not dispatcher:
+    if not key:
+        return None
+
+    # bindm: native move+resize
+    if "bindm" in flags:
+        if key == "mouse:272":
+            mods_lua = "{ " + ", ".join(f'"{m}"' for m in (modifiers or [])) + " }" if modifiers else "{}"
+            return f'hl.bind({{ mods = {mods_lua}, key = "{key}", mouse = true }})'
+        return None
+
+    if not dispatcher:
         return None
 
     mods_lua = "{ " + ", ".join(f'"{m}"' for m in (modifiers or [])) + " }" if modifiers else "{}"
