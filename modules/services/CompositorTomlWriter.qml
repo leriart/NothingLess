@@ -550,7 +550,6 @@ Singleton {
         toml += `no_update_news = ${Config.compositor.noUpdateNews}\n`;
 
         // Monitors
-        toml += "\n[monitors]\n";
         try {
             var screens = Quickshell.screens;
             if (screens) {

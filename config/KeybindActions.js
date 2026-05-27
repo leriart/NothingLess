@@ -114,6 +114,7 @@ var ACTION_CATALOG = [
     { id: "brightness.down", label: "Brightness Down", category: "Brightness", dispatcher: "exec", argument: "nothingless brightness -5", flags: "le" },
 
     { id: "system.calculator", label: "Calculator", category: "System", dispatcher: "exec", argument: "notify-send \"Soon\"" },
+    { id: "nothingless.lock", label: "Lock Screen", category: "NothingLess", dispatcher: "exec", argument: "nothingless lock" },
     { id: "system.lock", label: "Lock Session", category: "System", dispatcher: "exec", argument: "loginctl lock-session" },
     { id: "system.lock-locked", label: "Lock Session (Locked)", category: "System", dispatcher: "exec", argument: "loginctl lock-session", flags: "l" },
     { id: "system.dpms-off", label: "Display Off", category: "System", dispatcher: "exec", argument: "axctl monitor set-dpms 0 0", flags: "l" },
@@ -282,6 +283,7 @@ function actionFromLegacy(dispatcher, argument, flags) {
         if (arg.indexOf("nothingless brightness +5") === 0) return { id: "brightness.up", args: {} };
         if (arg.indexOf("nothingless brightness -5") === 0) return { id: "brightness.down", args: {} };
         if (arg === "notify-send \"Soon\"") return { id: "system.calculator", args: {} };
+        if (arg === "nothingless lock") return { id: "nothingless.lock", args: {} };
         if (arg === "loginctl lock-session" && flags === "l") return { id: "system.lock-locked", args: {} };
         if (arg === "loginctl lock-session") return { id: "system.lock", args: {} };
         if (arg === "axctl monitor set-dpms 0 0") return { id: "system.dpms-off", args: {} };

@@ -1681,7 +1681,7 @@ Singleton {
                 },
                 "system": {
                     "config": { "modifiers": ["SUPER", "SHIFT"], "key": "C", "action": { "id": "nothingless.config", "args": {} } },
-                    "lockscreen": { "modifiers": ["SUPER"], "key": "L", "action": { "id": "system.lock", "args": {} } },
+                    "lockscreen": { "modifiers": ["SUPER"], "key": "L", "action": { "id": "nothingless.lock", "args": {} } },
                     "overview": { "modifiers": ["SUPER"], "key": "TAB", "action": { "id": "nothingless.overview", "args": {} } },
                     "powermenu": { "modifiers": ["SUPER"], "key": "ESCAPE", "action": { "id": "nothingless.powermenu", "args": {} } },
                     "tools": { "modifiers": ["SUPER"], "key": "S", "action": { "id": "nothingless.tools", "args": {} } },
