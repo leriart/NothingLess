@@ -360,8 +360,17 @@ QtObject {
         }
     }
 
-    property Connections compositorConfigConnections: Connections {
-        target: Config.compositor
+    // Direct connections to compositor adapter properties
+    // Uses a wrapper to re-bind when Config.compositor becomes available
+    property QtObject compAdapter: Config.compositor
+    onCompAdapterChanged: {
+        if (root.compAdapter) {
+            root.applyCompositorConfig();
+        }
+    }
+
+    Connections {
+        target: root.compAdapter
 
         function onBorderSizeChanged() {
             applyCompositorConfig();
