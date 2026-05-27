@@ -54,7 +54,6 @@ Item {
     }
 
     // Cache calculated values
-    // Monitor effective dimensions (accounting for rotation)
     readonly property real monitorEffectiveW: {
         if (!monitorData) return 1920;
         var ro = (monitorData.transform % 2 === 1);
@@ -69,8 +68,6 @@ Item {
     }
 
     // ── Pure proportion-based coordinates (0.0..1.0) ──
-    // Window position and size as ratios of monitor, mapped to cell.
-    // A small 2% gutter is subtracted so adjacent cards don't touch.
     readonly property real gutter: 0.02
     readonly property real effectiveCellW: availableWorkspaceWidth * (1 - gutter)
     readonly property real effectiveCellH: availableWorkspaceHeight * (1 - gutter)
@@ -99,8 +96,6 @@ Item {
             ? Math.max(0.05, Math.min(1, h / monitorEffectiveH))
             : 0.85;
     }
-    // Fill dimensions: if Overview.qml computed neighbor-aware sizes, use them.
-    // Otherwise fall back to the window's own proportional size.
     readonly property real fillW: (modelData && modelData.fillW !== undefined) ? modelData.fillW : relW
     readonly property real fillH: (modelData && modelData.fillH !== undefined) ? modelData.fillH : relH
 
@@ -126,11 +121,18 @@ Item {
     readonly property string iconPath: AppSearch.guessIcon(windowData?.class || "")
     readonly property int calculatedRadius: Styling.radius(-2)
 
+    // Generate a deterministic accent color from the window class
+    readonly property color accentColor: {
+        var cls = (windowData?.class || "").toLowerCase();
+        var hash = 0;
+        for (var i = 0; i < cls.length; i++) hash = ((hash << 5) - hash) + cls.charCodeAt(i);
+        var hue = ((hash % 360) + 360) % 360;
+        return Qt.hsla(hue / 360, 0.5, 0.4, 1.0);
+    }
+
     // Drag tracking
     property bool _isDragging: false
-    // Entry animation: starts scaled down and fades in
     property bool _entered: false
-    // Close animation: scales down and fades out before dispatching close
     property bool _closing: false
     Component.onCompleted: _entered = true
 
@@ -145,7 +147,6 @@ Item {
     height: targetWindowHeight
     z: atInitPosition ? 1 : 99999
 
-    // Hover scale transform — slight enlargement on hover
     readonly property real hoverScale: !_isDragging && hovered && !_closing ? 1.03 : 1.0
     scale: _closing ? 0.3 : (_entered ? hoverScale : 0.85)
 
@@ -159,7 +160,6 @@ Item {
         }
     }
 
-    // Entry / close opacity
     opacity: _closing ? 0.0 : (_entered ? 1.0 : 0.0)
     Behavior on opacity {
         enabled: Anim.animationsEnabled
@@ -169,12 +169,6 @@ Item {
             easing.bezierCurve: Anim.easing("standard").bezierCurve
         }
     }
-
-    // ═══════════════════════════════════════════════════
-    // VISUAL: Clean dark card, no white background.
-    // ScreencopyView is the primary visual; fallback is a
-    // dark semi-transparent surface with the app icon.
-    // ═══════════════════════════════════════════════════
 
     clip: true
 
@@ -198,7 +192,6 @@ Item {
                     windowPreview.captureSource = Config.performance.windowPreview && GlobalStates.overviewOpen ? root.toplevel : null;
                 });
             }
-            // Also force refresh toplevel binding periodically to catch new windows
             if (GlobalStates.overviewOpen) {
                 var currentToplevel = root.toplevel;
                 if (currentToplevel && !windowPreview.hasContent) {
@@ -249,7 +242,11 @@ Item {
         }
     }
 
-    // ── Live window preview: render at source size, Scale to fill card ──
+    // ═══════════════════════════════════════════════════
+    // VISUAL: ScreencopyView primary, rich card fallback
+    // ═══════════════════════════════════════════════════
+
+    // ── Live window preview ──
     ClippingRectangle {
         id: clipRect
         anchors.fill: parent
@@ -261,14 +258,12 @@ Item {
 
         ScreencopyView {
             id: windowPreview
-            // Size from hyprctl window data — always known, never zero
             width: Math.max(1, windowData?.size?.[0] || 640)
             height: Math.max(1, windowData?.size?.[1] || 480)
             captureSource: Config.performance.windowPreview && GlobalStates.overviewOpen ? root.toplevel : null
             live: GlobalStates.overviewOpen
             visible: Config.performance.windowPreview
 
-            // Scale from source pixel size to card dimensions
             transform: Scale {
                 origin.x: 0; origin.y: 0
                 xScale: clipRect.width / windowPreview.width
@@ -277,15 +272,14 @@ Item {
         }
     }
 
-    // ── Dark fallback card (when no live preview) ──
+    // ── Styled fallback card (no live preview available) ──
     Rectangle {
         id: fallbackCard
         anchors.fill: parent
         radius: root.calculatedRadius
-        color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.35)
         visible: !windowPreview.hasContent || !Config.performance.windowPreview
+        color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.4)
 
-        // Subtle inner glow from border
         border.color: root.isSearchSelected ? Colors.tertiary
             : root.isSearchMatch ? Styling.srItem("overprimary")
             : hovered ? Qt.rgba(Colors.onSurface.r, Colors.onSurface.g, Colors.onSurface.b, 0.25)
@@ -296,27 +290,58 @@ Item {
             enabled: Anim.animationsEnabled
             ColorAnimation { duration: Anim.standardSmall }
         }
-
         Behavior on color {
             enabled: Anim.animationsEnabled
             ColorAnimation { duration: Anim.standardSmall }
         }
-    }
 
-    // ── App icon centered on fallback ──
-    Image {
-        mipmap: true
-        id: windowIcon
-        readonly property real iconSize: Math.round(Math.min(root.targetWindowWidth, root.targetWindowHeight) * (root.compactMode ? 0.55 : 0.30))
-        anchors.centerIn: parent
-        width: iconSize
-        height: iconSize
-        source: Quickshell.iconPath(root.iconPath, "image-missing")
-        sourceSize: Qt.size(iconSize, iconSize)
-        asynchronous: true
-        visible: !windowPreview.hasContent || !Config.performance.windowPreview
-        opacity: 0.7
-        z: 2
+        // Color accent strip at top
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: Math.max(3, Math.round(parent.height * 0.06))
+            color: root.accentColor
+            radius: root.calculatedRadius
+            visible: !root.compactMode
+        }
+
+        // App icon
+        Image {
+            mipmap: true
+            id: windowIcon
+            readonly property real iconSize: Math.round(Math.min(root.targetWindowWidth, root.targetWindowHeight) * (root.compactMode ? 0.55 : 0.35))
+            anchors.centerIn: parent
+            anchors.verticalCenterOffset: root.compactMode ? 0 : Math.round(-parent.height * 0.06)
+            width: iconSize
+            height: iconSize
+            source: Quickshell.iconPath(root.iconPath, "image-missing")
+            sourceSize: Qt.size(iconSize, iconSize)
+            asynchronous: true
+            opacity: 0.85
+            z: 2
+        }
+
+        // Window title
+        Text {
+            id: winTitle
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Math.max(2, Math.round(parent.height * 0.04))
+            anchors.left: parent.left
+            anchors.leftMargin: Math.max(2, Math.round(parent.width * 0.04))
+            anchors.right: parent.right
+            anchors.rightMargin: Math.max(2, Math.round(parent.width * 0.04))
+            text: windowData?.title || windowData?.class || ""
+            font.family: Config.theme.font
+            font.pixelSize: Math.max(7, Math.round(parent.height * 0.09))
+            font.weight: Font.Medium
+            color: Colors.onSurface
+            opacity: 0.8
+            elide: Text.ElideRight
+            maximumLineCount: 1
+            horizontalAlignment: Text.AlignHCenter
+            visible: !root.compactMode && text.length > 0
+        }
     }
 
     // ── Hover / selection border overlay ──
@@ -359,7 +384,7 @@ Item {
         }
     }
 
-    // ── Small app icon (corner, when preview is showing) ──
+    // ── Small app icon corner badge (when Screencopy preview is showing) ──
     Image {
         mipmap: true
         visible: windowPreview.hasContent && !root.compactMode && Config.performance.windowPreview
@@ -405,12 +430,10 @@ Item {
     Drag.hotSpot.x: width / 2
     Drag.hotSpot.y: height / 2
 
-    // Direct hyprctl for workspace switching
     Process {
         id: wsProcess
     }
 
-    // Hold timer: quick release = click (switch ws), timer fires = drag
     Timer {
         id: holdTimer
         interval: 180
@@ -422,7 +445,6 @@ Item {
         }
     }
 
-    // Track which button initiated the interaction
     property int _interactButton: Qt.NoButton
 
     MouseArea {
@@ -471,12 +493,10 @@ Item {
             if (targetWs <= 0) targetWs = windowData?.workspace?.id || -1;
 
             if (mouse.button === Qt.LeftButton && root._isDragging) {
-                // Drag finished — move this window to target workspace
                 root._isDragging = false;
                 if (ov) ov.draggingTargetWorkspace = -1;
                 root.dragFinished(targetWs);
             } else if (mouse.button === Qt.RightButton && root._isDragging) {
-                // Right drag finished — move ALL windows from source to target
                 root._isDragging = false;
                 if (ov) ov.draggingTargetWorkspace = -1;
                 var srcWs = windowData?.workspace?.id || -1;
@@ -489,7 +509,6 @@ Item {
                         }
                     }
                 }
-                // Refresh overview after mass move
                 if (ov && ov.refreshOverview) Qt.callLater(ov.refreshOverview);
             }
 
@@ -513,7 +532,6 @@ Item {
 
             if (mouse.button === Qt.LeftButton && !root._isDragging) {
                 holdTimer.stop();
-                // Click → switch to this window's workspace
                 var wsId = windowData?.workspace?.id;
                 if (wsId && wsId > 0) {
                     wsProcess.command = ["hyprctl", "dispatch", "workspace", String(wsId)];
