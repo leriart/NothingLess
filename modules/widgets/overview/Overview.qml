@@ -559,40 +559,11 @@ Item {
             return null;
         }
 
-        // ── Press: detect card, start hold timer ──
+        // ── Press: detect card ──
         property var _pendingCard: null
         property var _pendingData: null
         property bool _holding: false
         property bool _dragging: false
-
-        Timer {
-            id: holdTimer
-            interval: 120
-            onTriggered: {
-                if (dragTracker._holding && !dragTracker._dragging) {
-                    dragTracker._dragging = true;
-                    var d = dragTracker._pendingData;
-                    var card = dragTracker._pendingCard;
-                    if (!d || !card) return;
-
-                    // Activate card override: card moves freely
-                    card._dragActive = true;
-                    card._dragOverrideX = d.cardX;
-                    card._dragOverrideY = d.cardY;
-
-                    overviewRoot.isDragging = true;
-                    overviewRoot.dragFromWorkspace = d.wsNum;
-                    overviewRoot.dragWindowAddr = d.addr;
-                    overviewRoot.dragGhostCls = d.cls;
-                    overviewRoot.dragGhostTitle = d.title;
-                    overviewRoot.dragGhostAddr = d.addr;
-                    overviewRoot.dragGhostW = d.cardW;
-                    overviewRoot.dragGhostH = d.cardH;
-                    overviewRoot.dragGhostX = d.cardX;
-                    overviewRoot.dragGhostY = d.cardY;
-                }
-            }
-        }
 
         // Helper: find workspace number from root-level coordinates
         function wsAt(mx, my) {
@@ -617,7 +588,7 @@ Item {
                 dragTracker._holding = true;
                 dragTracker._startX = mouse.x;
                 dragTracker._startY = mouse.y;
-                holdTimer.restart();
+                // NO hold timer: drag starts on mouse movement, click on quick release
             } else {
                 dragTracker._holding = false;
                 dragTracker._pendingCard = null;
@@ -626,8 +597,6 @@ Item {
         }
 
         onReleased: mouse => {
-            holdTimer.stop();
-
             if (dragTracker._dragging) {
                 var targetWs = overviewRoot.dragToWorkspace;
                 var origWs = overviewRoot.dragFromWorkspace;
@@ -725,13 +694,85 @@ Item {
             } else if (dragTracker._holding && !dragTracker._dragging) {
                 var dx = mouse.x - dragTracker._startX;
                 var dy = mouse.y - dragTracker._startY;
-                if (Math.sqrt(dx*dx + dy*dy) > 15) {
-                    holdTimer.stop();
-                    dragTracker._holding = false;
-                    dragTracker._pendingCard = null;
-                    dragTracker._pendingData = null;
+                if (Math.sqrt(dx*dx + dy*dy) > 12) {
+                    // Movement detected → start drag instantly, no hold timer
+                    dragTracker._dragging = true;
+                    var d = dragTracker._pendingData;
+                    var card = dragTracker._pendingCard;
+                    if (d && card) {
+                        card._dragActive = true;
+                        card._dragOverrideX = d.cardX;
+                        card._dragOverrideY = d.cardY;
+                        overviewRoot.isDragging = true;
+                        overviewRoot.dragFromWorkspace = d.wsNum;
+                        overviewRoot.dragWindowAddr = d.addr;
+                        overviewRoot.dragGhostCls = d.cls;
+                        overviewRoot.dragGhostTitle = d.title;
+                        overviewRoot.dragGhostAddr = d.addr;
+                        overviewRoot.dragGhostW = d.cardW;
+                        overviewRoot.dragGhostH = d.cardH;
+                        overviewRoot.dragGhostX = d.cardX;
+                        overviewRoot.dragGhostY = d.cardY;
+                    }
                 }
             }
+        }
+
+        onReleased: mouse => {
+            if (dragTracker._dragging) {
+                var targetWs = overviewRoot.dragToWorkspace;
+                var origWs = overviewRoot.dragFromWorkspace;
+                var dragAddr = overviewRoot.dragWindowAddr;
+                var card = dragTracker._pendingCard;
+                if (card) card._dragActive = false;
+
+                dragTracker._dragging = false;
+                dragTracker._holding = false;
+                dragTracker._pendingCard = null;
+                dragTracker._pendingData = null;
+                overviewRoot.isDragging = false;
+                overviewRoot.dragToWorkspace = -1;
+                overviewRoot.dragFromWorkspace = -1;
+                overviewRoot.dragWindowAddr = "";
+
+                if (targetWs > 0 && targetWs !== origWs && dragAddr) {
+                    AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + dragAddr);
+                }
+
+                Qt.callLater(function() {
+                    if (!clientProcess.running) clientProcess.running = true;
+                    if (!monProcess.running) monProcess.running = true;
+                });
+
+            } else if (dragTracker._holding && mouse.button === Qt.LeftButton) {
+                // Quick release → click: focus window
+                var d = dragTracker._pendingData;
+                if (d && d.addr) {
+                    Visibilities.setActiveModule("", true);
+                    Qt.callLater(function() {
+                        AxctlService.dispatch("focuswindow address:" + d.addr);
+                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(d.wsNum)];
+                        wsSwitchProcess.running = true;
+                    });
+                }
+
+            } else if (mouse.button === Qt.MiddleButton || mouse.button === Qt.RightButton) {
+                var card = findCardAt(mouse.x, mouse.y);
+                if (card && card._cardData && card._cardData.addr) {
+                    AxctlService.dispatch("closewindow address:" + card._cardData.addr);
+                }
+
+            } else if (mouse.button === Qt.LeftButton && !dragTracker._holding) {
+                var ws = dragTracker.wsAt(mouse.x, mouse.y);
+                if (ws > 0) {
+                    wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(ws)];
+                    wsSwitchProcess.running = true;
+                }
+            }
+
+            dragTracker._holding = false;
+            dragTracker._pendingCard = null;
+            dragTracker._pendingData = null;
         }
     }
 }
