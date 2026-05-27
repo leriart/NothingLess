@@ -173,8 +173,11 @@ QtObject {
         batchCommand += ` ; keyword general:col.inactive_border ${inactiveColorFormatted}`;
         if (GlobalStates.compositorLayout) {
             if (GlobalStates.compositorLayout === "free") {
-                // Free layout: NOT a real hyprland layout, use windowrule float for all windows
+                // Free layout: NOT a real hyprland layout
+                // Apply windowrule for new windows
                 batchCommand += ` ; keyword windowrule match:class .*, float on`;
+                // Float all existing windows via external command
+                floatAllProcess.running = true;
             } else {
                 // Regular tiling layouts
                 batchCommand += ` ; keyword general:layout ${GlobalStates.compositorLayout}`;
@@ -701,6 +704,15 @@ QtObject {
             } else {
                 console.error("Failed to write hyprland.conf, code:", code);
             }
+        }
+    }
+
+    // Float all existing windows when switching to Free layout
+    property Process floatAllProcess: Process {
+        command: ["bash", "-c", "hyprctl -j clients | python3 -c 'import json,sys; cs=json.load(sys.stdin); [print(c[\"address\"]) for c in cs if not c[\"floating\"]]' | while read addr; do hyprctl dispatch togglefloating address:$addr; done"]
+        running: false
+        onExited: (code) => {
+            console.log("FloatAllProcess exited with code:", code);
         }
     }
 
