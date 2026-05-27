@@ -72,7 +72,7 @@ def build_conf_block():
     lines.append('')
     lines.append('  shadow {')
     for k, kw in [('shadowRange','range'), ('shadowRenderPower','render_power'),
-                  ('shadowSharp','sharp'), ('shadowIgnoreWindow','ignore_window')]:
+                  ]:
         if k in cfg: lines.append('    ' + kw + ' = ' + fmt(cfg[k]))
     lines.append('    color = ' + resolve_color(cfg.get('shadowColor', 'shadow')))
     lines.append('    color_inactive = ' + resolve_color(cfg.get('shadowColorInactive', 'shadow')))
@@ -108,7 +108,7 @@ def build_conf_block():
     lines.append('  touchpad {')
     for k, kw in [('touchpadDisableWhileTyping','disable_while_typing'),
                   ('touchpadNaturalScroll','natural_scroll'),
-                  ('touchpadTapToClick','tap_to_click'),
+
                   ('touchpadClickfingerBehavior','clickfinger_behavior'),
                   ('touchpadMiddleButtonEmulation','middle_button_emulation'),
                   ('touchpadDragLock','drag_lock'),
@@ -137,7 +137,7 @@ def build_conf_block():
                       ('workspaceSwipeInvert','workspace_swipe_invert'),
                       ('workspaceSwipeTouch','workspace_swipe_touch'),
                       ('workspaceSwipeTouchInvert','workspace_swipe_touch_invert')]),
-        ('misc', [('vrr','vrr'), ('vfr','vfr'),
+        ('misc', [('vrr','vrr'), ('mouseMoveEnablesDpms','mouse_move_enables_dpms'),
                   ('mouseMoveEnablesDpms','mouse_move_enables_dpms'),
                   ('keyPressEnablesDpms','key_press_enables_dpms'),
                   ('disableAutoreload','disable_autoreload'),
@@ -147,7 +147,7 @@ def build_conf_block():
                   ('disableHyprlandLogo','disable_hyprland_logo'),
                   ('disableSplashRendering','disable_splash_rendering'),
                   ('forceDefaultWallpaper','force_default_wallpaper'),
-                  ('noUpdateNews','no_update_news')]),
+                  ]),
         ('xwayland', [('xwaylandEnabled','enabled'),
                       ('xwaylandForceZeroScaling','force_zero_scaling'),
                       ('xwaylandUseNearestNeighbor','use_nearest_neighbor')]),
@@ -210,7 +210,7 @@ def build_lua_block():
                      ('workspaceSwipeInvert','workspace_swipe_invert'),
                      ('workspaceSwipeTouch','workspace_swipe_touch'),
                      ('workspaceSwipeTouchInvert','workspace_swipe_touch_invert')],
-        'misc': [('vrr','vrr'), ('vfr','vfr'),
+        'misc': [('vrr','vrr'),
                  ('mouseMoveEnablesDpms','mouse_move_enables_dpms'),
                  ('keyPressEnablesDpms','key_press_enables_dpms'),
                  ('disableAutoreload','disable_autoreload'),
@@ -220,7 +220,7 @@ def build_lua_block():
                  ('disableHyprlandLogo','disable_hyprland_logo'),
                  ('disableSplashRendering','disable_splash_rendering'),
                  ('forceDefaultWallpaper','force_default_wallpaper'),
-                 ('noUpdateNews','no_update_news')],
+                 ],
         'xwayland': [('xwaylandEnabled','enabled'),
                      ('xwaylandForceZeroScaling','force_zero_scaling'),
                      ('xwaylandUseNearestNeighbor','use_nearest_neighbor')],

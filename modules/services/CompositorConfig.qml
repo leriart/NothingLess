@@ -177,8 +177,6 @@ QtObject {
         batchCommand += ` ; keyword decoration:shadow:enabled ${Config.compositor.shadowEnabled}`;
         batchCommand += ` ; keyword decoration:shadow:range ${Config.compositor.shadowRange}`;
         batchCommand += ` ; keyword decoration:shadow:render_power ${Config.compositor.shadowRenderPower}`;
-        batchCommand += ` ; keyword decoration:shadow:sharp ${Config.compositor.shadowSharp}`;
-        batchCommand += ` ; keyword decoration:shadow:ignore_window ${Config.compositor.shadowIgnoreWindow}`;
         batchCommand += ` ; keyword decoration:shadow:color ${shadowColorFormatted}`;
         batchCommand += ` ; keyword decoration:shadow:color_inactive ${shadowColorInactiveFormatted}`;
         batchCommand += ` ; keyword decoration:shadow:offset ${Config.compositor.shadowOffset}`;
@@ -251,7 +249,6 @@ QtObject {
         // Input: Touchpad
         batchCommand += ` ; keyword input:touchpad:disable_while_typing ${Config.compositor.touchpadDisableWhileTyping}`;
         batchCommand += ` ; keyword input:touchpad:natural_scroll ${Config.compositor.touchpadNaturalScroll}`;
-        batchCommand += ` ; keyword input:touchpad:tap_to_click ${Config.compositor.touchpadTapToClick}`;
         batchCommand += ` ; keyword input:touchpad:clickfinger_behavior ${Config.compositor.touchpadClickfingerBehavior}`;
         if (Config.compositor.touchpadTapButtonMap) batchCommand += ` ; keyword input:touchpad:tap_button_map ${Config.compositor.touchpadTapButtonMap}`;
         batchCommand += ` ; keyword input:touchpad:middle_button_emulation ${Config.compositor.touchpadMiddleButtonEmulation}`;
@@ -320,7 +317,6 @@ QtObject {
 
         // Misc
         batchCommand += ` ; keyword misc:vrr ${Config.compositor.vrr}`;
-        batchCommand += ` ; keyword misc:vfr ${Config.compositor.vfr}`;
         batchCommand += ` ; keyword misc:mouse_move_enables_dpms ${Config.compositor.mouseMoveEnablesDpms}`;
         batchCommand += ` ; keyword misc:key_press_enables_dpms ${Config.compositor.keyPressEnablesDpms}`;
         batchCommand += ` ; keyword misc:disable_autoreload ${Config.compositor.disableAutoreload}`;
@@ -330,7 +326,6 @@ QtObject {
         batchCommand += ` ; keyword misc:disable_hyprland_logo ${Config.compositor.disableHyprlandLogo}`;
         batchCommand += ` ; keyword misc:disable_splash_rendering ${Config.compositor.disableSplashRendering}`;
         batchCommand += ` ; keyword misc:force_default_wallpaper ${Config.compositor.forceDefaultWallpaper}`;
-        batchCommand += ` ; keyword misc:no_update_news ${Config.compositor.noUpdateNews}`;
 
         // Animations and layer rules
         batchCommand += ` ; keyword animation windows,1,2.5,myBezier,popin 80%`;
