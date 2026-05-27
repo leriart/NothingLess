@@ -497,6 +497,8 @@ Item {
 
                             onPressed: mouse => {
                                 if (mouse.button === Qt.LeftButton) {
+                                    // Reset any stale drag state
+                                    cardMouse._dragging = false;
                                     cardMouse._holding = true;
                                     cardMouse._startX = mouse.x;
                                     cardMouse._startY = mouse.y;
@@ -625,120 +627,125 @@ Item {
             }
         }
 
-        // ── Global mouse tracker during drag ──
-        MouseArea {
-            id: dragTracker
+    }
+
+    // ── Drag ghost card (outside gridContainer, at overviewRoot level) ──
+    Item {
+        id: dragGhost
+        visible: overviewRoot._dragCardLifted && overviewRoot.dragGhostAddr.length > 0
+        z: 9999
+        x: overviewRoot.dragGhostX
+        y: overviewRoot.dragGhostY
+        width: overviewRoot.dragGhostW
+        height: overviewRoot.dragGhostH
+
+        Behavior on x {
+            enabled: Anim.animationsEnabled
+            SpringAnimation { spring: 2.5; damping: 0.22; mass: 0.35 }
+        }
+        Behavior on y {
+            enabled: Anim.animationsEnabled
+            SpringAnimation { spring: 2.5; damping: 0.22; mass: 0.35 }
+        }
+
+        Rectangle {
             anchors.fill: parent
-            enabled: overviewRoot.isDragging
-            acceptedButtons: Qt.LeftButton
-            hoverEnabled: true
-            z: 9998
-            cursorShape: Qt.ClosedHandCursor
+            radius: Styling.radius(-2)
+            color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.7)
+            border.color: Styling.srItem("overprimary")
+            border.width: 2
 
-            onPositionChanged: mouse => {
-                if (!overviewRoot.isDragging) return;
-                // Ghost follows mouse
-                overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
-                overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
-
-                // Find target cell
-                var cols = overviewRoot.columns;
-                var cw = overviewRoot.wsCellW + overviewRoot.workspaceSpacing;
-                var ch = overviewRoot.wsCellH + overviewRoot.workspaceSpacing;
-                var col = Math.floor((mouse.x - overviewRoot.workspacePadding) / cw);
-                var row = Math.floor((mouse.y - overviewRoot.workspacePadding) / ch);
-                if (col >= 0 && col < cols && row >= 0 && row < overviewRoot.rows) {
-                    var target = row * cols + col + 1;
-                    if (target !== overviewRoot.dragToWorkspace) {
-                        overviewRoot.dragToWorkspace = target;
-                    }
-                } else {
-                    overviewRoot.dragToWorkspace = -1;
-                }
+            Rectangle {
+                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+                height: Math.max(2, Math.round(parent.height * 0.04))
+                color: overviewRoot.colorForClass(overviewRoot.dragGhostCls)
+                radius: parent.radius
             }
 
-            onReleased: mouse => {
-                if (mouse.button === Qt.LeftButton && overviewRoot.isDragging) {
-                    var targetWs = overviewRoot.dragToWorkspace;
-                    var addr = overviewRoot.dragWindowAddr;
-                    var origWs = overviewRoot.dragFromWorkspace;
+            Image {
+                anchors.centerIn: parent
+                anchors.verticalCenterOffset: Math.round(-parent.height * 0.02)
+                width: Math.round(Math.min(parent.width, parent.height) * 0.30)
+                height: width
+                source: Quickshell.iconPath(overviewRoot.iconForClass(overviewRoot.dragGhostCls), "image-missing")
+                sourceSize: Qt.size(width, height)
+                asynchronous: true; opacity: 0.7
+            }
 
-                    // Save these before resetting
-                    overviewRoot._dragCardLifted = false;
-                    overviewRoot.isDragging = false;
-                    overviewRoot.dragToWorkspace = -1;
-                    overviewRoot.dragFromWorkspace = -1;
-                    overviewRoot.dragWindowAddr = "";
+            Text {
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: Math.max(1, Math.round(parent.height * 0.02))
+                anchors.left: parent.left; anchors.right: parent.right
+                anchors.leftMargin: 2; anchors.rightMargin: 2
+                text: overviewRoot.dragGhostTitle
+                font.family: Config.theme.font
+                font.pixelSize: Math.max(5, Math.round(parent.height * 0.07))
+                color: Colors.onSurface; opacity: 0.6
+                elide: Text.ElideRight; maximumLineCount: 1
+                horizontalAlignment: Text.AlignHCenter
+                visible: parent.height > 35
+            }
+        }
+    }
 
-                    if (targetWs > 0 && addr) {
-                        // Drop on a workspace cell
-                        AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + addr);
-                    } else if (addr && origWs > 0) {
-                        // Dropped outside grid — return to original workspace
-                        AxctlService.dispatch("movetoworkspacesilent " + origWs + ",address:" + addr);
-                    }
+    // ── Global drag tracker at ROOT level (captures release even outside grid) ──
+    MouseArea {
+        id: dragTracker
+        anchors.fill: parent
+        enabled: overviewRoot.isDragging
+        acceptedButtons: Qt.LeftButton
+        hoverEnabled: true
+        z: 9998
+        cursorShape: Qt.ClosedHandCursor
 
-                    Qt.callLater(function() {
-                        if (!clientProcess.running) clientProcess.running = true;
-                    });
+        onPositionChanged: mouse => {
+            if (!overviewRoot.isDragging) return;
+            // Ghost follows mouse (coordinates relative to overviewRoot = full screen)
+            overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
+            overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
+
+            // Convert mouse to grid-relative coords
+            var gx = mouse.x - gridContainer.x;
+            var gy = mouse.y - gridContainer.y;
+
+            // Find target cell
+            var cw = overviewRoot.wsCellW + overviewRoot.workspaceSpacing;
+            var ch = overviewRoot.wsCellH + overviewRoot.workspaceSpacing;
+            var col = Math.floor((gx - overviewRoot.workspacePadding) / cw);
+            var row = Math.floor((gy - overviewRoot.workspacePadding) / ch);
+            if (col >= 0 && col < overviewRoot.columns && row >= 0 && row < overviewRoot.rows) {
+                var target = row * overviewRoot.columns + col + 1;
+                if (target !== overviewRoot.dragToWorkspace) {
+                    overviewRoot.dragToWorkspace = target;
                 }
+            } else {
+                overviewRoot.dragToWorkspace = -1;
             }
         }
 
-        // ── Drag card ghost (clean card that follows mouse) ──
-        Item {
-            id: dragGhost
-            visible: overviewRoot._dragCardLifted && overviewRoot.dragGhostAddr.length > 0
-            z: 9999
-            x: overviewRoot.dragGhostX
-            y: overviewRoot.dragGhostY
-            width: overviewRoot.dragGhostW
-            height: overviewRoot.dragGhostH
+        onReleased: mouse => {
+            if (mouse.button === Qt.LeftButton && overviewRoot.isDragging) {
+                var targetWs = overviewRoot.dragToWorkspace;
+                var addr = overviewRoot.dragWindowAddr;
+                var origWs = overviewRoot.dragFromWorkspace;
 
-            // Clean card
-            Rectangle {
-                anchors.fill: parent
-                radius: Styling.radius(-2)
-                color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.7)
-                border.color: Styling.srItem("overprimary")
-                border.width: 2
+                overviewRoot._dragCardLifted = false;
+                overviewRoot.isDragging = false;
+                overviewRoot.dragToWorkspace = -1;
+                overviewRoot.dragFromWorkspace = -1;
+                overviewRoot.dragWindowAddr = "";
 
-                // Accent strip
-                Rectangle {
-                    anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
-                    height: Math.max(2, Math.round(parent.height * 0.04))
-                    color: overviewRoot.colorForClass(overviewRoot.dragGhostCls)
-                    radius: parent.radius
+                if (targetWs > 0 && addr) {
+                    AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + addr);
+                } else if (addr && origWs > 0) {
+                    AxctlService.dispatch("movetoworkspacesilent " + origWs + ",address:" + addr);
                 }
 
-                // Icon
-                Image {
-                    anchors.centerIn: parent
-                    anchors.verticalCenterOffset: Math.round(-parent.height * 0.02)
-                    width: Math.round(Math.min(parent.width, parent.height) * 0.30)
-                    height: width
-                    source: Quickshell.iconPath(overviewRoot.iconForClass(overviewRoot.dragGhostCls), "image-missing")
-                    sourceSize: Qt.size(width, height)
-                    asynchronous: true
-                    opacity: 0.7
-                }
-
-                // Title
-                Text {
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: Math.max(1, Math.round(parent.height * 0.02))
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.leftMargin: 2; anchors.rightMargin: 2
-                    text: overviewRoot.dragGhostTitle
-                    font.family: Config.theme.font
-                    font.pixelSize: Math.max(5, Math.round(parent.height * 0.07))
-                    color: Colors.onSurface
-                    opacity: 0.6
-                    elide: Text.ElideRight
-                    maximumLineCount: 1
-                    horizontalAlignment: Text.AlignHCenter
-                    visible: parent.height > 35
-                }
+                // Force immediate refresh so workspace cells re-render
+                Qt.callLater(function() {
+                    if (!clientProcess.running) clientProcess.running = true;
+                    if (!monProcess.running) monProcess.running = true;
+                });
             }
         }
     }
