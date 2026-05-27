@@ -636,6 +636,9 @@ Item {
             return -1;
         }
 
+        // Track drag type: 'single' (left) or 'batch' (right)
+        property string _dragType: ""
+
         onPressed: mouse => {
             var card = findCardAt(mouse.x, mouse.y);
 
@@ -645,7 +648,27 @@ Item {
                 dragTracker._holding = true;
                 dragTracker._startX = mouse.x;
                 dragTracker._startY = mouse.y;
-                // NO hold timer: drag starts on mouse movement, click on quick release
+
+                if (mouse.button === Qt.RightButton) {
+                    // Right click: start BATCH drag immediately (move all windows)
+                    dragTracker._dragging = true;
+                    dragTracker._dragType = "batch";
+                    var d = card._cardData;
+                    card._dragActive = true;
+                    overviewRoot.isDragging = true;
+                    overviewRoot.dragFromWorkspace = d.wsNum;
+                    overviewRoot.dragWindowAddr = d.addr;
+                    overviewRoot.dragGhostCls = d.cls;
+                    overviewRoot.dragGhostTitle = "Mover todas las ventanas";
+                    overviewRoot.dragGhostAddr = d.addr;
+                    overviewRoot.dragGhostW = 140;
+                    overviewRoot.dragGhostH = 60;
+                    overviewRoot.dragGhostX = mouse.x - 70;
+                    overviewRoot.dragGhostY = mouse.y - 30;
+                } else {
+                    // Left click: normal drag (starts on movement)
+                    dragTracker._dragType = "single";
+                }
             } else {
                 dragTracker._holding = false;
                 dragTracker._pendingCard = null;
@@ -724,7 +747,18 @@ Item {
                 overviewRoot.dragWindowAddr = "";
 
                 if (targetWs > 0 && targetWs !== origWs && dragAddr) {
-                    AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + dragAddr);
+                    if (dragTracker._dragType === "batch") {
+                        // Batch move: move ALL windows from source to target
+                        var allWins = overviewRoot.winsForWs(origWs);
+                        for (var bi = 0; bi < allWins.length; bi++) {
+                            if (allWins[bi].address) {
+                                AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + allWins[bi].address);
+                            }
+                        }
+                    } else {
+                        // Single move
+                        AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + dragAddr);
+                    }
                 }
 
                 Qt.callLater(function() {
@@ -744,7 +778,7 @@ Item {
                     });
                 }
 
-            } else if (mouse.button === Qt.MiddleButton || mouse.button === Qt.RightButton) {
+            } else if (mouse.button === Qt.MiddleButton) {
                 var card = findCardAt(mouse.x, mouse.y);
                 if (card && card._cardData && card._cardData.addr) {
                     AxctlService.dispatch("closewindow address:" + card._cardData.addr);
