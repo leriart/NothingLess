@@ -659,151 +659,23 @@ QtObject {
 
     // Write config to hyprland.conf — reads values directly from Config.compositor
     // No dependency on batchCommand, always gets current values
-    function writeConfigToFile(batchCmd) {
-        // Build content directly from Config.compositor (current values in memory)
-        const confPath = Quickshell.env("HOME") + "/.local/share/nothingless/hyprland.conf";
-        const C = Config.compositor;
-        if (!C) return;
+        function writeConfigToFile(batchCmd) {
+        // Call the Python sync script which reads compositor.json directly
+        const scriptPath = Quickshell.env("HOME") + "/Documentos/GitHub/NothingLess/scripts/sync-hyprland-conf.py";
+        syncProcess.command = ["python3", scriptPath];
+        syncProcess.running = true;
+    }
 
-        function fmt(v) {
-            if (typeof v === "boolean") return v ? "true" : "false";
-            if (typeof v === "number") return String(v);
-            if (typeof v === "string" && v === "") return "";
-            return String(v);
-        }
-
-        let sec = [];
-        function add(section, key, val) { sec.push({s:section, k:key, v:fmt(val)}); }
-
-        add("general", "border_size", C.borderSize);
-        add("general", "gaps_in", C.gapsIn);
-        add("general", "gaps_out", C.gapsOut);
-        add("general", "allow_tearing", C.allowTearing);
-        add("general", "resize_on_border", C.resizeOnBorder);
-        add("general", "extend_border_grab_area", C.extendBorderGrabArea);
-        add("general", "hover_icon_on_border", C.hoverIconOnBorder);
-        if (GlobalStates.compositorLayout) add("general", "layout", GlobalStates.compositorLayout);
-
-        add("decoration", "rounding", C.rounding);
-        add("decoration", "rounding_power", C.roundingPower);
-        add("decoration", "active_opacity", C.activeOpacity);
-        add("decoration", "inactive_opacity", C.inactiveOpacity);
-        add("decoration", "fullscreen_opacity", C.fullscreenOpacity);
-        add("decoration", "dim_inactive", C.dimInactive);
-        add("decoration", "dim_strength", C.dimStrength);
-        add("decoration", "dim_around", C.dimAround);
-        add("decoration", "dim_special", C.dimSpecial);
-
-        add("decoration", "shadow:range", C.shadowRange);
-        add("decoration", "shadow:render_power", C.shadowRenderPower);
-        add("decoration", "shadow:color", C.shadowColor);
-        add("decoration", "shadow:color_inactive", C.shadowColorInactive);
-
-        add("decoration", "blur:size", C.blurSize);
-        add("decoration", "blur:passes", C.blurPasses);
-        add("decoration", "blur:ignore_opacity", C.blurIgnoreOpacity);
-        add("decoration", "blur:new_optimizations", C.blurNewOptimizations);
-        add("decoration", "blur:xray", C.blurXray);
-        add("decoration", "blur:noise", C.blurNoise);
-        add("decoration", "blur:contrast", C.blurContrast);
-        add("decoration", "blur:brightness", C.blurBrightness);
-        add("decoration", "blur:vibrancy", C.blurVibrancy);
-        add("decoration", "blur:vibrancy_darkness", C.blurVibrancyDarkness);
-
-        add("input", "kb_layout", C.kbLayout);
-        add("input", "kb_variant", C.kbVariant);
-        add("input", "kb_options", C.kbOptions);
-        add("input", "numlock_by_default", C.numlockByDefault);
-        add("input", "repeat_rate", C.repeatRate);
-        add("input", "repeat_delay", C.repeatDelay);
-        add("input", "sensitivity", C.mouseSensitivity);
-        add("input", "follow_mouse", C.followMouse);
-        add("input", "natural_scroll", C.mouseNaturalScroll);
-        add("input", "scroll_factor", C.mouseScrollFactor);
-        add("input", "left_handed", C.mouseLeftHanded);
-        add("input", "mouse_refocus", C.mouseRefocus);
-        add("input", "float_switch_override_focus", C.floatSwitchOverrideFocus);
-        add("input:touchpad", "disable_while_typing", C.touchpadDisableWhileTyping);
-        add("input:touchpad", "natural_scroll", C.touchpadNaturalScroll);
-        add("input:touchpad", "tap_to_click", C.touchpadTapToClick);
-        add("input:touchpad", "clickfinger_behavior", C.touchpadClickfingerBehavior);
-        add("input:touchpad", "middle_button_emulation", C.touchpadMiddleButtonEmulation);
-        add("input:touchpad", "drag_lock", C.touchpadDragLock);
-        add("input:touchpad", "scroll_factor", C.touchpadScrollFactor);
-
-        add("cursor", "no_hardware_cursors", C.noHardwareCursors);
-        add("cursor", "enable_hyprcursor", C.enableHyprcursor);
-        add("cursor", "no_warps", C.noWarps);
-        add("cursor", "persistent_warps", C.persistentWarps);
-        add("cursor", "warp_on_change_workspace", C.warpOnChangeWorkspace);
-        add("cursor", "zoom_factor", C.cursorZoomFactor);
-        add("cursor", "inactive_timeout", C.cursorInactiveTimeout);
-        add("cursor", "hide_on_key_press", C.cursorHideOnKeyPress);
-        add("cursor", "hide_on_touch", C.cursorHideOnTouch);
-        add("cursor", "hide_on_tablet", C.cursorHideOnTablet);
-
-        add("gestures", "workspace_swipe_create_new", C.workspaceSwipeCreateNew);
-        add("gestures", "workspace_swipe_forever", C.workspaceSwipeForever);
-        add("gestures", "workspace_swipe_cancel_ratio", C.workspaceSwipeCancelRatio);
-        add("gestures", "workspace_swipe_min_speed_to_force", C.workspaceSwipeMinSpeedToForce);
-        add("gestures", "workspace_swipe_direction_lock", C.workspaceSwipeDirectionLock);
-        add("gestures", "workspace_swipe_distance", C.workspaceSwipeDistance);
-        add("gestures", "workspace_swipe_invert", C.workspaceSwipeInvert);
-        add("gestures", "workspace_swipe_touch", C.workspaceSwipeTouch);
-        add("gestures", "workspace_swipe_touch_invert", C.workspaceSwipeTouchInvert);
-
-        add("misc", "vrr", C.vrr);
-        add("misc", "vfr", C.vfr);
-        add("misc", "mouse_move_enables_dpms", C.mouseMoveEnablesDpms);
-        add("misc", "key_press_enables_dpms", C.keyPressEnablesDpms);
-        add("misc", "disable_autoreload", C.disableAutoreload);
-        add("misc", "focus_on_activate", C.focusOnActivate);
-        add("misc", "animate_manual_resizes", C.animateManualResizes);
-        add("misc", "animate_mouse_windowdragging", C.animateMouseWindowdragging);
-        add("misc", "disable_hyprland_logo", C.disableHyprlandLogo);
-        add("misc", "disable_splash_rendering", C.disableSplashRendering);
-        add("misc", "force_default_wallpaper", C.forceDefaultWallpaper);
-
-        add("xwayland", "enabled", C.xwaylandEnabled);
-        add("xwayland", "force_zero_scaling", C.xwaylandForceZeroScaling);
-        add("xwayland", "use_nearest_neighbor", C.xwaylandUseNearestNeighbor);
-
-        // Build content: group by section
-        let content = "# === NOTHINGLESS COMPOSITOR ===\n# Applied by NothingLess\n\n";
-        let currentSection = "";
-        for (let i = 0; i < sec.length; i++) {
-            const s = sec[i];
-            if (s.s !== currentSection) {
-                if (currentSection) content += "}\n\n";
-                currentSection = s.s;
-                // Handle nested: "input:touchpad" → section input, option touchpad as sub
-                const colon = s.s.indexOf(":");
-                if (colon > 0) {
-                    content += s.s.substring(0, colon) + " {\n";
-                    content += "  " + s.s.substring(colon + 1) + " {\n";
-                } else {
-                    content += s.s + " {\n";
-                }
-            }
-            if (s.k.indexOf(":") > 0) {
-                // Nested key like "shadow:range"
-                const sub = s.k.substring(0, s.k.indexOf(":"));
-                const opt = s.k.substring(s.k.indexOf(":") + 1);
-                content += "  " + sub + " {\n";
-                content += "    " + opt + " = " + s.v + "\n";
-                content += "  }\n";
+    property Process syncProcess: Process {
+        id: syncProcess
+        running: false
+        onExited: (code) => {
+            if (code === 0) {
+                console.log("Config written to hyprland.conf/lua via sync script");
             } else {
-                const indent = colon > 0 ? "    " : "  ";
-                content += indent + s.k + " = " + s.v + "\n";
+                console.error("sync-hyprland-conf.py failed, code:", code);
             }
         }
-        if (currentSection) content += "}\n";
-        content += "# === END COMPOSITOR ===\n";
-
-        // Write via shell: printf with single-quote escaping
-        const escaped = content.replace(/'/g, "'\\''");
-        writeConfProcess.command = ["sh", "-c", "printf '%s' '" + escaped + "' > " + confPath];
-        writeConfProcess.running = true;
     }
 
     property Process writeConfProcess: Process {
