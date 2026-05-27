@@ -902,7 +902,7 @@ Item {
 
                         NumberInputRow {
                             label: "Hover Region Height"
-                            value: Config.bar.hoverRegionHeight ?? 8
+                            value: Config.bar.hoverRegionHeight ?? 2
                             minValue: 0
                             maxValue: 32
                             suffix: "px"
@@ -1141,7 +1141,7 @@ Item {
 
                         NumberInputRow {
                             label: "Hover Region Height"
-                            value: Config.notch.hoverRegionHeight ?? 8
+                            value: Config.notch.hoverRegionHeight ?? 2
                             minValue: 0
                             maxValue: 32
                             suffix: "px"
@@ -1590,7 +1590,7 @@ Item {
                         NumberInputRow {
                             label: "Hover Region"
                             visible: (Config.dock.theme ?? "default") !== "integrated"
-                            value: Config.dock.hoverRegionHeight ?? 8
+                            value: Config.dock.hoverRegionHeight ?? 2
                             minValue: 0
                             maxValue: 32
                             suffix: "px"

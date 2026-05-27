@@ -204,20 +204,20 @@ Item {
         }
         // Size includes margins
         width: {
-            if (root.orientation === "vertical") return root.reveal ? root.totalBarWidth : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset;
+            if (root.orientation === "vertical") return root.reveal ? root.totalBarWidth : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 2), 2) + root.frameOffset;
             // Dynamic mode: always wrap content, never full width
             if (root.barMode === "dynamic") {
                 const contentW = root.contentImplicitWidth + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2);
-                return root.reveal ? contentW : Math.max(contentW, (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8));
+                return root.reveal ? contentW : Math.max(contentW, (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 2));
             }
             return root.width; // extended mode: full width
         }
         height: {
-            if (root.orientation === "horizontal") return root.reveal ? root.totalBarHeight : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8), 4) + root.frameOffset;
+            if (root.orientation === "horizontal") return root.reveal ? root.totalBarHeight : Math.max((Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 2), 2) + root.frameOffset;
             // Dynamic mode: always wrap content, never full height
             if (root.barMode === "dynamic") {
                 const contentH = root.contentImplicitHeight + 2 * root.barPadding + (root.shouldAutoHide ? 0 : root.frameOffset * 2);
-                return root.reveal ? contentH : Math.max(contentH, (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 8));
+                return root.reveal ? contentH : Math.max(contentH, (Config.bar && Config.bar.hoverRegionHeight !== undefined ? Config.bar.hoverRegionHeight : 2));
             }
             return root.height; // extended mode: full height
         }

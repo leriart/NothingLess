@@ -3,7 +3,7 @@
 var data = {
     "theme": "default",
     "position": "top",
-    "hoverRegionHeight": 8,
+    "hoverRegionHeight": 2,
     "keepHidden": false,
     "noMediaDisplay": "userHost",
     "customText": "NothingLess",
