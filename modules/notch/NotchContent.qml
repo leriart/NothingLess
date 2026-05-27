@@ -245,8 +245,18 @@ Item {
         }
     }
 
-    // The hitbox for the mask
-    readonly property Item notchHitbox: root.reveal ? notchRegionContainer : notchHoverRegion
+    // The hitbox for the mask — includes island buttons when visible
+    readonly property Item notchHitbox: root.islandMergedWithBar ? notchIslandContainer : (root.reveal ? notchRegionContainer : notchHoverRegion)
+
+    // Combined container for island mode: notch pill + flanking buttons
+    // Combined container for island mode: notch pill + flanking buttons
+    Item {
+        id: notchIslandContainer
+        x: Math.min(islandLeftButtons.x, notchRegionContainer.x)
+        y: Math.min(islandLeftButtons.y, notchRegionContainer.y)
+        width: (islandRightButtons.x + islandRightButtons.width) - x
+        height: Math.max(islandLeftButtons.height, notchRegionContainer.height, islandRightButtons.height)
+    }
 
     // Default view component - user@host text
     Component {
