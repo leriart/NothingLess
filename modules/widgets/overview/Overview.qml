@@ -579,9 +579,11 @@ Item {
 
             if (dragTracker._dragging) {
                 var card = dragTracker._pendingCard;
-                if (card) {
-                    card._dragTx = mouse.x - gridContainer.x - card.x - card.width / 2;
-                    card._dragTy = mouse.y - gridContainer.y - card.y - card.height / 2;
+                var d = dragTracker._pendingData;
+                if (card && d) {
+                    // Card follows mouse, centered: offset = mouse - grid - cell - card_local - half
+                    card._dragTx = mouse.x - gridContainer.x - d.cellX - d.cardX - d.cardW / 2;
+                    card._dragTy = mouse.y - gridContainer.y - d.cellY - d.cardY - d.cardH / 2;
                 }
                 overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
                 overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
