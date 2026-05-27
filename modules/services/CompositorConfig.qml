@@ -11,6 +11,7 @@ QtObject {
     id: root
 
     property Process compositorProcess: Process {}
+    property string _lastBatchCmd: ""
 
     property var currentAnimationConfig: null
     property Process readAnimationsProcess: Process {
@@ -337,6 +338,7 @@ QtObject {
         console.log(`CompositorConfig: Applying ignorealpha: ${ignoreAlphaValue}, explicit: ${Config.compositor.blurExplicitIgnoreAlpha}`);
         batchCommand += ` ; keyword layerrule noanim,quickshell ; keyword layerrule blur,quickshell ; keyword layerrule blurpopups,quickshell ; keyword layerrule ignorealpha ${ignoreAlphaValue},quickshell`;
         console.log("CompositorConfig: Applying compositor batch command:", batchCommand);
+        root._lastBatchCmd = batchCommand;
         compositorProcess.command = ["axctl", "config", "raw-batch", batchCommand];
         compositorProcess.running = true;
 
@@ -658,6 +660,9 @@ QtObject {
     // Write config to hyprland.conf — entirely QML-native, no Python scripts, no files
     // Converts the batchCommand keywords directly to hyprland.conf block syntax
     function writeConfigToFile(batchCmd) {
+        if (!batchCmd && root._lastBatchCmd) {
+            batchCmd = root._lastBatchCmd;
+        }
         if (!batchCmd) return;
         const confPath = Quickshell.env("HOME") + "/.local/share/nothingless/hyprland.conf";
         const luaPath = Quickshell.env("HOME") + "/.local/share/nothingless/hyprland.lua";
@@ -759,7 +764,10 @@ QtObject {
     property Connections globalStateConnections: Connections {
         target: GlobalStates
         function onCompositorConfigChanged() {
+            // Apply directly without waiting for guards/timers
             root.applyCompositorConfig();
+            // Also write file directly if we have a cached batch command
+            root.writeConfigToFile(root._lastBatchCmd);
         }
     }
 
