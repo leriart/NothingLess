@@ -86,8 +86,6 @@ Item {
     readonly property real outerRadius: Styling.radius(0)
     readonly property real innerRadius: (Config.bar && Config.bar.pillStyle === "squished") ? Styling.radius(0) / 2 : Styling.radius(0)
     readonly property bool pinButtonVisible: (Config.bar && Config.bar.showPinButton !== undefined ? Config.bar.showPinButton : true)
-    // Whether hover-to-reveal is enabled
-    readonly property bool _hoverRevealEnabled: (Config.bar && Config.bar.hoverToReveal !== undefined ? Config.bar.hoverToReveal : true)
     // Reveal logic
     readonly property bool reveal: {
         // If not auto-hiding, always reveal
@@ -97,10 +95,8 @@ Item {
         if (activeWindowFullscreen && !(Config.bar && Config.bar.availableOnFullscreen !== undefined ? Config.bar.availableOnFullscreen : false)) {
             return false;
         }
-        // Show if: hovering (only if hoverToReveal enabled), notch hovering, or notch open
-        if (notchHoverActive || notchOpen) return true;
-        if (_hoverRevealEnabled && (isMouseOverBar || hoverActive)) return true;
-        return false;
+        // Show if: hovering, notch hovering, or notch open
+        return isMouseOverBar || hoverActive || notchHoverActive || notchOpen;
     }
 
     // Mouse proximity timer — requires hovering at edge for 200ms before showing
@@ -110,7 +106,7 @@ Item {
         interval: 200
         repeat: false
         onTriggered: {
-            if (root._hoverRevealEnabled && root.isMouseOverBar && root.shouldAutoHide) {
+            if (root.isMouseOverBar && root.shouldAutoHide) {
                 root.hoverActive = true;
             }
             root._mousePending = false;
@@ -197,9 +193,9 @@ Item {
         // HoverHandler for bar hover detection (without blocking child hovers)
         HoverHandler {
             id: barHoverHandler
-            enabled: !bar.islandModeActive && root._hoverRevealEnabled
+            enabled: !bar.islandModeActive
             onHoveredChanged: {
-                if (!bar.islandModeActive && root._hoverRevealEnabled) {
+                if (!bar.islandModeActive) {
                     root.isMouseOverBar = barHoverHandler.hovered;
                 }
             }
