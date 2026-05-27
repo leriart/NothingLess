@@ -316,6 +316,7 @@ QtObject {
         }
     }
 
+    // Handle config reloads — from AxctlService rawEvent or dedicated signal
     property Connections compositorConnections: Connections {
         target: AxctlService
         function onRawEvent(event) {
@@ -323,6 +324,24 @@ QtObject {
                 console.log("CompositorKeybinds: Hyprland config reloaded, reapplying keybinds...");
                 applyKeybindsInternal();  // Direct — no 100ms timer delay
             }
+        }
+    }
+
+    // Also react to dedicated configReloaded signal (fired by AxctlService on subscribe re-connect too)
+    property Connections axctlConnections: Connections {
+        target: AxctlService
+        function onConfigReloaded() {
+            console.log("CompositorKeybinds: Config reloaded signal, reapplying keybinds...");
+            applyKeybinds();
+        }
+    }
+
+    // When subscribe reconnects after a failure, re-apply everything
+    property Connections subscribeConnections: Connections {
+        target: AxctlService
+        function onSubscribeReady() {
+            console.log("CompositorKeybinds: Subscribe reconnected, reapplying keybinds...");
+            applyKeybinds();
         }
     }
 

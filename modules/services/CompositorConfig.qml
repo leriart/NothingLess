@@ -733,6 +733,16 @@ QtObject {
                 applyCompositorConfigInternal(false);  // Don't write file (already correct)
             }
         }
+
+        function onConfigReloaded() {
+            console.log("CompositorConfig: Config reloaded signal, reapplying settings...");
+            applyCompositorConfigInternal(false);
+        }
+
+        function onSubscribeReady() {
+            console.log("CompositorConfig: Subscribe reconnected, reapplying settings...");
+            applyCompositorConfig();
+        }
     }
 
     Component.onCompleted: {

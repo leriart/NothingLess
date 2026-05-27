@@ -27,6 +27,9 @@ Singleton {
 
     signal rawEvent(var event)
     signal monitorsUpdated()
+    signal subscribeReady()
+    signal subscribeFailed()
+    signal configReloaded()
 
     // Config path for axctl daemon
     property string configPath: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/nothingless/axctl.toml"
@@ -185,16 +188,62 @@ Singleton {
         onTriggered: axctlSubscribe.running = true
     }
 
+    // Track subscribe failures to detect daemon death
+    property int _subscribeFailCount: 0
+    property int _subscribeSuccessCount: 0
+    property Timer healthCheckTimer: Timer {
+        interval: 5000
+        repeat: true
+        running: false
+        onTriggered: {
+            // If subscribe has been running a while, reset fail counter
+            if (_subscribeSuccessCount > 0) {
+                _subscribeFailCount = 0;
+            }
+        }
+    }
+
+    // Force-reset the subscribe connection
+    function restartSubscribe() {
+        console.log("AxctlService: Restarting subscribe connection...");
+        reconnectTimer.stop();
+        axctlSubscribe.running = false;
+        Qt.callLater(() => {
+            axctlSubscribe.running = true;
+        });
+    }
+
+    // Health check: if daemon is dead, restart it
+    function ensureDaemonRunning() {
+        if (!axctlProcess.running) {
+            console.warn("AxctlService: Daemon not running, restarting...");
+            axctlProcess.running = true;
+        }
+    }
+
     // Auto-reconnect on unexpected subscribe exit
     Timer {
         id: reconnectTimer
-        interval: 1000
-        onTriggered: axctlSubscribe.running = true
+        interval: 500  // Reduced from 1000ms for faster recovery
+        onTriggered: {
+            // Check daemon health before reconnecting
+            if (!axctlProcess.running) {
+                console.warn("AxctlService: Daemon not running, starting it...");
+                axctlProcess.running = true;
+                Qt.callLater(() => {
+                    // Wait a bit for daemon to start
+                    root.restartSubscribe();
+                });
+            } else {
+                axctlSubscribe.running = true;
+            }
+        }
     }
 
     property Process axctlSubscribe: Process {
         command: ["axctl", "subscribe"]
         running: false
+
         stdout: SplitParser {
             onRead: (data) => {
                 if (!data) return;
@@ -209,14 +258,49 @@ Singleton {
                     // Emit raw event for consumers
                     parsedJson.name = parsedJson.method ? parsedJson.method.split('.').pop().toLowerCase() : "";
                     parsedJson.data = parsedJson.params;
+
+                    // Detect config reload and emit dedicated signal
+                    if (parsedJson.name === "configreloaded") {
+                        console.log("AxctlService: Detected config reload event");
+                        root.configReloaded();
+                    }
+
                     root.rawEvent(parsedJson);
                 } catch (e) {
                     console.error("AxctlService subscribe JSON parse error:", e);
                 }
             }
         }
+
+        // Track process start for health monitoring
+        onStarted: {
+            _subscribeFailCount = 0;
+            _subscribeSuccessCount++;
+            healthCheckTimer.running = true;
+            root.subscribeReady();
+            console.log("AxctlService: Subscribe connected successfully");
+        }
+
         onExited: (code) => {
-            console.warn("axctl subscribe exited:", code);
+            healthCheckTimer.running = false;
+
+            if (code !== 0) {
+                _subscribeFailCount++;
+                console.warn("axctl subscribe exited (code " + code + "), fail #" + _subscribeFailCount);
+
+                // If subscribe keeps dying, daemon is likely dead — restart it
+                if (_subscribeFailCount >= 3) {
+                    console.warn("AxctlService: Subscribe failed 3 times, restarting daemon...");
+                    _subscribeFailCount = 0;
+                    axctlProcess.running = false;
+                    Qt.callLater(() => {
+                        axctlProcess.running = true;
+                    });
+                }
+                root.subscribeFailed();
+            } else {
+                console.log("axctl subscribe exited cleanly");
+            }
             reconnectTimer.restart();
         }
     }

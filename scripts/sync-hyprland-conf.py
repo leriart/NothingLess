@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Sync NothingLess compositor config to hyprland.conf and hyprland.lua"""
+"""Sync NothingLess compositor config + keybinds to hyprland.conf and hyprland.lua"""
 import json, re, os
 
 BASE = os.path.expanduser('~/.config/nothingless/config')
+BINDS_PATH = os.path.expanduser('~/.config/nothingless/binds.json')
 CONF_PATH = os.path.expanduser('~/.local/share/nothingless/hyprland.conf')
 LUA_PATH = os.path.expanduser('~/.local/share/nothingless/hyprland.lua')
 COMPOSITOR_PATH = os.path.join(BASE, 'compositor.json')
@@ -10,6 +11,333 @@ COMPOSITOR_PATH = os.path.join(BASE, 'compositor.json')
 with open(COMPOSITOR_PATH) as f:
     cfg = json.load(f)
 
+# ============================================================================
+#  ACTION RESOLVER — mirrors KeybindActions.js
+# ============================================================================
+
+def direction_letter(direction):
+    d = (direction or "").lower()
+    if d in ("up", "u"): return "u"
+    if d in ("down", "d"): return "d"
+    if d in ("left", "l"): return "l"
+    if d in ("right", "r"): return "r"
+    return ""
+
+ACTION_MAP = {
+    # NothingLess core actions
+    "nothingless.launcher":        ("exec", "nothingless run launcher", "r"),
+    "nothingless.dashboard":       ("exec", "nothingless run dashboard"),
+    "nothingless.assistant":       ("exec", "nothingless run assistant"),
+    "nothingless.clipboard":       ("exec", "nothingless run clipboard"),
+    "nothingless.emoji":           ("exec", "nothingless run emoji"),
+    "nothingless.notes":           ("exec", "nothingless run notes"),
+    "nothingless.tmux":            ("exec", "nothingless run tmux"),
+    "nothingless.wallpapers":      ("exec", "nothingless run wallpapers"),
+    "nothingless.config":          ("exec", "nothingless run config"),
+    "nothingless.overview":        ("exec", "nothingless run overview"),
+    "nothingless.powermenu":       ("exec", "nothingless run powermenu"),
+    "nothingless.tools":           ("exec", "nothingless run tools"),
+    "nothingless.screenshot":      ("exec", "nothingless run screenshot"),
+    "nothingless.screenrecord":    ("exec", "nothingless run screenrecord"),
+    "nothingless.lens":            ("exec", "nothingless run lens"),
+    "nothingless.reload":          ("exec", "nothingless reload"),
+    "nothingless.quit":            ("exec", "nothingless quit"),
+    "nothingless.toggle-metrics":  ("exec", "nothingless run toggle-metrics"),
+    "nothingless.lock":            ("exec", "nothingless lock"),
+
+    # Window actions
+    # Note: resizewindow is axctl-only, native hyprland uses resizeactive
+    "window.close":                ("killactive", ""),
+    "window.focus":                ("movefocus", "direction"),
+    "window.move":                 ("movewindow", "direction"),
+    "window.drag":                 ("movewindow", "", "m"),
+    "window.resize-drag":          ("resizeactive", "", "m"),
+    "window.resize":               ("resizeactive", "delta"),
+
+    # Workspace actions
+    "workspace.switch":            ("workspace", "index"),
+    "workspace.switch-relative":   ("workspace", "offset"),
+    "workspace.switch-occupied":   ("workspace", "offset", "", "e"),
+    "workspace.move-window":       ("movetoworkspace", "index"),
+    "workspace.move-window-silent":("movetoworkspacesilent", "index"),
+    "workspace.toggle-special":    ("togglespecialworkspace", ""),
+    "workspace.move-window-special":("movetoworkspace", "special"),
+    "workspace.move-window-special-silent":("movetoworkspacesilent", "special"),
+
+    # Scrolling layout actions
+    "scrolling.focus":             ("movefocus", "direction"),
+    "scrolling.move-window":       ("movewindow", "direction"),
+    "scrolling.resize-column":     ("layoutmsg", "delta", "", "colresize "),
+    "scrolling.promote":           ("layoutmsg", "promote"),
+    "scrolling.toggle-fit":        ("layoutmsg", "togglefit"),
+    "scrolling.toggle-full-column":("layoutmsg", "colresize +conf"),
+    "scrolling.swap-column":       ("layoutmsg", "direction", "", "swapcol "),
+    "scrolling.move-column-workspace":("layoutmsg", "index", "", "movecoltoworkspace "),
+
+    # Media actions
+    "media.play-pause":            ("exec", "playerctl play-pause"),
+    "media.play-pause-locked":     ("exec", "playerctl play-pause", "l"),
+    "media.prev":                  ("exec", "playerctl previous"),
+    "media.next":                  ("exec", "playerctl next"),
+    "media.stop-locked":           ("exec", "playerctl stop", "l"),
+
+    # Audio actions
+    "audio.volume-up":             ("exec", "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 10%+", "le"),
+    "audio.volume-down":           ("exec", "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 10%-", "le"),
+    "audio.mute-toggle":           ("exec", "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle", "le"),
+
+    # Brightness actions
+    "brightness.up":               ("exec", "nothingless brightness +5", "le"),
+    "brightness.down":             ("exec", "nothingless brightness -5", "le"),
+
+    # System actions
+    "system.calculator":           ("exec", "notify-send \"Soon\""),
+    "system.lock":                 ("exec", "loginctl lock-session"),
+    "system.lock-locked":          ("exec", "loginctl lock-session", "l"),
+    "system.dpms-off":             ("exec", "axctl monitor set-dpms 0 0", "l"),
+    "system.dpms-on":              ("exec", "axctl monitor set-dpms 0 1", "l"),
+
+    # Custom command
+    "command.run":                 ("exec", "command"),
+}
+
+
+def resolve_action(action):
+    """Resolve an action dict to (dispatcher, argument, flags)."""
+    if not action:
+        return None
+
+    # Already resolved form
+    if action.get("dispatcher"):
+        return (action["dispatcher"], action.get("argument", ""), action.get("flags", ""))
+
+    action_id = action.get("id", "")
+    args = action.get("args", {})
+    entry = ACTION_MAP.get(action_id)
+
+    if not entry:
+        return None
+
+    dispatcher = entry[0]
+    arg_spec = entry[1] if len(entry) > 1 else ""
+    flags = entry[2] if len(entry) > 2 else ""
+    prefix = entry[3] if len(entry) > 3 else ""
+
+    # Resolve argument
+    if arg_spec == "direction":
+        argument = direction_letter(args.get("direction", ""))
+    elif arg_spec == "index":
+        argument = str(args.get("index", ""))
+    elif arg_spec == "offset":
+        raw = str(args.get("offset", ""))
+        if raw and (raw.startswith("+") or raw.startswith("-")):
+            argument = raw
+        else:
+            num = int(raw) if raw else 0
+            argument = f"+{num}" if num >= 0 else str(num)
+    elif arg_spec == "delta":
+        argument = str(args.get("delta", ""))
+    elif arg_spec == "command":
+        argument = str(args.get("command", ""))
+    elif arg_spec == "special":
+        argument = "special"
+    else:
+        argument = str(arg_spec) if arg_spec else ""
+
+    # Handle prefix (layoutmsg commands)
+    if prefix and argument:
+        argument = prefix + argument
+
+    return (dispatcher, argument, flags)
+
+
+def build_bind_line(modifiers, key, dispatcher, argument, flags):
+    """Build a hyprland.conf bind line."""
+    if not key or not dispatcher:
+        return None
+
+    mods_str = " ".join(modifiers) if modifiers else ""
+
+    # Mouse bind (flags has 'm'): use bind with 'm' flag at end
+    # Format: bind = MODS, mouse:XYZ, dispatcher, arg, m
+    # Skip empty arg to avoid trailing comma before flag
+    if "m" in flags:
+        if argument:
+            if not mods_str:
+                return f"bind = , {key}, {dispatcher}, {argument}, m"
+            return f"bind = {mods_str}, {key}, {dispatcher}, {argument}, m"
+        else:
+            # No argument — just dispatcher with m flag
+            if not mods_str:
+                return f"bind = , {key}, {dispatcher}, m"
+            return f"bind = {mods_str}, {key}, {dispatcher}, m"
+
+    bind_type = "bind"
+    if "r" in flags:
+        bind_type = "bindr"
+    elif "l" in flags:
+        bind_type = "bindl"
+    # 'e' (floating) — keep as bind since hyprland doesn't have a native single-char flag for that
+
+    # Build the argument part (skip if empty to avoid trailing comma)
+    arg_part = f", {argument}" if argument else ""
+
+    if not mods_str:
+        return f"{bind_type} = , {key}, {dispatcher}{arg_part}"
+
+    return f"{bind_type} = {mods_str}, {key}, {dispatcher}{arg_part}"
+
+
+def build_lua_bind(modifiers, key, dispatcher, argument, flags):
+    """Build a hyprland.lua hl.bind() call."""
+    if not key or not dispatcher:
+        return None
+
+    mods_lua = "{ " + ", ".join(f'"{m}"' for m in (modifiers or [])) + " }" if modifiers else "{}"
+
+    # Build flags for lua
+    lua_flags = []
+    if "l" in flags:
+        lua_flags.append("locked = true")
+    if "r" in flags:
+        lua_flags.append("release = true")
+    if "m" in flags:
+        lua_flags.append("mouse = true")
+
+    flags_str = ", " + ", ".join(lua_flags) if lua_flags else ""
+
+    return f'hl.bind({{ mods = {mods_lua}, key = "{key}", dispatcher = "{dispatcher}", arg = "{argument}"{flags_str} }})'
+
+
+def process_nothingless_binds(binds_data):
+    """Process the 'nothingless' section of binds.json."""
+    lines = []
+    lua_lines = []
+
+    nothingless = binds_data.get("nothingless", {})
+
+    # Process core keys (launcher, dashboard, etc.)
+    core_keys = ["launcher", "dashboard", "assistant", "clipboard", "emoji",
+                  "notes", "tmux", "wallpapers"]
+    for key_name in core_keys:
+        bind = nothingless.get(key_name)
+        if not bind:
+            continue
+        resolved = resolve_action(bind.get("action", {}))
+        if not resolved:
+            continue
+        dispatcher, argument, flags = resolved
+        line = build_bind_line(bind.get("modifiers", []), bind.get("key", ""), dispatcher, argument, flags)
+        lua = build_lua_bind(bind.get("modifiers", []), bind.get("key", ""), dispatcher, argument, flags)
+        if line:
+            lines.append(line)
+        if lua:
+            lua_lines.append(lua)
+
+    # Process system keys
+    system = nothingless.get("system", {})
+    sys_keys = ["overview", "powermenu", "config", "lockscreen", "tools",
+                 "screenshot", "screenrecord", "lens", "reload", "quit", "toggle-metrics"]
+    for key_name in sys_keys:
+        bind = system.get(key_name)
+        if not bind:
+            continue
+        resolved = resolve_action(bind.get("action", {}))
+        if not resolved:
+            continue
+        dispatcher, argument, flags = resolved
+        line = build_bind_line(bind.get("modifiers", []), bind.get("key", ""), dispatcher, argument, flags)
+        lua = build_lua_bind(bind.get("modifiers", []), bind.get("key", ""), dispatcher, argument, flags)
+        if line:
+            lines.append(line)
+        if lua:
+            lua_lines.append(lua)
+
+    return lines, lua_lines
+
+
+def process_custom_binds(binds_data):
+    """Process the 'custom' array of binds.json."""
+    lines = []
+    lua_lines = []
+    custom = binds_data.get("custom", [])
+
+    for bind in custom:
+        if bind.get("enabled") is False:
+            continue
+
+        keys = bind.get("keys", [])
+        actions = bind.get("actions", [])
+
+        if not keys or not actions:
+            continue
+
+        for key_obj in keys:
+            if not key_obj or not key_obj.get("key"):
+                continue
+
+            for action in actions:
+                resolved = resolve_action(action)
+                if not resolved:
+                    continue
+                dispatcher, argument, flags = resolved
+                line = build_bind_line(key_obj.get("modifiers", []), key_obj.get("key", ""), dispatcher, argument, flags)
+                lua = build_lua_bind(key_obj.get("modifiers", []), key_obj.get("key", ""), dispatcher, argument, flags)
+                if line:
+                    lines.append(line)
+                if lua:
+                    lua_lines.append(lua)
+
+    return lines, lua_lines
+
+
+def build_binds_block():
+    """Build the keybinds section for hyprland.conf and .lua."""
+    try:
+        with open(BINDS_PATH) as f:
+            binds_data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return "", ""
+
+    core_lines, core_lua = process_nothingless_binds(binds_data)
+    custom_lines, custom_lua = process_custom_binds(binds_data)
+
+    # Remove duplicates while preserving order
+    seen = set()
+    deduped = []
+    for line in core_lines + custom_lines:
+        if line not in seen:
+            deduped.append(line)
+            seen.add(line)
+
+    if not deduped:
+        return "", ""
+
+    block = "# === NOTHINGLESS KEYBINDS ===\n"
+    block += "# Synced from NothingLess binds.json\n"
+    for line in deduped:
+        block += line + "\n"
+    block += "# === END KEYBINDS ===\n"
+
+    seen_lua = set()
+    deduped_lua = []
+    for line in core_lua + custom_lua:
+        if line not in seen_lua:
+            deduped_lua.append(line)
+            seen_lua.add(line)
+
+    lua_block = "-- === NOTHINGLESS KEYBINDS ===\n"
+    lua_block += "-- Synced from NothingLess binds.json\n"
+    for line in deduped_lua:
+        lua_block += line + "\n"
+    lua_block += "-- === END KEYBINDS ===\n"
+
+    return block, lua_block
+
+
+# ============================================================================
+#  Format helpers
+# ============================================================================
 def fmt(val):
     if isinstance(val, bool):
         return 'true' if val else 'false'
@@ -34,8 +362,6 @@ def fmt_lua(val):
         return '"' + val + '"'
     return str(val)
 
-# Resolve color: the batch command resolves aliases via Config.resolveColor
-# Here we use a sensible default since we can't access QML's resolveColor
 def resolve_color(name):
     if not name or name == 'shadow':
         return '0xee1a1a1a'
@@ -259,29 +585,53 @@ def build_lua_block():
     return '\n'.join(lines) + '\n'
 
 # ============================================================================
-#  WRITE FILES
+#  FILE WRITING
 # ============================================================================
+
 marker = '# === NOTHINGLESS COMPOSITOR ==='
 end_marker = '# === END COMPOSITOR ==='
 lua_marker = '-- === NOTHINGLESS COMPOSITOR ==='
 lua_end_marker = '-- === END COMPOSITOR ==='
 
+binds_marker = '# === NOTHINGLESS KEYBINDS ==='
+binds_end_marker = '# === END KEYBINDS ==='
+lua_binds_marker = '-- === NOTHINGLESS KEYBINDS ==='
+lua_binds_end_marker = '-- === END KEYBINDS ==='
+
 conf_block = build_conf_block()
+lua_block = build_lua_block()
+binds_block, lua_binds_block = build_binds_block()
+
+# --- hyprland.conf ---
 with open(CONF_PATH) as f:
     content = f.read()
+
+# Remove and re-insert compositor block
 content = re.sub(re.escape(marker) + '.*?' + re.escape(end_marker), '', content, flags=re.DOTALL).strip()
 content += '\n' + conf_block
+
+# Remove and re-insert keybinds block
+if binds_block:
+    content = re.sub(re.escape(binds_marker) + '.*?' + re.escape(binds_end_marker), '', content, flags=re.DOTALL).strip()
+    content += '\n' + binds_block
+
 with open(CONF_PATH, 'w') as f:
     f.write(content)
-print(f'hyprland.conf: {len(conf_block)} chars')
+print(f'hyprland.conf: {len(conf_block)} chars (compositor), {len(binds_block)} chars (keybinds)')
 
-lua_block = build_lua_block()
+# --- hyprland.lua ---
 with open(LUA_PATH) as f:
     content = f.read()
+
 content = re.sub(re.escape(lua_marker) + '.*?' + re.escape(lua_end_marker), '', content, flags=re.DOTALL).strip()
 content += '\n' + lua_block
+
+if lua_binds_block:
+    content = re.sub(re.escape(lua_binds_marker) + '.*?' + re.escape(lua_binds_end_marker), '', content, flags=re.DOTALL).strip()
+    content += '\n' + lua_binds_block
+
 with open(LUA_PATH, 'w') as f:
     f.write(content)
-print(f'hyprland.lua: {len(lua_block)} chars')
+print(f'hyprland.lua: {len(lua_block)} chars (compositor), {len(lua_binds_block)} chars (keybinds)')
 
 print('Done - hyprctl reload recommended')
