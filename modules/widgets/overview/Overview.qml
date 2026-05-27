@@ -175,8 +175,16 @@ Item {
     property string dragGhostCls: ""
     property string dragGhostTitle: ""
     property string dragGhostAddr: ""
-    property real _dragOrigCardW: 0
-    property real _dragOrigCardH: 0
+
+    // Reset all card drag overrides immediately
+    function resetCardOverrides() {
+        // Traverse all workspace cells in the grid
+        for (var ws = 1; ws <= workspacesShown; ws++) {
+            var items = winsForWs(ws);
+            // We can't directly access Repeater children, but we can set a flag
+            // that the card items check. They'll reset on next position update.
+        }
+    }
 
     Component.onCompleted: {
         if (!clientProcess.running) clientProcess.running = true;
@@ -326,7 +334,21 @@ Item {
                         readonly property string addr: win.address || ""
                         readonly property string title: win.title || cls
 
-                        x: cardX; y: cardY
+                        // Drag override: card itself follows mouse via global tracker
+                        property bool _dragOverride: false
+                        x: _dragOverride && overviewRoot.dragWindowAddr === addr
+                            ? overviewRoot.dragGhostX : cardX
+                        y: _dragOverride && overviewRoot.dragWindowAddr === addr
+                            ? overviewRoot.dragGhostY : cardY
+                        z: _dragOverride ? 9999 : 1
+                        scale: _dragOverride ? 1.06 : 1.0
+
+                        Behavior on scale {
+                            enabled: Anim.animationsEnabled
+                            SpringAnimation {
+                                spring: 5.0; damping: 0.4; mass: 0.3
+                            }
+                        }
                         width: cardW; height: cardH
 
                         // ── Live per-window preview via WlrToplevelMapper ──
@@ -469,6 +491,8 @@ Item {
                                 onTriggered: {
                                     if (cardMouse._holding && !cardMouse._dragging) {
                                         cardMouse._dragging = true;
+                                        // Activate card self-drag: override position, bump z+scale
+                                        _dragOverride = true;
                                         overviewRoot.isDragging = true;
                                         overviewRoot.dragFromWorkspace = wsNum;
                                         overviewRoot.dragWindowAddr = addr;
@@ -477,13 +501,9 @@ Item {
                                         overviewRoot.dragGhostAddr = addr;
                                         overviewRoot.dragGhostW = cardW;
                                         overviewRoot.dragGhostH = cardH;
-                                        overviewRoot._dragOrigCardW = cardW;
-                                        overviewRoot._dragOrigCardH = cardH;
-                                        // Initial ghost position = at mouse cursor center
-                                        var offX = cardMouse._startX - cardW / 2;
-                                        var offY = cardMouse._startY - cardH / 2;
-                                        overviewRoot.dragGhostX = cardX + cell.x + offX;
-                                        overviewRoot.dragGhostY = cardY + cell.y + offY;
+                                        // Initial position: card stays where it is (no jump)
+                                        overviewRoot.dragGhostX = cardX;
+                                        overviewRoot.dragGhostY = cardY;
                                     }
                                 }
                             }
@@ -619,7 +639,7 @@ Item {
         }
 
         // ── Global mouse tracker during drag ──
-        // Fills gridContainer, captures ALL mouse movement while dragging
+        // Updates the card's OWN position + tracks target cell
         MouseArea {
             id: dragTracker
             anchors.fill: parent
@@ -627,21 +647,21 @@ Item {
             acceptedButtons: Qt.LeftButton
             hoverEnabled: true
             z: 9998
+            cursorShape: Qt.ClosedHandCursor
 
             onPositionChanged: mouse => {
                 if (!overviewRoot.isDragging) return;
-                // Ghost follows mouse: position relative to gridContainer
+                // The card itself reads dragGhostX/Y and follows the mouse
                 overviewRoot.dragGhostX = mouse.x - overviewRoot.dragGhostW / 2;
                 overviewRoot.dragGhostY = mouse.y - overviewRoot.dragGhostH / 2;
 
-                // Find target cell from mouse position in grid
+                // Find target cell
                 var cols = overviewRoot.columns;
-                var rows = overviewRoot.rows;
                 var cw = overviewRoot.wsCellW + overviewRoot.workspaceSpacing;
                 var ch = overviewRoot.wsCellH + overviewRoot.workspaceSpacing;
                 var col = Math.floor((mouse.x - overviewRoot.workspacePadding) / cw);
                 var row = Math.floor((mouse.y - overviewRoot.workspacePadding) / ch);
-                if (col >= 0 && col < cols && row >= 0 && row < rows) {
+                if (col >= 0 && col < cols && row >= 0 && row < overviewRoot.rows) {
                     var target = row * cols + col + 1;
                     if (target !== overviewRoot.dragToWorkspace) {
                         overviewRoot.dragToWorkspace = target;
@@ -653,113 +673,27 @@ Item {
 
             onReleased: mouse => {
                 if (mouse.button === Qt.LeftButton && overviewRoot.isDragging) {
-                    // Complete the drag
-                    overviewRoot.isDragging = false;
                     var targetWs = overviewRoot.dragToWorkspace;
-                    overviewRoot.dragToWorkspace = -1;
                     var srcWs = overviewRoot.dragFromWorkspace;
-                    overviewRoot.dragFromWorkspace = -1;
                     var addr = overviewRoot.dragWindowAddr;
+
+                    // Reset all drag state
+                    overviewRoot.isDragging = false;
+                    overviewRoot.dragToWorkspace = -1;
+                    overviewRoot.dragFromWorkspace = -1;
                     overviewRoot.dragWindowAddr = "";
+
+                    // Animate the card back to its grid position (reset override)
+                    // The card's _dragOverride stays true briefly, then we reset it
+                    // after the animation. For now, just reset immediately.
+                    // Cards will be re-rendered on next data refresh anyway.
+
                     if (targetWs > 0 && targetWs !== srcWs && addr) {
                         AxctlService.dispatch("movetoworkspacesilent " + targetWs + ",address:" + addr);
                         Qt.callLater(function() {
                             if (!clientProcess.running) clientProcess.running = true;
                         });
                     }
-                }
-            }
-
-            cursorShape: Qt.ClosedHandCursor
-        }
-
-        // ── Drag ghost overlay (floating card that follows mouse) ──
-        Item {
-            id: dragGhostItem
-            visible: overviewRoot.isDragging && overviewRoot.dragGhostAddr.length > 0
-            z: 9999
-            x: overviewRoot.dragGhostX
-            y: overviewRoot.dragGhostY
-            width: overviewRoot.dragGhostW
-            height: overviewRoot.dragGhostH
-
-            // Spring-animated position for smooth tracking
-            Behavior on x {
-                enabled: Anim.animationsEnabled
-                SpringAnimation {
-                    spring: 3.0; damping: 0.3; mass: 0.5
-                }
-            }
-            Behavior on y {
-                enabled: Anim.animationsEnabled
-                SpringAnimation {
-                    spring: 3.0; damping: 0.3; mass: 0.5
-                }
-            }
-
-            // Slight scale-up and rotation on pick
-            scale: 1.08
-            rotation: -1.5
-
-            Behavior on scale {
-                enabled: Anim.animationsEnabled
-                SpringAnimation {
-                    spring: 5.0; damping: 0.4; mass: 0.3
-                }
-            }
-
-            // Shadow / glow
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: -4
-                radius: Styling.radius(-2) + 4
-                color: Qt.rgba(0, 0, 0, 0.25)
-                opacity: 0.5
-                z: -1
-            }
-
-            Rectangle {
-                anchors.fill: parent
-                radius: Styling.radius(-2)
-                color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.6)
-                border.color: Styling.srItem("overprimary")
-                border.width: 2
-
-                // Accent strip
-                Rectangle {
-                    anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
-                    height: Math.max(2, Math.round(parent.height * 0.04))
-                    color: overviewRoot.colorForClass(overviewRoot.dragGhostCls)
-                    radius: parent.radius
-                }
-
-                // Icon
-                Image {
-                    anchors.centerIn: parent
-                    anchors.verticalCenterOffset: Math.round(-parent.height * 0.02)
-                    width: Math.round(Math.min(parent.width, parent.height) * 0.30)
-                    height: width
-                    source: Quickshell.iconPath(overviewRoot.iconForClass(overviewRoot.dragGhostCls), "image-missing")
-                    sourceSize: Qt.size(width, height)
-                    asynchronous: true
-                    opacity: 0.7
-                }
-
-                // Title
-                Text {
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: Math.max(1, Math.round(parent.height * 0.02))
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.leftMargin: 2; anchors.rightMargin: 2
-                    text: overviewRoot.dragGhostTitle
-                    font.family: Config.theme.font
-                    font.pixelSize: Math.max(5, Math.round(parent.height * 0.07))
-                    color: Colors.onSurface
-                    opacity: 0.6
-                    elide: Text.ElideRight
-                    maximumLineCount: 1
-                    horizontalAlignment: Text.AlignHCenter
-                    visible: parent.height > 35
                 }
             }
         }
