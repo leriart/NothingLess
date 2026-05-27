@@ -681,14 +681,33 @@ QtObject {
             // Skip animations, beziers, layerrules — handled separately
             if (key.startsWith("bezier") || key.startsWith("animation ") || key.startsWith("layerrule")) continue;
 
-            // Parse key into section and option
-            // e.g. "general:border_size" → section "general", option "border_size"
-            const colonIdx = key.indexOf(":");
-            if (colonIdx > 0) {
-                const section = key.substring(0, colonIdx);
-                const option = key.substring(colonIdx + 1);
-                if (!sections[section]) sections[section] = [];
-                sections[section].push(option + " = " + val);
+            // Parse key into nested sections
+            // e.g. "general:border_size" → section "general", option "border_size = val"
+            // e.g. "decoration:shadow:color" → section "decoration", sub "shadow", option "color = val"
+            const parts = key.split(":");
+            if (parts.length >= 2) {
+                const topSection = parts[0];
+                if (!sections[topSection]) sections[topSection] = [];
+                if (parts.length === 2) {
+                    sections[topSection].push("  " + parts[1] + " = " + val);
+                } else if (parts.length >= 3) {
+                    // Build nested: sub { subsub { option = val } }
+                    let nested = "";
+                    for (let d = 1; d < parts.length; d++) {
+                        nested += "  ".repeat(d);
+                        nested += parts[d];
+                        if (d < parts.length - 1) {
+                            nested += " {\n";
+                        } else {
+                            nested += " = " + val + "\n";
+                        }
+                    }
+                    // Close nested braces
+                    for (let d = parts.length - 2; d >= 1; d--) {
+                        nested += "  ".repeat(d) + "}\n";
+                    }
+                    sections[topSection].push(nested);
+                }
             }
         }
 
@@ -696,7 +715,7 @@ QtObject {
         for (const [section, options] of Object.entries(sections)) {
             confContent += section + " {\n";
             for (let j = 0; j < options.length; j++) {
-                confContent += "  " + options[j] + "\n";
+                confContent += options[j] + "\n";
             }
             confContent += "}\n\n";
         }
