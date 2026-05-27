@@ -240,14 +240,9 @@ Item {
                     id: bgCap
                     anchors.fill: parent
                     captureSource: {
-                        // Find the first window's monitor, or use current
                         var mons = overviewRoot.rawMonitors;
-                        if (cellWindows.length > 0) {
-                            var monId = cellWindows[0].monitor;
-                            var target = mons.find(function(m) { return m.id === monId; });
-                            if (target) return target;
-                        }
-                        return mons.length > 0 ? mons[0] : null;
+                        var idx = cellWindows.length > 0 ? cellWindows[0].monitor : -1;
+                        return idx >= 0 && idx < mons.length ? mons[idx] : (mons.length > 0 ? mons[0] : null);
                     }
                     live: GlobalStates.overviewOpen
                     visible: !GlobalStates.lockscreenVisible
