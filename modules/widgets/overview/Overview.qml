@@ -367,7 +367,7 @@ Item {
                             Rectangle {
                                 anchors.fill: parent; radius: parent.radius
                                 gradient: Gradient {
-                                    orientation: Gradient.Diagonal
+                                    orientation: Gradient.Horizontal
                                     GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.03) }
                                     GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.12) }
                                 }

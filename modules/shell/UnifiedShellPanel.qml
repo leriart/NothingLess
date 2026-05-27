@@ -110,7 +110,7 @@ PanelWindow {
         }
 
         // Check all windows on this monitor (robust path)
-        const wins = CompositorData.windowList;
+        const wins = CompositorData ? CompositorData.windowList : [];
         for (let i = 0; i < wins.length; i++) {
             if (wins[i].monitor === monId && wins[i].fullscreen && wins[i].workspace.id === activeWorkspaceId) {
                 return true;

@@ -40,7 +40,7 @@ Item {
     function updateWorkspaceOccupied() {
         if (Config.workspaces.dynamic) {
             // Get occupied workspace IDs using the precomputed occupation map, sorted and limited by 'shown'
-            const occupiedIds = AxctlService.workspaces.values.filter(ws => CompositorData.workspaceOccupationMap[ws.id]).map(ws => ws.id).sort((a, b) => a - b).slice(0, Config.workspaces.shown);
+            const occupiedIds = AxctlService.workspaces.values.filter(ws => CompositorData && CompositorData.workspaceOccupationMap ? !!CompositorData.workspaceOccupationMap[ws.id] : false).map(ws => ws.id).sort((a, b) => a - b).slice(0, Config.workspaces.shown);
 
             // Always include active workspace, even if empty
             const activeId = (monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : undefined) || 1;
@@ -55,13 +55,13 @@ Item {
             dynamicWorkspaceIds = occupiedIds;
             workspaceOccupied = Array.from({
                 length: dynamicWorkspaceIds.length
-            }, (_, i) => CompositorData.workspaceOccupationMap[dynamicWorkspaceIds[i]]);
+            }, (_, i) => (CompositorData && CompositorData.workspaceOccupationMap ? CompositorData.workspaceOccupationMap[dynamicWorkspaceIds[i]] : false));
         } else {
             workspaceOccupied = Array.from({
                 length: Config.workspaces.shown
             }, (_, i) => {
                 const wsId = workspaceGroup * Config.workspaces.shown + i + 1;
-                return CompositorData.workspaceOccupationMap[wsId];
+                return CompositorData && CompositorData.workspaceOccupationMap ? CompositorData.workspaceOccupationMap[wsId] : false;
             });
         }
         updateOccupiedRanges();
@@ -310,7 +310,7 @@ Item {
 
         radius: {
             const activeWorkspaceId = (monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : undefined) || 1;
-            const currentWorkspaceHasWindows = CompositorData.workspaceOccupationMap[activeWorkspaceId];
+            const occMap = CompositorData ? CompositorData.workspaceOccupationMap : null; const currentWorkspaceHasWindows = occMap ? occMap[activeWorkspaceId] : false;
             if (workspacesWidget.radius === 0)
                 return 0;
             return currentWorkspaceHasWindows ? workspacesWidget.radius > 0 ? Math.max(workspacesWidget.radius - parent.widgetPadding - activeWorkspaceMargin, 0) : 0 : implicitHeight / 2;
@@ -368,7 +368,7 @@ Item {
 
         radius: {
             const activeWorkspaceId = (monitor && monitor.activeWorkspace ? monitor.activeWorkspace.id : undefined) || 1;
-            const currentWorkspaceHasWindows = CompositorData.workspaceOccupationMap[activeWorkspaceId];
+            const occMap = CompositorData ? CompositorData.workspaceOccupationMap : null; const currentWorkspaceHasWindows = occMap ? occMap[activeWorkspaceId] : false;
             if (workspacesWidget.radius === 0)
                 return 0;
             return currentWorkspaceHasWindows ? workspacesWidget.radius > 0 ? Math.max(workspacesWidget.radius - parent.widgetPadding - activeWorkspaceMargin, 0) : 0 : implicitWidth / 2;
@@ -449,7 +449,7 @@ Item {
                     implicitWidth: workspaceButtonWidth
                     implicitHeight: workspaceButtonWidth
                     property var focusedWindow: {
-                        const windowsInThisWorkspace = CompositorData.workspaceWindowsMap[button.workspaceValue] || [];
+                        const wsMap = CompositorData ? CompositorData.workspaceWindowsMap : null; const windowsInThisWorkspace = wsMap ? (wsMap[button.workspaceValue] || []) : [];
                         if (windowsInThisWorkspace.length === 0)
                             return null;
                         // Get the window with the lowest focusHistoryID (most recently focused)
@@ -599,7 +599,7 @@ Item {
                     implicitWidth: workspaceButtonWidth
                     implicitHeight: workspaceButtonWidth
                     property var focusedWindow: {
-                        const windowsInThisWorkspace = CompositorData.workspaceWindowsMap[buttonVert.workspaceValue] || [];
+                        const wsMap = CompositorData ? CompositorData.workspaceWindowsMap : null; const windowsInThisWorkspace = wsMap ? (wsMap[buttonVert.workspaceValue] || []) : [];
                         if (windowsInThisWorkspace.length === 0)
                             return null;
                         // Get the window with the lowest focusHistoryID (most recently focused)

@@ -250,7 +250,7 @@ Item {
             anchors.fill: parent
             radius: root.calculatedRadius
             gradient: Gradient {
-                orientation: Gradient.Diagonal
+                orientation: Gradient.Horizontal
                 GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.04) }
                 GradientStop { position: 0.5; color: "transparent" }
                 GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.15) }
