@@ -19,13 +19,13 @@ QtObject {
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
+                    if (!text || text.trim().length === 0) { return; }
                     const parsed = JSON.parse(text);
                     if (Array.isArray(parsed) && parsed.length > 0) {
-                        // axctl config get-animations returns [animations, beziers]
                         currentAnimationConfig = parsed;
                     }
                 } catch (e) {
-                    console.error("CompositorConfig: Error parsing animations:", e);
+                    // Silently ignore - axctl returns non-JSON when no custom animations
                 }
             }
         }
