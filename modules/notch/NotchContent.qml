@@ -383,7 +383,7 @@ Item {
             NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.easing("emphasized").type; easing.bezierCurve: Anim.easing("emphasized").bezierCurve }
         }
 
-        HoverHandler { onHoveredChanged: root.islandButtonsHovered = hovered }
+        HoverHandler { enabled: root.reveal; onHoveredChanged: root.islandButtonsHovered = hovered }
 
         LauncherButton {
             visible: !Config.bar.hiddenIcons.includes("launcher")
@@ -477,7 +477,7 @@ Item {
             NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.easing("emphasized").type; easing.bezierCurve: Anim.easing("emphasized").bezierCurve }
         }
 
-        HoverHandler { onHoveredChanged: root.islandButtonsHovered = hovered }
+        HoverHandler { enabled: root.reveal; onHoveredChanged: root.islandButtonsHovered = hovered }
 
         // Dock apps with unified background — same size as other buttons
         Repeater {
