@@ -396,24 +396,6 @@ Item {
                     id: win
                     required property var modelData
                     windowData: modelData.windowData
-                    toplevel: {
-                        var w = modelData.windowData;
-                        if (!w) return null;
-                        var cls = w.class || "";
-                        if (!cls) return null;
-                        var _toplevelTrigger = ToplevelManager.toplevels.values;
-                        var cands = ToplevelManager.toplevels.values.filter(function(t) { return t.appId === cls; });
-                        if (cands.length === 0) return null;
-                        var titleMatch = cands.find(function(t) { return t.title === (w.title || ""); });
-                        if (titleMatch) return titleMatch;
-                        var wt = (w.title || "").toLowerCase();
-                        var partial = cands.find(function(t) {
-                            var tt = (t.title || "").toLowerCase();
-                            return wt.includes(tt) || tt.includes(wt);
-                        });
-                        if (partial) return partial;
-                        return null;
-                    }
                     availableWorkspaceWidth: wsCellW
                     availableWorkspaceHeight: wsCellH
                     monitorData: modelData.winMonData || overviewRoot.monitorData

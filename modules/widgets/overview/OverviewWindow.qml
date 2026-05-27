@@ -28,32 +28,22 @@ Item {
     property string barPosition: "top"
     property int barReserved: 0
 
-    // Reference to overview root (for drag state)
     property Item overviewRootRef: null
 
-    // Search highlighting
     property bool isSearchMatch: false
     property bool isSearchSelected: false
 
-    // Override position tracking for immediate visual update
     property real overrideX: -1
     property real overrideY: -1
     property bool useOverridePosition: false
 
-    // Force preview refresh when window geometry changes within same workspace
     readonly property string _windowGeometryKey: windowData ?
         (windowData.address + "|" + (windowData.at?.[0] ?? 0) + "," + (windowData.at?.[1] ?? 0) + "|" +
          (windowData.size?.[0] ?? 0) + "," + (windowData.size?.[1] ?? 0) + "|" + (windowData.workspace?.id ?? 0)) : ""
     on_WindowGeometryKeyChanged: {
-        if (GlobalStates.overviewOpen && windowPreview.hasContent) {
-            windowPreview.captureSource = null;
-            Qt.callLater(function() {
-                windowPreview.captureSource = Config.performance.windowPreview && GlobalStates.overviewOpen ? root.toplevel : null;
-            });
-        }
+        if (useOverridePosition) resetOverrideTimer.restart();
     }
 
-    // Cache calculated values
     readonly property real monitorEffectiveW: {
         if (!monitorData) return 1920;
         var ro = (monitorData.transform % 2 === 1);
@@ -67,7 +57,6 @@ Item {
         return mh > 0 ? mh : 1080;
     }
 
-    // ── Pure proportion-based coordinates (0.0..1.0) ──
     readonly property real gutter: 0.02
     readonly property real effectiveCellW: availableWorkspaceWidth * (1 - gutter)
     readonly property real effectiveCellH: availableWorkspaceHeight * (1 - gutter)
@@ -121,7 +110,7 @@ Item {
     readonly property string iconPath: AppSearch.guessIcon(windowData?.class || "")
     readonly property int calculatedRadius: Styling.radius(-2)
 
-    // Generate a deterministic accent color from the window class
+    // Accent color determinista por clase de app
     readonly property color accentColor: {
         var cls = (windowData?.class || "").toLowerCase();
         var hash = 0;
@@ -130,7 +119,12 @@ Item {
         return Qt.hsla(hue / 360, 0.5, 0.4, 1.0);
     }
 
-    // Drag tracking
+    // Title formateado (primeras 2 lineas)
+    readonly property string displayTitle: {
+        var t = windowData?.title || windowData?.class || "";
+        return t.length > 60 ? t.substring(0, 57) + "..." : t;
+    }
+
     property bool _isDragging: false
     property bool _entered: false
     property bool _closing: false
@@ -172,41 +166,14 @@ Item {
 
     clip: true
 
-    // Timer to reset override position
     Timer {
         id: resetOverrideTimer
         interval: 200
         onTriggered: { root.useOverridePosition = false; }
     }
 
-    // Retry ScreencopyView capture periodically
-    Timer {
-        id: retryPreviewTimer
-        interval: 600
-        running: GlobalStates.overviewOpen && Config.performance.windowPreview
-        repeat: true
-        onTriggered: {
-            if (!windowPreview.hasContent && root.toplevel) {
-                windowPreview.captureSource = null;
-                Qt.callLater(function() {
-                    windowPreview.captureSource = Config.performance.windowPreview && GlobalStates.overviewOpen ? root.toplevel : null;
-                });
-            }
-            if (GlobalStates.overviewOpen) {
-                var currentToplevel = root.toplevel;
-                if (currentToplevel && !windowPreview.hasContent) {
-                    windowPreview.captureSource = null;
-                    Qt.callLater(function() {
-                        windowPreview.captureSource = Config.performance.windowPreview && GlobalStates.overviewOpen ? currentToplevel : null;
-                    });
-                }
-            }
-        }
-    }
-
     onWindowDataChanged: {
-        if (useOverridePosition)
-            resetOverrideTimer.restart();
+        if (useOverridePosition) resetOverrideTimer.restart();
     }
 
     Behavior on x {
@@ -243,47 +210,19 @@ Item {
     }
 
     // ═══════════════════════════════════════════════════
-    // VISUAL: ScreencopyView primary, rich card fallback
+    // WINDOW CARD
     // ═══════════════════════════════════════════════════
 
-    // ── Live window preview ──
-    ClippingRectangle {
-        id: clipRect
-        anchors.fill: parent
-        radius: root.calculatedRadius
-        antialiasing: true
-        color: "transparent"
-        border.color: "transparent"
-        border.width: 0
-
-        ScreencopyView {
-            id: windowPreview
-            width: Math.max(1, windowData?.size?.[0] || 640)
-            height: Math.max(1, windowData?.size?.[1] || 480)
-            captureSource: Config.performance.windowPreview && GlobalStates.overviewOpen ? root.toplevel : null
-            live: GlobalStates.overviewOpen
-            visible: Config.performance.windowPreview
-
-            transform: Scale {
-                origin.x: 0; origin.y: 0
-                xScale: clipRect.width / windowPreview.width
-                yScale: clipRect.height / windowPreview.height
-            }
-        }
-    }
-
-    // ── Styled fallback card (no live preview available) ──
+    // Main card background
     Rectangle {
-        id: fallbackCard
+        id: cardBg
         anchors.fill: parent
         radius: root.calculatedRadius
-        visible: !windowPreview.hasContent || !Config.performance.windowPreview
-        color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.4)
-
+        color: Qt.rgba(Colors.surfaceContainer.r, Colors.surfaceContainer.g, Colors.surfaceContainer.b, 0.35)
         border.color: root.isSearchSelected ? Colors.tertiary
             : root.isSearchMatch ? Styling.srItem("overprimary")
             : hovered ? Qt.rgba(Colors.onSurface.r, Colors.onSurface.g, Colors.onSurface.b, 0.25)
-            : Qt.rgba(Colors.onSurface.r, Colors.onSurface.g, Colors.onSurface.b, 0.10)
+            : Qt.rgba(Colors.onSurface.r, Colors.onSurface.g, Colors.onSurface.b, 0.08)
         border.width: root.isSearchSelected ? 2 : root.isSearchMatch ? 2 : 1
 
         Behavior on border.color {
@@ -300,51 +239,96 @@ Item {
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            height: Math.max(3, Math.round(parent.height * 0.06))
+            height: Math.max(3, Math.round(parent.height * 0.05))
             color: root.accentColor
             radius: root.calculatedRadius
             visible: !root.compactMode
         }
 
-        // App icon
-        Image {
-            mipmap: true
-            id: windowIcon
-            readonly property real iconSize: Math.round(Math.min(root.targetWindowWidth, root.targetWindowHeight) * (root.compactMode ? 0.55 : 0.35))
-            anchors.centerIn: parent
-            anchors.verticalCenterOffset: root.compactMode ? 0 : Math.round(-parent.height * 0.06)
-            width: iconSize
-            height: iconSize
-            source: Quickshell.iconPath(root.iconPath, "image-missing")
-            sourceSize: Qt.size(iconSize, iconSize)
-            asynchronous: true
-            opacity: 0.85
-            z: 2
-        }
-
-        // Window title
-        Text {
-            id: winTitle
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Math.max(2, Math.round(parent.height * 0.04))
-            anchors.left: parent.left
-            anchors.leftMargin: Math.max(2, Math.round(parent.width * 0.04))
-            anchors.right: parent.right
-            anchors.rightMargin: Math.max(2, Math.round(parent.width * 0.04))
-            text: windowData?.title || windowData?.class || ""
-            font.family: Config.theme.font
-            font.pixelSize: Math.max(7, Math.round(parent.height * 0.09))
-            font.weight: Font.Medium
-            color: Colors.onSurface
-            opacity: 0.8
-            elide: Text.ElideRight
-            maximumLineCount: 1
-            horizontalAlignment: Text.AlignHCenter
-            visible: !root.compactMode && text.length > 0
+        // Diagonal gradient overlay for depth
+        Rectangle {
+            anchors.fill: parent
+            radius: root.calculatedRadius
+            gradient: Gradient {
+                orientation: Gradient.Diagonal
+                GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.04) }
+                GradientStop { position: 0.5; color: "transparent" }
+                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.15) }
+            }
+            visible: !root.compactMode
         }
     }
 
-    // ── Hover / selection border overlay ──
+    // App icon
+    Image {
+        mipmap: true
+        id: windowIcon
+        readonly property real iconSize: Math.round(Math.min(root.targetWindowWidth, root.targetWindowHeight) * (root.compactMode ? 0.55 : 0.32))
+        anchors.centerIn: parent
+        anchors.verticalCenterOffset: root.compactMode ? 0 : Math.round(-parent.height * 0.04)
+        width: iconSize
+        height: iconSize
+        source: Quickshell.iconPath(root.iconPath, "image-missing")
+        sourceSize: Qt.size(iconSize, iconSize)
+        asynchronous: true
+        opacity: 0.85
+        z: 2
+    }
+
+    // Window title
+    Text {
+        id: winTitle
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: Math.max(2, Math.round(parent.height * 0.03))
+        anchors.left: parent.left
+        anchors.leftMargin: Math.max(2, Math.round(parent.width * 0.03))
+        anchors.right: parent.right
+        anchors.rightMargin: Math.max(2, Math.round(parent.width * 0.03))
+        text: root.displayTitle
+        font.family: Config.theme.font
+        font.pixelSize: Math.max(6, Math.round(parent.height * 0.08))
+        font.weight: Font.Medium
+        color: Colors.onSurface
+        opacity: 0.75
+        elide: Text.ElideRight
+        maximumLineCount: 1
+        horizontalAlignment: Text.AlignHCenter
+        visible: !root.compactMode && text.length > 0
+    }
+
+    // Window class label (small, on top of title)
+    Text {
+        id: winClass
+        anchors.bottom: winTitle.visible ? winTitle.top : parent.bottom
+        anchors.bottomMargin: 1
+        anchors.left: winTitle.left
+        anchors.right: winTitle.right
+        text: (windowData?.class || "").split(".").pop() || ""
+        font.family: Config.theme.font
+        font.pixelSize: Math.max(5, Math.round(parent.height * 0.05))
+        font.weight: Font.Light
+        color: Colors.onSurface
+        opacity: 0.45
+        elide: Text.ElideRight
+        maximumLineCount: 1
+        horizontalAlignment: Text.AlignHCenter
+        visible: !root.compactMode && text.length > 0
+    }
+
+    // XWayland indicator dot
+    Rectangle {
+        visible: root.windowData?.xwayland || false
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.margins: 2
+        width: 5
+        height: 5
+        radius: 3
+        color: Colors.error
+        z: 4
+    }
+
+    // Hover/selection glow border
     Rectangle {
         id: borderOverlay
         anchors.fill: parent
@@ -361,7 +345,6 @@ Item {
             enabled: Anim.animationsEnabled
             ColorAnimation { duration: Anim.standardSmall }
         }
-
         Behavior on border.width {
             enabled: Anim.animationsEnabled
             NumberAnimation {
@@ -372,7 +355,7 @@ Item {
         }
     }
 
-    // ── Hover tint overlay ──
+    // Hover tint overlay
     Rectangle {
         anchors.fill: parent
         radius: root.calculatedRadius
@@ -384,36 +367,7 @@ Item {
         }
     }
 
-    // ── Small app icon corner badge (when Screencopy preview is showing) ──
-    Image {
-        mipmap: true
-        visible: windowPreview.hasContent && !root.compactMode && Config.performance.windowPreview
-        anchors.bottom: parent.bottom
-        anchors.right: parent.right
-        anchors.margins: 3
-        width: 14
-        height: 14
-        source: Quickshell.iconPath(root.iconPath, "image-missing")
-        sourceSize: Qt.size(14, 14)
-        asynchronous: true
-        opacity: 0.6
-        z: 4
-    }
-
-    // ── XWayland indicator ──
-    Rectangle {
-        visible: root.windowData?.xwayland || false
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.margins: 2
-        width: 5
-        height: 5
-        radius: 3
-        color: Colors.error
-        z: 4
-    }
-
-    // ── Search match glow ──
+    // Search selection glow ring
     Rectangle {
         visible: root.isSearchSelected && !root._isDragging
         anchors.fill: parent
@@ -425,6 +379,50 @@ Item {
         opacity: 0.5
         z: -1
     }
+
+    // ═══════════════════════════════════════════════════
+    // LIVE PREVIEW (opcional — si ToplevelManager tiene el handle)
+    // ═══════════════════════════════════════════════════
+    Loader {
+        id: previewLoader
+        anchors.fill: parent
+        active: Config.performance.windowPreview && root.toplevel != null
+        visible: active && status === Loader.Ready
+        asynchronous: true
+
+        sourceComponent: ClippingRectangle {
+            id: liveClip
+            anchors.fill: parent
+            radius: root.calculatedRadius
+            antialiasing: true
+            color: "transparent"
+
+            ScreencopyView {
+                id: livePreview
+                width: Math.max(1, windowData?.size?.[0] || 640)
+                height: Math.max(1, windowData?.size?.[1] || 480)
+                captureSource: root.toplevel
+                live: true
+
+                transform: Scale {
+                    origin.x: 0; origin.y: 0
+                    xScale: liveClip.width / livePreview.width
+                    yScale: liveClip.height / livePreview.height
+                }
+            }
+
+            // Dark overlay on top of live preview so text is readable
+            Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(0, 0, 0, 0.20)
+                visible: true
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    // INTERACTIONS
+    // ═══════════════════════════════════════════════════
 
     Drag.active: root._isDragging
     Drag.hotSpot.x: width / 2
@@ -466,10 +464,6 @@ Item {
                 root._isDragging = true;
                 root.dragStarted();
             }
-        }
-
-        onPositionChanged: {
-            // Qt Drag handles movement automatically via drag.target
         }
 
         onReleased: mouse => {
