@@ -387,20 +387,7 @@ Item {
                             }
                         }
 
-                        // ── Grim fallback screenshot (when no live preview) ──
-                        Image {
-                            id: grimShot
-                            anchors.fill: parent
-                            source: (Config.performance.windowPreview && toplevel == null)
-                                ? WlrToplevelMapper.screenshotPath(addr) : ""
-                            sourceSize: Qt.size(parent.width, parent.height)
-                            asynchronous: true
-                            fillMode: Image.PreserveAspectCrop
-                            visible: status === Image.Ready && toplevel == null
-                            opacity: 0.5
-                        }
-
-                        // ── App icon (shown when no live preview AND no grim) ──
+                        // ── App icon (shown when no live preview) ──
                         Image {
                             anchors.centerIn: parent
                             anchors.verticalCenterOffset: Math.round(-parent.height * 0.02)
@@ -410,7 +397,7 @@ Item {
                             sourceSize: Qt.size(width, height)
                             asynchronous: true
                             opacity: 0.6
-                            visible: (!Config.performance.windowPreview || toplevel == null) && (!grimShot.visible || grimShot.status !== Image.Ready)
+                            visible: !Config.performance.windowPreview || toplevel == null
                         }
 
                         // ── Window title ──
