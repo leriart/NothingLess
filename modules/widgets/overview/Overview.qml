@@ -138,6 +138,12 @@ Item {
                 _refreshCount = 0;
                 if (!clientProcess.running) clientProcess.running = true;
                 if (!monProcess.running) monProcess.running = true;
+            } else {
+                // Reset drag state on close
+                overviewRoot.isDragging = false;
+                overviewRoot.dragToWorkspace = -1;
+                overviewRoot.dragFromWorkspace = -1;
+                overviewRoot.dragWindowAddr = "";
             }
         }
     }
@@ -473,18 +479,21 @@ Item {
                             }
 
                             // While dragging, track which cell we're over
-                            property int _lastCellX: -1
-                            property int _lastCellY: -1
+                            // Note: cell.x/y are the cell's position within the grid
+                            readonly property real _cellLeft: cell.x + workspacePadding
+                            readonly property real _cellTop: cell.y + workspacePadding
 
                             onPositionChanged: {
                                 if (cardMouse._dragging) {
-                                    // Calculate which cell the mouse is over in the grid
-                                    var mx = cardMouse.mouseX + cardX + gridContainer.x;
-                                    var my = cardMouse.mouseY + cardY + gridContainer.y;
-                                    var cw = wsCellW + workspaceSpacing;
-                                    var ch = wsCellH + workspaceSpacing;
-                                    var col = Math.floor((mx - workspacePadding) / cw);
-                                    var row = Math.floor((my - workspacePadding) / ch);
+                                    // Convert card-local coords → grid coords
+                                    var gridX = cardMouse.mouseX + cardX + cell.x;
+                                    var gridY = cardMouse.mouseY + cardY + cell.y;
+                                    var cellW = wsCellW + workspaceSpacing;
+                                    var cellH = wsCellH + workspaceSpacing;
+                                    var mx = gridX - workspacePadding;
+                                    var my = gridY - workspacePadding;
+                                    var col = Math.floor(mx / cellW);
+                                    var row = Math.floor(my / cellH);
                                     if (col >= 0 && col < columns && row >= 0 && row < rows) {
                                         var target = row * columns + col + 1;
                                         if (target !== overviewRoot.dragToWorkspace) {
@@ -530,23 +539,6 @@ Item {
                     }
                 }
 
-                // ── Cell background click (empty space, behind window cards) ──
-                MouseArea {
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton
-                    enabled: !overviewRoot.isDragging
-                    z: -1
-                    onClicked: {
-                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
-                        wsSwitchProcess.running = true;
-                    }
-                    onDoubleClicked: {
-                        Visibilities.setActiveModule("");
-                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
-                        wsSwitchProcess.running = true;
-                    }
-                }
-
                 // ── Drop target highlight ──
                 Rectangle {
                     anchors.fill: parent
@@ -574,6 +566,26 @@ Item {
                     font.family: Config.theme.font
                     font.pixelSize: Math.max(10, Math.round(wsCellH * 0.08))
                     font.bold: true; color: Colors.onSurface; opacity: 0.2; z: 5
+                }
+
+                // ── Cell click: empty space below window cards ──
+                // Rendered last = highest visual stacking.
+                // Window cards sit on top because they're in a Repeater child.
+                // Clicks on empty space reach here since no card covers them.
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton
+                    enabled: !overviewRoot.isDragging
+                    z: -1
+                    onClicked: {
+                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
+                        wsSwitchProcess.running = true;
+                    }
+                    onDoubleClicked: {
+                        Visibilities.setActiveModule("");
+                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(wsNum)];
+                        wsSwitchProcess.running = true;
+                    }
                 }
             }
         }
