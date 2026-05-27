@@ -179,6 +179,8 @@ QtObject {
                 // Float all existing windows via external command
                 floatAllProcess.running = true;
             } else {
+                // Leaving Free layout: re-tile all floating windows
+                tileAllProcess.running = true;
                 // Regular tiling layouts
                 batchCommand += ` ; keyword general:layout ${GlobalStates.compositorLayout}`;
             }
@@ -713,6 +715,15 @@ QtObject {
         running: false
         onExited: (code) => {
             console.log("FloatAllProcess exited with code:", code);
+        }
+    }
+
+    // Tile all floating windows when leaving Free layout
+    property Process tileAllProcess: Process {
+        command: ["bash", "-c", "hyprctl -j clients | python3 -c 'import json,sys; cs=json.load(sys.stdin); [print(c[\"address\"]) for c in cs if c[\"floating\"]]' | while read addr; do hyprctl dispatch togglefloating address:$addr; done"]
+        running: false
+        onExited: (code) => {
+            console.log("TileAllProcess exited with code:", code);
         }
     }
 
