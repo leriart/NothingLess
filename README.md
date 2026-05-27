@@ -20,9 +20,16 @@
 ## Screenshots
 
 <p align="center">
-  <img src="./assets/screenshots/settings.png" alt="NothingLess Settings" width="45%"/>
+  <img src="./assets/screenshots/settings.png" alt="NothingLess Settings" width="30%"/>
+  &nbsp;
+  <img src="./assets/screenshots/gaming.png" alt="NothingLess Gaming" width="30%"/>
+  &nbsp;
+  <img src="./assets/screenshots/free-layout.png" alt="Free Layout" width="30%"/>
+  <br>
+  <br>
+  <img src="./assets/screenshots/dynamic-bar.png" alt="Dynamic Bar" width="45%"/>
   &nbsp;&nbsp;
-  <img src="./assets/screenshots/gaming.png" alt="NothingLess Gaming" width="45%"/>
+  <img src="./assets/screenshots/nothing.png" alt="Nothing" width="45%"/>
 </p>
 
 ---
