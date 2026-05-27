@@ -656,8 +656,8 @@ QtObject {
     // Write config to hyprland.conf and hyprland.lua for persistence
     function writeConfigToFile(batchCmd) {
         if (!batchCmd) return;
-        // Use the Python sync script which handles proper syntax
-        const scriptPath = __dirname + "/../../scripts/sync-hyprland-conf.py";
+        // Use the Python sync script to write both hyprland.conf and .lua
+        const scriptPath = Quickshell.env("HOME") + "/Documentos/GitHub/NothingLess/scripts/sync-hyprland-conf.py";
         writeConfProcess.command = ["python3", scriptPath];
         writeConfProcess.running = true;
     }
