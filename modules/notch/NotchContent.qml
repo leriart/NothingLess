@@ -184,10 +184,12 @@ Item {
             return true;
         }
 
-        // Island mode: pinned = always show, otherwise show on interaction
+        // Island mode: pinned = always show, otherwise show on interaction (if hoverToReveal enabled)
         if (root.islandMergedWithBar) {
             if (root.notchPinned) return true;
-            return screenNotchOpen || hasActiveNotifications || hoverActive || barHoverActive;
+            if (screenNotchOpen || hasActiveNotifications) return true;
+            if (root._hoverRevealEnabled && (hoverActive || barHoverActive)) return true;
+            return false;
         }
 
         // If keepHidden is true and NOT merged with bar, ONLY show on interaction
@@ -206,6 +208,9 @@ Item {
         return false;
     }
 
+    // Whether hover-to-reveal is enabled (reads bar config since island replaces bar)
+    readonly property bool _hoverRevealEnabled: (Config.bar && Config.bar.hoverToReveal !== undefined ? Config.bar.hoverToReveal : true)
+
     // Show delay timer — requires hovering edge for 200ms
     property bool _mousePending: false
     Timer {
@@ -213,7 +218,7 @@ Item {
         interval: 200
         repeat: false
         onTriggered: {
-            if (root.isMouseOverIsland) {
+            if (root._hoverRevealEnabled && root.isMouseOverIsland) {
                 root.hoverActive = true;
             }
             root._mousePending = false;
@@ -304,11 +309,12 @@ Item {
     Item {
         id: notchHoverRegion
 
-        // Width follows the notch, height is small hover region when hidden
-        width: notchRegionContainer.width + 20
+        // In island mode: full-width edge strip so mouse can trigger from anywhere
+        // In normal mode: centered below the notch position
+        width: root.islandMergedWithBar ? parent.width : (notchRegionContainer.width + 20)
         height: root.reveal ? notchRegionContainer.height : Math.max((Config.notch && Config.notch.hoverRegionHeight !== undefined) ? Config.notch.hoverRegionHeight : 2, 2)
 
-        x: (parent.width - width) / 2
+        x: root.islandMergedWithBar ? 0 : (parent.width - width) / 2
         y: root.notchPosition === "top" ? 0 : parent.height - height
 
         Behavior on height {
