@@ -250,12 +250,15 @@ Item {
 
     // Combined container for island mode: notch pill + flanking buttons
     // Combined container for island mode: notch pill + flanking buttons
+    // Spans full width at the top edge to cover all button areas
     Item {
         id: notchIslandContainer
-        x: Math.min(islandLeftButtons.x, notchRegionContainer.x)
-        y: Math.min(islandLeftButtons.y, notchRegionContainer.y)
-        width: (islandRightButtons.x + islandRightButtons.width) - x
-        height: Math.max(islandLeftButtons.height, notchRegionContainer.height, islandRightButtons.height)
+        anchors {
+            top: parent.top
+            left: parent.left
+            right: parent.right
+        }
+        height: Math.max(islandLeftButtons.height, notchRegionContainer.height, islandRightButtons.height) + root.frameOffset + 8
     }
 
     // Default view component - user@host text
