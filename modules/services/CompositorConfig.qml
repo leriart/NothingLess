@@ -348,6 +348,9 @@ QtObject {
         console.log("CompositorConfig: Applying compositor batch command:", batchCommand);
         compositorProcess.command = ["axctl", "config", "raw-batch", batchCommand];
         compositorProcess.running = true;
+
+        // Also write all settings to hyprland.conf for persistence
+        root.writeFullCompositorConfig(batchCommand);
     }
 
     property Connections configConnections: Connections {
@@ -742,6 +745,61 @@ QtObject {
         }
         function onAnimDurationChanged() {
             root.writeAnimationConfig();
+        }
+    }
+
+    // ============================================
+    // FULL COMPOSITOR CONFIG FILE WRITER
+    // Writes ALL compositor keyword settings to hyprland.conf
+    // so changes persist across Hyprland restarts and reloads.
+    // ============================================
+    function writeFullCompositorConfig(batchCmd) {
+        if (!batchCmd) return;
+        const confPath = Quickshell.env("HOME") + "/.local/share/nothingless/hyprland.conf";
+        const marker = "# === NOTHINGLESS COMPOSITOR ===";
+        const endMarker = "# === END COMPOSITOR ===";
+
+        // Parse batch command into individual keyword = value lines
+        let configBlock = marker + "\n";
+        configBlock += "# Applied by NothingLess\n";
+        const commands = batchCmd.split(" ; ");
+        for (let i = 0; i < commands.length; i++) {
+            const cmd = commands[i].trim();
+            if (!cmd || !cmd.startsWith("keyword")) continue;
+            const keyVal = cmd.replace("keyword ", "");
+            const sepIdx = keyVal.indexOf(" ");
+            if (sepIdx < 0) continue;
+            const key = keyVal.substring(0, sepIdx);
+            const val = keyVal.substring(sepIdx + 1);
+            configBlock += key + " = " + val + "\n";
+        }
+        configBlock += endMarker + "\n";
+
+        // Write the config lines using a Python helper to avoid shell escaping
+        const pyCode = "import re, sys;" +
+            "p=sys.argv[1];" +
+            "m=sys.argv[2];" +
+            "e=sys.argv[3];" +
+            "b=sys.stdin.read();" +
+            "try:\n  with open(p) as f: c=f.read()\n" +
+            "except: c='';" +
+            "c=re.sub(re.escape(m)+'.*?'+re.escape(e),'',c,flags=re.DOTALL).strip()+'\\n';" +
+            "c+=b;" +
+            "with open(p,'w') as f: f.write(c)";
+
+        writeFullConfigProcessStdIn.command = ["python3", "-c", pyCode, confPath, marker, endMarker];
+        writeFullConfigProcessStdIn.write(configBlock);
+    }
+
+    property Process writeFullConfigProcessStdIn: Process {
+        id: writeFullConfigProcessStdIn
+        running: false
+        onExited: (code) => {
+            if (code === 0) {
+                console.log("Full compositor config written to hyprland.conf");
+            } else {
+                console.error("Failed to write compositor config, code:", code);
+            }
         }
     }
 
