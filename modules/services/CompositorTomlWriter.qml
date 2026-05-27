@@ -194,81 +194,7 @@ Singleton {
             return action.layouts.indexOf(GlobalStates.compositorLayout) !== -1;
         }
 
-        // Appearance section
-        toml += "[appearance]\n";
 
-        // Gaps
-        toml += "[appearance.gaps]\n";
-        toml += `inner = ${Config.compositor.gapsIn}\n`;
-        toml += `outer = ${Config.compositor.gapsOut}\n`;
-
-        // Border
-        toml += "[appearance.border]\n";
-        toml += `width = ${Config.compositorBorderSize}\n`;
-
-        // Active border colors (supports gradients)
-        const borderColors = Config.compositor.syncBorderColor ? [Config.compositorBorderColor] : Config.compositor.activeBorderColor;
-        const activeBorderFormatted = formatBorderColors(borderColors || ["primary"], Config.compositor.borderAngle);
-        if (activeBorderFormatted.length > 0) {
-            toml += `active_color = "${activeBorderFormatted[0]}"\n`;
-        }
-
-        // Inactive border colors (supports gradients)
-        const inactiveBorderColors = Config.compositor.inactiveBorderColor;
-        const inactiveBorderFormatted = formatInactiveBorderColors(inactiveBorderColors, Config.compositor.inactiveBorderAngle);
-        if (inactiveBorderFormatted.length > 0) {
-            toml += `inactive_color = "${inactiveBorderFormatted[0]}"\n`;
-        }
-
-        toml += `rounding = ${Config.compositorRounding}\n`;
-        toml += `rounding_power = ${Config.compositor.roundingPower.toFixed(1)}\n`;
-
-        // Opacity
-        toml += "[appearance.opacity]\n";
-        toml += `active = ${Config.compositor.activeOpacity.toFixed(2)}\n`;
-        toml += `inactive = ${Config.compositor.inactiveOpacity.toFixed(2)}\n`;
-        toml += `fullscreen = ${Config.compositor.fullscreenOpacity.toFixed(2)}\n`;
-
-        // Dim
-        toml += "[appearance.dim]\n";
-        toml += `enabled = ${Config.compositor.dimInactive}\n`;
-        toml += `strength = ${Config.compositor.dimStrength.toFixed(2)}\n`;
-        toml += `around = ${Config.compositor.dimAround.toFixed(2)}\n`;
-        toml += `special = ${Config.compositor.dimSpecial.toFixed(2)}\n`;
-
-        // Blur - all settings
-        toml += "[appearance.blur]\n";
-        toml += `enabled = ${Config.compositor.blurEnabled}\n`;
-        toml += `size = ${Config.compositor.blurSize}\n`;
-        toml += `passes = ${Config.compositor.blurPasses}\n`;
-        toml += `ignore_opacity = ${Config.compositor.blurIgnoreOpacity}\n`;
-        toml += `new_optimizations = ${Config.compositor.blurNewOptimizations}\n`;
-        toml += `xray = ${Config.compositor.blurXray}\n`;
-        toml += `noise = ${Config.compositor.blurNoise.toFixed(3)}\n`;
-        toml += `contrast = ${Config.compositor.blurContrast.toFixed(2)}\n`;
-        toml += `brightness = ${Config.compositor.blurBrightness.toFixed(2)}\n`;
-        toml += `vibrancy = ${Config.compositor.blurVibrancy.toFixed(2)}\n`;
-        toml += `vibrancy_darkness = ${Config.compositor.blurVibrancyDarkness.toFixed(2)}\n`;
-        toml += `special = ${Config.compositor.blurSpecial}\n`;
-        toml += `popups = ${Config.compositor.blurPopups}\n`;
-
-        // Shadow - all settings
-        toml += "[appearance.shadow]\n";
-        toml += `enabled = ${Config.compositor.shadowEnabled}\n`;
-        toml += `range = ${Config.compositor.shadowRange}\n`;
-        toml += `render_power = ${Config.compositor.shadowRenderPower}\n`;
-        toml += `sharp = ${Config.compositor.shadowSharp}\n`;
-        toml += `ignore_window = ${Config.compositor.shadowIgnoreWindow}\n`;
-        toml += `offset = "${Config.compositor.shadowOffset}"\n`;
-        toml += `scale = ${Config.compositor.shadowScale.toFixed(2)}\n`;
-        const shadowColorFormatted = formatShadowColors(Config.compositorShadowColor, Config.compositorShadowOpacity);
-        toml += `color = "${shadowColorFormatted}"\n`;
-        const inactiveShadowColorFormatted = formatShadowColors(Config.compositor.shadowColorInactive, Config.compositorShadowOpacity);
-        toml += `color_inactive = "${inactiveShadowColorFormatted}"\n`;
-
-        // Animations
-        toml += "[appearance.animations]\n";
-        toml += `enabled = ${Config.compositor.animationsEnabled}\n`;
 
         // General
         toml += "\n[general]\n";
@@ -563,51 +489,49 @@ Singleton {
         toml += `force_default_wallpaper = ${Config.compositor.forceDefaultWallpaper}\n`;
         toml += `no_update_news = ${Config.compositor.noUpdateNews}\n`;
 
-        // Monitors
-        try {
-            var screens = Quickshell.screens;
-            if (screens) {
-                var axMons = AxctlService.monitors.values || [];
-                for (var mi = 0; mi < screens.length; mi++) {
-                    var scr = screens[mi];
-                    if (!scr || !scr.name) continue;
-                    var ax = null;
-                    for (var mj = 0; mj < axMons.length; mj++) {
-                        if (axMons[mj].name === scr.name) { ax = axMons[mj]; break; }
-                    }
-                    var w = ax ? (ax.width || scr.width || 1920) : (scr.width || 1920);
-                    var h = ax ? (ax.height || scr.height || 1080) : (scr.height || 1080);
-                    var x = scr.x || 0;
-                    var y = scr.y || 0;
-                    var s = ax ? (ax.scale || 1.0) : 1.0;
-                    var rr = ax ? (ax.refreshRate || 60) : 60;
-                    var t = ax ? (ax.transform || 0) : 0;
-
-                    toml += "[[monitors]]\n";
-                    toml += "name = \"" + scr.name + "\"\n";
-                    toml += "mode = \"" + w + "x" + h + "@" + rr.toFixed(2) + "Hz\"\n";
-                    toml += "position = \"" + x + "x" + y + "\"\n";
-                    toml += "scale = " + s + "\n";
-                    if (t > 0) toml += "transform = " + t + "\n";
-                    toml += "enabled = true\n";
-                    toml += "\n";
-                }
-            }
-        } catch (e) {
-            console.warn("CompositorTomlWriter: Error writing monitors section:", e);
-        }
+        // Monitors removed from CompositorTomlWriter.
+        // Writing [[monitors]] here with stale data caused:
+        //   1. CompositorTomlWriter fires AFTER hyprctl reload
+        //   2. Quickshell.screens/AxctlService.monitors still have old data
+        //   3. Writes axctl.toml with old monitor positions
+        //   4. axctl auto-reload applies them -> overwrites the just-applied changes
+        //
+        // Monitors are handled by monitors_writer.py, which also updates
+        // axctl.toml directly with the correct data.
 
         return toml;
     }
 
     function writeTomlFile() {
-        const tomlContent = generateToml();
-        const escapedPath = root.outputPath.replace(/'/g, "'\\''");
-        const escapedContent = tomlContent.replace(/'/g, "'\\''");
+        const newContent = generateToml();
+        const path = root.outputPath;
+        const escapedNew = newContent.replace(/'/g, "'\\''");
 
-        writeProcess.command = ["bash", "-c", `mkdir -p "$(dirname '${escapedPath}')" && echo '${escapedContent}' > '${escapedPath}'`];
+        // Must preserve [[monitors]] written by monitors_writer.py.
+        // If we just overwrite the file, monitors get nuked.
+        writeProcess.command = ["python3", "-c", `
+import os, re
+path = "${root.outputPath}"
+template = '''${escapedNew}'''
+
+if os.path.isfile(path):
+    with open(path) as f:
+        content = f.read()
+    # Extract [[monitors]] sections from existing file
+    monitors = re.findall(r'\\n?(\\[\\[monitors\\]\\].*?)(?=\\n\\[|\\Z)', content, re.DOTALL)
+else:
+    monitors = []
+
+# Append preserved monitors
+if monitors:
+    template += '\\n' + '\\n'.join(monitors) + '\\n'
+
+os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+with open(path, 'w') as f:
+    f.write(template)
+print('Written TOML to', path)
+`];
         writeProcess.running = true;
-        console.log("CompositorTomlWriter: Written TOML to", root.outputPath);
     }
 
     // Note: hyprland.conf is NOT generated here.
