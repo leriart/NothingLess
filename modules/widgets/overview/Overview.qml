@@ -199,8 +199,7 @@ Item {
                 readonly property int row: Math.floor(index / columns)
                 readonly property var cellWindows: overviewRoot.winsForWs(wsNum)
                 readonly property int staggerDelay: (row * columns + col) * 40
-                // Exposed for dragTracker.findCardAt()
-                property var windowCards: []
+                // findCardAt walks children directly, no need for windowCards
 
                 x: col * (wsCellW + workspaceSpacing) + workspacePadding
                 y: row * (wsCellH + workspaceSpacing) + workspacePadding
@@ -329,14 +328,7 @@ Item {
                         // Expose card info for the root dragTracker
                         property bool _isCard: true
                         property var _cardData: ({ wsNum: wsNum, addr: addr, cls: cls, title: title, cardW: cardW, cardH: cardH, cardX: cardX, cardY: cardY, cellX: cell.x, cellY: cell.y })
-                        // Register with parent cell for dragTracker lookup
-                        Component.onCompleted: {
-                            var arr = cell.windowCards;
-                            if (arr.indexOf) {
-                                arr.push(root);
-                                cell.windowCards = arr;
-                            }
-                        }
+                        // No Component.onCompleted - findCardAt walks children directly
 
                         // Drag override: when active, x/y follow mouse instead of grid
                         property bool _dragActive: false
@@ -526,30 +518,25 @@ Item {
         z: 9998
         cursorShape: overviewRoot.isDragging ? Qt.ClosedHandCursor : Qt.ArrowCursor
 
-        // Find card at mouse position by iterating visible cards in the grid
+        // Find card at mouse position by walking cell children directly
         function findCardAt(mx, my) {
-            // Convert root coords to grid-relative
             var gx = mx - gridContainer.x;
             var gy = my - gridContainer.y;
 
-            // Iterate all workspaces to find cards
             for (var ws = 1; ws <= overviewRoot.workspacesShown; ws++) {
                 var cellEl = gridContainer.children.find(function(c) {
                     return c.wsNum === ws;
                 });
                 if (!cellEl) continue;
 
-                // Convert grid coords to cell-relative
                 var cx = gx - cellEl.x;
                 var cy = gy - cellEl.y;
 
-                // Iterate card children of this cell
-                var cardItems = cellEl.windowCards;
-                if (!cardItems) continue;
-                for (var ci = 0; ci < cardItems.length; ci++) {
-                    var card = cardItems[ci];
+                // Walk cell's visual children looking for _isCard
+                var kids = cellEl.children;
+                for (var ki = 0; ki < kids.length; ki++) {
+                    var card = kids[ki];
                     if (!card._isCard) continue;
-                    // Check if mouse is within this card's bounds
                     if (cx >= card.x && cx <= card.x + card.width &&
                         cy >= card.y && cy <= card.y + card.height) {
                         return card;
@@ -715,3 +702,4 @@ Item {
         }
     }
 }
+
