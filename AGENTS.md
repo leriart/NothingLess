@@ -1,7 +1,7 @@
 # AGENTS.md — NothingLess
 
 **Project:** NothingLess  
-**Version:** 1.1.5  
+**Version:** 1.0.0  
 **Framework:** QtQuick / Quickshell  
 **Primary Languages:** QML, JavaScript, Python, Bash, Nix  
 **Compositor:** Hyprland (via `axctl` abstraction)  
@@ -56,7 +56,7 @@ The project was forked from [Ambxst](https://github.com/Axenide/Ambxst) and main
 ├── cli.sh                    # Launch wrapper & IPC controller (brightness, lock, install, etc.)
 ├── install.sh                # Distribution-aware installer (Arch, Fedora, NixOS)
 ├── flake.nix                 # Nix flake: packages, devShells, apps, NixOS module
-├── version                   # Single-line version string (e.g., "1.1.5")
+├── version                   # Single-line version string (e.g., "1.0.0")
 │
 ├── config/                   # Central configuration system
 │   ├── Config.qml            # >3700 lines. Singleton. FileView + JsonAdapter persistence
