@@ -89,17 +89,11 @@ Item {
     property int selectedMatchIndex: 0
     function resetSearch() { searchQuery = ""; matchingWindows = []; selectedMatchIndex = 0; }
     onSearchQueryChanged: updateMatchingWindows()
-    onWindowListChanged: {
-        updateMatchingWindows();
-        Qt.callLater(_updateFilteredWindows);
-    }
-    onAllMonitorsChanged: Qt.callLater(_updateFilteredWindows)
 
     // Force refresh after user actions (drag, click)
     function refreshOverview() {
         if (typeof CompositorData !== "undefined" && CompositorData.refreshFromHyprctl)
             CompositorData.refreshFromHyprctl();
-        Qt.callLater(_updateFilteredWindows);
     }
 
     // Poll for position/size updates while overview is visible.
@@ -108,7 +102,10 @@ Item {
         interval: 300
         running: GlobalStates.overviewOpen
         repeat: true
-        onTriggered: overviewRoot._updateFilteredWindows()
+        onTriggered: {
+            if (typeof CompositorData !== "undefined" && CompositorData.refreshFromHyprctl)
+                CompositorData.refreshFromHyprctl();
+        }
     }
 
     // Force refresh from hyprctl when overview opens so window list is current
@@ -124,7 +121,6 @@ Item {
             if (typeof CompositorData !== "undefined" && CompositorData.refreshFromHyprctl) {
                 CompositorData.refreshFromHyprctl();
             }
-            overviewRoot._updateFilteredWindows();
             overviewRoot._openRefreshCount++;
         }
     }
@@ -137,19 +133,16 @@ Item {
                 if (typeof CompositorData !== "undefined" && CompositorData.refreshFromHyprctl) {
                     CompositorData.refreshFromHyprctl();
                 }
-                overviewRoot._updateFilteredWindows();
             }
         }
     }
 
-    property var _filteredWindowsCache: []
-
     Component.onCompleted: {
-        _updateFilteredWindows();
         wsStateProcess.running = true;
     }
 
-    function _updateFilteredWindows() {
+    // Compute filtered windows as reactive binding
+    readonly property var filteredWindows: {
         var list = overviewRoot.windowList;
         var result = [];
         for (var i = 0; i < list.length; i++) {
@@ -162,7 +155,7 @@ Item {
                 winMonData: winMon
             });
         }
-        _filteredWindowsCache = _computeFillSizes(result);
+        return _computeFillSizes(result);
     }
 
     function _computeFillSizes(items) {
@@ -255,8 +248,6 @@ Item {
     }
     function isWindowMatched(addr) { return searchQuery.length > 0 && matchingWindows.some(function(w) { return w?.address === addr; }); }
     function isWindowSelected(addr) { return matchingWindows.length > 0 && selectedMatchIndex >= 0 && matchingWindows[selectedMatchIndex]?.address === addr; }
-
-    readonly property var filteredWindows: _filteredWindowsCache
 
     // ═══════════════════════════════════════════════════════════════
     // FULL-SCREEN GRID
