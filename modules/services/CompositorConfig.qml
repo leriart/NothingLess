@@ -705,8 +705,21 @@ QtObject {
         id: writeConfProcess
         running: false
         onExited: (code) => {
-            if (code === 0) console.log("Config written to hyprland.conf");
-            else console.error("Failed to write hyprland.conf, code:", code);
+            if (code === 0) {
+                console.log("Config written to hyprland.conf, reloading Hyprland...");
+                reloadHyprlandProcess.running = true;
+            } else {
+                console.error("Failed to write hyprland.conf, code:", code);
+            }
+        }
+    }
+
+    property Process reloadHyprlandProcess: Process {
+        command: ["hyprctl", "reload"]
+        running: false
+        onExited: (code) => {
+            if (code === 0) console.log("Hyprland reloaded successfully");
+            else console.error("hyprctl reload failed, code:", code);
         }
     }
 
