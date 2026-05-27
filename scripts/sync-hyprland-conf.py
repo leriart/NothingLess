@@ -19,7 +19,7 @@ def fmt(val):
         s = f'{val:.2f}'.rstrip('0').rstrip('.')
         return s if '.' in s else s + '.0'
     if isinstance(val, str) and val == '':
-        return '""'
+        return ''
     return str(val)
 
 def fmt_lua(val):
