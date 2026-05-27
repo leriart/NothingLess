@@ -1837,7 +1837,7 @@ Item {
                             }
 
                             ToggleRow {
-                                label: "Smart Resizing"
+                                label: "Smart Resizing (Master)"
                                 checked: Config.compositor.masterSmartResizing ?? true
                                 onToggled: value => {
                                     GlobalStates.markCompositorChanged();
