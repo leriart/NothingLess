@@ -361,16 +361,9 @@ QtObject {
     }
 
     // Direct connections to compositor adapter properties
-    // Uses a wrapper to re-bind when Config.compositor becomes available
-    property QtObject compAdapter: Config.compositor
-    onCompAdapterChanged: {
-        if (root.compAdapter) {
-            root.applyCompositorConfig();
-        }
-    }
-
-    Connections {
-        target: root.compAdapter
+    // Uses property binding to re-bind when Config.compositor becomes available
+    property Connections compositorConfigConnections: Connections {
+        target: Config.compositor
 
         function onBorderSizeChanged() {
             applyCompositorConfig();
@@ -447,6 +440,15 @@ QtObject {
         function onBlurSizeChanged() {
             applyCompositorConfig();
         }
+    }
+
+    // Force re-apply when Config.compositor adapter becomes available (was null during init)
+    property QtObject compWatch: Config.compositor
+    onCompWatchChanged: {
+        if (root.compWatch) {
+            root.applyCompositorConfig();
+        }
+    }
         function onBlurPassesChanged() {
             applyCompositorConfig();
         }
@@ -762,4 +764,3 @@ QtObject {
         }
         // Otherwise, handled by onLoaded.
     }
-}
