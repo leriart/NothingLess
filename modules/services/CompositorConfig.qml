@@ -75,7 +75,7 @@ QtObject {
         applyTimer.restart();
     }
 
-    function applyCompositorConfigInternal() {
+    function applyCompositorConfigInternal(writeFile = true) {
         // Ensure adapters are loaded before applying config.
         if (!Config.loader.loaded) {
             console.log("CompositorConfig: Esperando que se cargue Config...");
@@ -341,7 +341,9 @@ QtObject {
         compositorProcess.running = true;
 
         // Also write to hyprland.conf for persistence
-        root.writeConfigToFile(batchCommand);
+        if (writeFile) {
+            root.writeConfigToFile(batchCommand);
+        }
     }
 
     property Connections configConnections: Connections {
@@ -667,20 +669,10 @@ QtObject {
         running: false
         onExited: (code) => {
             if (code === 0) {
-                console.log("Config written to hyprland.conf, reloading Hyprland...");
-                reloadHyprlandProcess.running = true;
+                console.log("Config written to hyprland.conf (auto-reload handles reload)");
             } else {
                 console.error("Failed to write hyprland.conf, code:", code);
             }
-        }
-    }
-
-    property Process reloadHyprlandProcess: Process {
-        command: ["hyprctl", "reload"]
-        running: false
-        onExited: (code) => {
-            if (code === 0) console.log("Hyprland reloaded successfully");
-            else console.error("hyprctl reload failed, code:", code);
         }
     }
 
@@ -706,7 +698,7 @@ QtObject {
         function onRawEvent(event) {
             if (event && event.name === "configreloaded") {
                 console.log("CompositorConfig: Hyprland config reloaded, reapplying settings...");
-                applyCompositorConfigInternal();  // Direct — no 100ms timer delay
+                applyCompositorConfigInternal(false);  // Don't write file (already correct)
             }
         }
     }
