@@ -13,6 +13,9 @@
   <a href="https://github.com/Axenide/Ambxst">
     <img src="https://img.shields.io/badge/Fork%20of-Ambxst-E80012?style=for-the-badge&logo=github&logoColor=FFFFFF&labelColor=0A0A0A" alt="fork">
   </a>
+  <a href="https://discord.gg/ehQYYW36Up">
+    <img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=FFFFFF" alt="discord">
+  </a>
 </p>
 
 ---
@@ -21,15 +24,14 @@
 
 <p align="center">
   <img src="./assets/screenshots/settings.png" alt="NothingLess Settings" width="30%"/>
-  &nbsp;
-  <img src="./assets/screenshots/gaming.png" alt="NothingLess Gaming" width="30%"/>
-  &nbsp;
+  &nbsp;&nbsp;
   <img src="./assets/screenshots/free-layout.png" alt="Free Layout" width="30%"/>
-  <br>
-  <br>
+  &nbsp;&nbsp;
+  <img src="./assets/screenshots/nothing.png" alt="Nothing" width="30%"/>
+  <br><br>
   <img src="./assets/screenshots/dynamic-bar.png" alt="Dynamic Bar" width="45%"/>
   &nbsp;&nbsp;
-  <img src="./assets/screenshots/nothing.png" alt="Nothing" width="45%"/>
+  <img src="./assets/screenshots/gaming.png" alt="NothingLess Gaming" width="45%"/>
 </p>
 
 ---
@@ -45,168 +47,92 @@ Or clone manually:
 ```bash
 git clone https://github.com/Leriart/NothingLess.git ~/.local/src/nothingless
 sudo ln -s ~/.local/src/nothingless/cli.sh /usr/local/bin/nothingless
-```
-
-Then run:
-
-```bash
 nothingless
 ```
 
 ### Compositor integration
 
 ```bash
-nothingless install hyprland           # Auto-detect (default: conf)
-nothingless install hyprland --conf    # Force config file mode (safe default)
+nothingless install hyprland           # Auto-detect
+nothingless install hyprland --conf    # Force config file mode (default)
 nothingless install hyprland --lua     # Force Lua mode (Hyprland >= 0.48)
-nothingless remove hyprland            # Remove NothingLess config from Hyprland
+nothingless remove hyprland            # Remove config
 ```
 
-**Mode selection:**
-- `--conf` (default): Creates `~/.local/share/nothingless/hyprland.conf` and adds `source = ~/.local/share/nothingless/hyprland.conf` to your Hyprland config. Works on all Hyprland versions.
-- `--lua`: Creates `~/.local/share/nothingless/hyprland.lua` as valid Lua and adds `loadfile(...)()` to your Hyprland config. Requires Hyprland >= 0.48.
-- No flag: Auto-detects based on existing config (`hyprland.lua` → lua, `hyprland.conf` → conf). If neither exists, defaults to `--conf`.
+On first boot, `exec-once = nothingless` launches the shell, which starts the axctl daemon internally. All compositor settings are managed live via axctl and persisted to `~/.local/share/nothingless/`.
 
-On first boot, `exec-once = nothingless` launches the shell, which starts the axctl daemon internally. All compositor settings are managed by axctl (live via `raw-batch`, persisted via `axctl.toml`).
+Supported on **Arch**, **Fedora**, and **NixOS**.
 
-Supported on **Arch**, **Fedora**, and **NixOS** (requires Hyprland).
+---
+
+## Features
+
+- **Free Layout** — modo escritorio libre tipo Windows (ventanas flotantes, snap a bordes, show desktop)
+- **Dynamic Island** — notificaciones y métricas integradas en la barra
+- **Task tray** — system tray con show/hide
+- **Overview** — gestor de workspaces con drag & drop y live preview
+- **Dashboard** — panel de configuración visual con 200+ opciones
+- **AI Assistant** — soporte para OpenAI, Anthropic, DeepSeek, Gemini, Ollama y más
+- **FPS Monitoring** — MangoHud parcheado con overlay de FPS en el notch
+- **Configuración de monitores** — backends gráfico y por línea de comandos
+- **Music Recognition** — identificación de canciones vía SongRec/Shazam
+- **Screen Translation** — traducción de pantalla vía translate-shell
+- **Snap Assistant** — alineación inteligente de ventanas vía axctl
+- **Animaciones M3** — perfiles Material You, Windows Classic y macOS
 
 ---
 
 ## Commands
 
-### CLI
-
 ```bash
-nothingless                          # Start NothingLess shell
-nothingless update                   # Update NothingLess
-nothingless reload                   # Reload NothingLess
-nothingless quit                     # Quit NothingLess
+nothingless                          # Start the shell
+nothingless reload                   # Reload the shell
+nothingless quit                     # Quit the shell
 nothingless lock                     # Activate lockscreen
-nothingless run <command>            # Run a NothingLess module
+nothingless update                   # Update NothingLess
+nothingless run <module>             # Run a module (launcher, dashboard, overview, etc.)
 nothingless brightness <0-100>       # Set brightness
-nothingless brightness +/-<delta>    # Adjust brightness
-nothingless brightness -s            # Save current brightness
-nothingless brightness -r            # Restore saved brightness
-nothingless screen on|off            # Control display power
+nothingless screen on|off            # Display power control
 nothingless suspend                  # Suspend system
 ```
-
-### Module Commands
-
-| `nothingless run ...` | Description |
-|---|---|
-| `launcher` | Open app launcher |
-| `dashboard` | Open dashboard |
-| `assistant` | Open AI assistant |
-| `clipboard` | Open clipboard manager |
-| `emoji` | Open emoji picker |
-| `notes` | Open notes |
-| `tmux` | Open tmux session manager |
-| `wallpapers` | Open wallpaper picker |
-| `overview` | Open workspace overview |
-| `powermenu` | Open power menu |
-| `tools` | Open tools menu |
-| `config` | Open settings |
-| `screenshot` | Take screenshot |
-| `screenrecord` | Screen record |
-| `lens` | Open OCR capture |
-| `toggle-metrics` | Toggle notch metrics display |
-| `lockscreen` | Lock session |
-
-### Keybinds
-
-| Key | Action |
-|---|---|
-| `SUPER` (hold) | Launcher |
-| `SUPER + D` | Dashboard |
-| `SUPER + A` | Assistant |
-| `SUPER + V` | Clipboard |
-| `SUPER + PERIOD` | Emoji picker |
-| `SUPER + N` | Notes |
-| `SUPER + T` | Tmux |
-| `SUPER + COMMA` | Wallpapers |
-| `SUPER + TAB` | Workspace overview |
-| `SUPER + ESC` | Power menu |
-| `SUPER + S` | Tools menu |
-| `SUPER + SHIFT + C` | Settings |
-| `SUPER + SHIFT + S` | Screenshot |
-| `SUPER + SHIFT + R` | Screen record |
-| `SUPER + SHIFT + A` | Lens |
-| `SUPER + L` | Lock session |
-| `SUPER + SHIFT + BACKSPACE` | Toggle metrics overlay |
-
----
-
-## FPS Monitoring (`nothing-fps`)
-
-NothingLess includes a modified MangoHud that captures FPS data and displays it in the notch metrics overlay.
-
-```bash
-# Launch a game with FPS monitoring
-nothing-fps ./my-game
-
-# Steam launch options (right-click game > Properties > Launch Options)
-nothing-fps %command%
-```
-
-**How it works:**
-
-1. `nothing-fps` sets up a modified MangoHud (`libMangoHud_shim.so`) via `LD_PRELOAD`
-2. MangoHud hooks Vulkan/OpenGL to capture frame-present events
-3. Calculated FPS is written to `/dev/shm/nothingless_fps`
-4. NothingLess reads this file in real-time and displays FPS in the notch
-
-**Rebuilding MangoHud from source:**
-
-```bash
-./scripts/mangohud-patch/build-mangohud.sh
-```
-
-Requires: `meson`, `ninja`, `gcc`, `glslang`, `python-mako`.
 
 ---
 
 ## Differences from Ambxst
 
-### Architecture
-
 | Area | Ambxst | NothingLess |
 |------|--------|-------------|
-| Compositor settings | ~40 options (border, shadow, blur) | 130+ options across 11 categories |
-| Config reload handling | Basic | `configreloaded` event detection with instant bind/settings recovery |
-
-### Performance
-
-| Area | Ambxst | NothingLess |
-|------|--------|-------------|
-| Video wallpaper | mpv-based | QtMultimedia + FFmpeg (hardware-accelerated, lower overhead) |
-| Rendering backend | Default | Configurable: OpenGL (default) or Vulkan with threaded render loop |
-| GPU optimization | Standard | NVIDIA env vars, GPU texture caching (`GradientCache`) |
-| GLSL shaders | Original set | Optimized (reduced draw calls, shared GPU textures) |
-| FPS monitoring | Not available | Custom MangoHud integration with real-time notch display |
-
-
-### Design
-
-| Area | Ambxst | NothingLess |
-|------|--------|-------------|
-| Typography | Roboto, varied | Ndot (dot-matrix), monospace-first |
-| Color scheme | Vibrant themes | Monochrome with subtle red accents |
-| Animations | Heavy, ornate | Minimal, functional |
-| Branding | Color glyphs | Red + white dot-matrix |
+| Git history | 1 commit (snapshot) | **449 commits** — mantenimiento activo |
+| Compositor settings | ~25 propiedades | **~100+ propiedades** (4x más) |
+| Layouts | Dwindle, Master, Scrolling | **+ Free Layout** (escritorio libre) |
+| Services | 30 | **39** (+9 nuevos) |
+| Scripts | 22 | **38** (+16 nuevos) |
+| Config reload handling | Ninguno | Detección de `configreloaded` con recuperación instantánea |
+| Dynamic Island | No disponible | Notch + barra unificados en modo island |
+| Task tray | No disponible | System tray con show/hide de iconos |
+| Animations | `animDuration` global | **Anim.qml** — perfiles M3, Windows Classic, macOS |
+| Video wallpaper | mpv-based | **QtMultimedia + FFmpeg** (hardware-accelerated) |
+| Bar mode | Barra estática | **Modos extended/dynamic** con per-monitor config |
+| Configuración de monitores | Manual (hyprctl) | **Panel gráfico + CLI** en NothingLess |
+| FPS overlay | No disponible | **MangoHud parcheado** con notch display |
+| Music recognition | No disponible | **SongRec/Shazam** integrado |
+| Screen translation | No disponible | **translate-shell** integrado |
+| Axctl daemon | Básico | **Health check, auto-reconnect, restart on failure** |
+| Sync con hyprland | No disponible | **hyprland.conf/lua generado** desde binds.json |
+| CLI commands | 9 | **20+** comandos |
+| Presets | 8 | **12** (+Dot Matrix, Nothing, Pure Monochrome, Minimal) |
+| Typography | Roboto | **Ndot** (dot-matrix), monospace-first |
+| Color scheme | Vibrante | **Monocromático** con acentos rojos |
+| Distros soportadas | Arch, NixOS | **+ Fedora** |
 
 ---
 
 ## Credits
 
-- **Leriart** -- fork maintainer and NothingLess developer
-- **Axenide** -- original [Ambxst](https://github.com/Axenide/Ambxst) creator
-- **Zack** ([@zackytodearena](https://bsky.app/profile/zackytodearena.bsky.social)) -- logo & animation design
-- **outfoxxed** -- creator of [Quickshell](https://git.outfoxxed.me/outfoxxed/quickshell)
-- **end-4** -- inspiration from [dots-hyprland](https://github.com/end-4/dots-hyprland)
-- **DankMaterialShell** -- design reference from [DMS](https://github.com/AvengeMedia/DankMaterialShell)
-- **Noctalia** -- reference from [noctalia-shell](https://github.com/noctalia-dev/noctalia-shell)
+- **Leriart** — fork maintainer and NothingLess developer
+- **Axenide** — original [Ambxst](https://github.com/Axenide/Ambxst) creator
+- **Zack** ([@zackytodearena](https://bsky.app/profile/zackytodearena.bsky.social)) — logo & animation design
+- **outfoxxed** — creator of [Quickshell](https://git.outfoxxed.me/outfoxxed/quickshell)
 
 ---
 
@@ -215,4 +141,3 @@ Requires: `meson`, `ninja`, `gcc`, `glslang`, `python-mako`.
 - NothingLess modifications are provided under the same license as the upstream.
 - Ambxst and the Ambxst logo are trademarks of Adriano Tisera (Axenide).
 - See [LICENSE](./LICENSE) and [TRADEMARK.md](./assets/nothingless/TRADEMARK.md) for details.
-
