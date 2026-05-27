@@ -61,22 +61,20 @@ nothingless remove hyprland            # Remove config
 
 On first boot, `exec-once = nothingless` launches the shell, which starts the axctl daemon internally. All compositor settings are managed live via axctl and persisted to `~/.local/share/nothingless/`.
 
-Supported on **Arch**, **Fedora**, and **NixOS**.
+Supported on **Arch** and **NixOS**.
 
 ---
 
 ## Features
 
-- **Free Layout** — modo escritorio libre tipo Windows (ventanas flotantes, snap a bordes, show desktop)
+- **Free Layout** — Windows-like desktop mode (floating windows, edge snap, show desktop)
 - **Dynamic Island** — notificaciones y métricas integradas en la barra
 - **Task tray** — system tray con show/hide
 - **Overview** — gestor de workspaces con drag & drop y live preview
 - **Dashboard** — panel de configuración visual con 200+ opciones
 - **AI Assistant** — soporte para OpenAI, Anthropic, DeepSeek, Gemini, Ollama y más
 - **FPS Monitoring** — MangoHud parcheado con overlay de FPS en el notch
-- **Configuración de monitores** — backends gráfico y por línea de comandos
-- **Music Recognition** — identificación de canciones vía SongRec/Shazam
-- **Screen Translation** — traducción de pantalla vía translate-shell
+- **Monitor configuration** — GUI panel and CLI backend
 - **Snap Assistant** — intelligent window snapping via axctl
 - **Animaciones M3** — perfiles Material You, Windows Classic y macOS
 
@@ -102,28 +100,25 @@ nothingless suspend                  # Suspend system
 
 | Area | Ambxst | NothingLess |
 |------|--------|-------------|
-| Git history | 1 commit (snapshot) | **449 commits** — mantenimiento activo |
-| Compositor settings | ~25 propiedades | **~100+ propiedades** (4x más) |
-| Layouts | Dwindle, Master, Scrolling | **+ Free Layout** (escritorio libre) |
+| Compositor settings | ~25 options | **~100+ options** (4x more) |
+| Layouts | Dwindle, Master, Scrolling | **+ Free Layout** (floating desktop) |
 | Services | 30 | **39** (+9 nuevos) |
 | Scripts | 22 | **38** (+16 nuevos) |
-| Config reload handling | Ninguno | Detección de `configreloaded` con recuperación instantánea |
-| Dynamic Island | No disponible | Notch + barra unificados en modo island |
-| Task tray | No disponible | System tray con show/hide de iconos |
+| Config reload handling | None | `configreloaded` detection with instant recovery |
+| Dynamic Island | Not available | Unified notch + bar in island mode |
+| Task tray | Not available | System tray with icon show/hide |
 | Animations | `animDuration` global | **Anim.qml** — perfiles M3, Windows Classic, macOS |
 | Video wallpaper | mpv-based | **QtMultimedia + FFmpeg** (hardware-accelerated) |
-| Bar mode | Barra estática | **Modos extended/dynamic** con per-monitor config |
-| Configuración de monitores | Manual (hyprctl) | **Panel gráfico + CLI** en NothingLess |
-| FPS overlay | No disponible | **MangoHud parcheado** con notch display |
-| Music recognition | No disponible | **SongRec/Shazam** integrado |
-| Screen translation | No disponible | **translate-shell** integrado |
-| Axctl daemon | Básico | **Health check, auto-reconnect, restart on failure** |
-| Sync con hyprland | No disponible | **hyprland.conf/lua generado** desde binds.json |
-| CLI commands | 9 | **20+** comandos |
+| Bar mode | Static bar | **Extended/dynamic modes** with per-monitor config |
+| Monitor configuration | Manual (hyprctl) | **GUI panel + CLI** in NothingLess |
+| FPS overlay | Not available | **Patched MangoHud** with notch display |
+
+| Axctl daemon | Basic | **Health check, auto-reconnect, restart on failure** |
+| Config sync with hyprland | None | **hyprland.conf/lua generated** from binds.json |
+| CLI commands | 9 | **20+** commands |
 | Presets | 8 | **12** (+Dot Matrix, Nothing, Pure Monochrome, Minimal) |
 | Typography | Roboto | **Ndot** (dot-matrix), monospace-first |
-| Color scheme | Vibrante | **Monocromático** con acentos rojos |
-| Distros soportadas | Arch, NixOS | **+ Fedora** |
+| Color scheme | Vibrant | **Monochrome** with red accents |
 
 ---
 
