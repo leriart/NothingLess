@@ -178,17 +178,9 @@ def build_bind_line(modifiers, key, dispatcher, argument, flags):
     # Mouse bind (flags has 'm'): use bind with 'm' flag at end
     # Format: bind = MODS, mouse:XYZ, dispatcher, arg, m
     # Skip empty arg to avoid trailing comma before flag
+    # Mouse bind (flags has 'm'): use bind with 'm' flag at end
+    # Format: bind = MODS, mouse:XYZ, dispatcher, arg, m
     if "m" in flags:
-        # Free layout: resize-drag should use fixed resize instead of interactive drag
-        # This prevents window from moving during resize (top-left anchored)
-        is_free = cfg.get('layout', '') == 'free'
-        if is_free and dispatcher == 'resizeactive' and not argument:
-            # Replace interactive drag with click-to-expand from top-left
-            # mouse:272 = left click (move), mouse:273 = right click (expand)
-            if not mods_str:
-                return f"bind = , {key}, resizeactive, 50 50"
-            return f"bind = {mods_str}, {key}, resizeactive, 50 50"
-
         if argument:
             if not mods_str:
                 return f"bind = , {key}, {dispatcher}, {argument}, m"

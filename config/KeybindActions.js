@@ -56,7 +56,7 @@ var ACTION_CATALOG = [
         return directionToLetter(args.direction);
     } },
     { id: "window.drag", label: "Drag Window", category: "Window", dispatcher: "movewindow", argument: "", flags: "m" },
-    { id: "window.resize-drag", label: "Resize Window (Drag)", category: "Window", dispatcher: "resizewindow", argument: "", flags: "m" },
+    { id: "window.resize-drag", label: "Resize Window (Drag)", category: "Window", dispatcher: "resizeactive", argument: "", flags: "m" },
     { id: "window.resize", label: "Resize Window", category: "Window", dispatcher: "resizeactive", args: [{ key: "delta", label: "Delta", placeholder: "50 0", defaultValue: "50 0" }], argumentBuilder: function (args) {
         return String(args.delta || "").trim();
     } },
@@ -270,7 +270,7 @@ function actionFromLegacy(dispatcher, argument, flags) {
     }
     if (dispatcher === "togglespecialworkspace") return { id: "workspace.toggle-special", args: {} };
     if (dispatcher === "movewindow" && flags === "m") return { id: "window.drag", args: {} };
-    if (dispatcher === "resizewindow" && flags === "m") return { id: "window.resize-drag", args: {} };
+    if (dispatcher === "resizeactive" && flags === "m") return { id: "window.resize-drag", args: {} };
     if (dispatcher === "movewindow") return { id: "window.move", args: { direction: arg } };
     if (dispatcher === "movefocus") return { id: "window.focus", args: { direction: arg } };
     if (dispatcher === "resizeactive") return { id: "window.resize", args: { delta: arg } };
