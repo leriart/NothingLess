@@ -1,16 +1,15 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Services.SystemTray
+import Quickshell.Widgets
 import qs.modules.theme
 import qs.config
 import qs.modules.components
 
-    StyledRect {
+StyledRect {
     variant: "bg"
     id: root
-
-    // Hide when no tray items
-    visible: hasItems
 
     topLeftRadius: root.vertical ? root.startRadius : root.startRadius
     topRightRadius: root.vertical ? root.startRadius : root.endRadius
@@ -18,16 +17,20 @@ import qs.modules.components
     bottomRightRadius: root.vertical ? root.endRadius : root.endRadius
 
     required property var bar
-    
+
     property real radius: 0
     property real startRadius: radius
     property real endRadius: radius
 
-    // Orientación derivada de la barra
     property bool vertical: bar.orientation === "vertical"
     property bool isExpanded: true
 
-    // Filtered tray items (UntypedObjectModel doesn't support .filter())
+    // Size when collapsed (set to islandButtonSize in notch)
+    property int preferredSize: 36
+    // Show first tray icon as preview when collapsed
+    property bool showPreviewIcon: true
+
+    // Filtered tray items
     readonly property var filteredItems: {
         var result = [];
         var items = SystemTray.items;
@@ -47,16 +50,29 @@ import qs.modules.components
         return result;
     }
 
-    // Hide completely when empty - check both orientations
+    readonly property var firstItem: filteredItems.length > 0 ? filteredItems[0] : null
     readonly property bool hasItems: SystemTray.items.length > 0
 
-    // Ajustes de tamaño dinámicos según orientación
-    height: vertical ? implicitHeight : parent.height
-    Layout.preferredWidth: hasItems ? ((vertical ? columnLayout.implicitWidth : rowLayout.implicitWidth) + 16) : 0
-    Layout.preferredHeight: vertical ? (hasItems ? (columnLayout.implicitHeight + 16) : 0) : 36
-    implicitWidth: hasItems ? ((vertical ? columnLayout.implicitWidth : rowLayout.implicitWidth) + 16) : 0
-    implicitHeight: hasItems ? ((vertical ? columnLayout.implicitHeight : rowLayout.implicitHeight) + 16) : 0
+    // ── Always has a size; external visible handles show/hide ──
+    height: vertical ? implicitHeight : (parent ? parent.height : preferredSize)
 
+    // Always provide a size even when empty, so Row layout works from the start
+    implicitWidth: isExpanded ? rowLayout.implicitWidth + 16 : preferredSize
+    implicitHeight: isExpanded ? (vertical ? columnLayout.implicitHeight + 16 : preferredSize) : preferredSize
+
+    Layout.preferredWidth: implicitWidth
+    Layout.preferredHeight: implicitHeight
+
+    Behavior on implicitWidth {
+        enabled: Anim.animationsEnabled
+        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+    }
+    Behavior on implicitHeight {
+        enabled: Anim.animationsEnabled
+        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+    }
+
+    // ── HORIZONTAL ──
     RowLayout {
         id: rowLayout
         visible: !root.vertical
@@ -69,9 +85,28 @@ import qs.modules.components
             Layout.alignment: Qt.AlignCenter
             implicitWidth: 20
             implicitHeight: 20
+            Layout.fillWidth: !root.isExpanded
+            Layout.fillHeight: true
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.isExpanded = !root.isExpanded
+
+            StyledRect {
+                anchors.fill: parent
+                variant: "bg"
+                radius: Styling.radius(3)
+                visible: !root.isExpanded || toggleBtnRow.containsMouse
+                opacity: !root.isExpanded ? 1.0 : (toggleBtnRow.containsMouse ? 0.6 : 0)
+                Behavior on opacity { NumberAnimation { duration: 120 } }
+            }
+
+            IconImage {
+                anchors.centerIn: parent
+                width: 16; height: 16
+                source: firstItem ? firstItem.icon : ""
+                smooth: true
+                visible: firstItem && !root.isExpanded && root.showPreviewIcon
+            }
 
             Text {
                 anchors.centerIn: parent
@@ -79,13 +114,12 @@ import qs.modules.components
                 font.family: Icons.font
                 font.pixelSize: Styling.fontSize(-1)
                 color: toggleBtnRow.containsMouse ? Colors.primary : Colors.onSurfaceVariant
+                visible: !firstItem || !root.showPreviewIcon || root.isExpanded
             }
         }
 
         Repeater {
-            id: rowRepeater
             model: root.isExpanded ? root.filteredItems : []
-
             SysTrayItem {
                 required property SystemTrayItem modelData
                 bar: root.bar
@@ -94,6 +128,7 @@ import qs.modules.components
         }
     }
 
+    // ── VERTICAL ──
     ColumnLayout {
         id: columnLayout
         visible: root.vertical
@@ -106,9 +141,28 @@ import qs.modules.components
             Layout.alignment: Qt.AlignCenter
             implicitWidth: 20
             implicitHeight: 20
+            Layout.fillWidth: true
+            Layout.fillHeight: !root.isExpanded
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: root.isExpanded = !root.isExpanded
+
+            StyledRect {
+                anchors.fill: parent
+                variant: "bg"
+                radius: Styling.radius(3)
+                visible: !root.isExpanded || toggleBtnCol.containsMouse
+                opacity: !root.isExpanded ? 1.0 : (toggleBtnCol.containsMouse ? 0.6 : 0)
+                Behavior on opacity { NumberAnimation { duration: 120 } }
+            }
+
+            IconImage {
+                anchors.centerIn: parent
+                width: 16; height: 16
+                source: firstItem ? firstItem.icon : ""
+                smooth: true
+                visible: firstItem && !root.isExpanded && root.showPreviewIcon
+            }
 
             Text {
                 anchors.centerIn: parent
@@ -116,13 +170,12 @@ import qs.modules.components
                 font.family: Icons.font
                 font.pixelSize: Styling.fontSize(-1)
                 color: toggleBtnCol.containsMouse ? Colors.primary : Colors.onSurfaceVariant
+                visible: !firstItem || !root.showPreviewIcon || root.isExpanded
             }
         }
 
         Repeater {
-            id: columnRepeater
             model: root.isExpanded ? root.filteredItems : []
-
             SysTrayItem {
                 required property SystemTrayItem modelData
                 bar: root.bar

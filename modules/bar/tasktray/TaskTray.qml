@@ -64,10 +64,16 @@ Item {
 
     readonly property int _dw: expanded && dockRep.count > 0 ? Math.max(40, Math.min(dockRep.count, 10) * 40 + 10) : 0
 
+    // Preferred size for RowLayout/ColumnLayout
     Layout.preferredWidth: root.vertical ? 36 : (36 + (expanded ? 2 + _dw : 0))
     Layout.preferredHeight: root.vertical ? (36 + (expanded ? 2 + _dw : 0)) : 36
     Layout.fillWidth: vertical
     Layout.fillHeight: !vertical
+
+    // Implicit size for plain Row/Column (e.g. in notch island)
+    implicitWidth: root.vertical ? 36 : (36 + (expanded ? 2 + _dw : 0))
+    implicitHeight: root.vertical ? (36 + (expanded ? 2 + _dw : 0)) : 36
+
     clip: true
 
     Behavior on Layout.preferredHeight {

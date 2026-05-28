@@ -63,15 +63,6 @@ MouseArea {
         event.accepted = true;
     }
 
-    // DEBUG: borde rojo para confirmar que este código está cargado
-    Rectangle {
-        anchors.fill: parent
-        color: "transparent"
-        border.color: "red"
-        border.width: 2
-        radius: 4
-    }
-
     IconImage {
         id: trayIcon
         source: {

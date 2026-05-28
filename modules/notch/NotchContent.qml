@@ -535,17 +535,11 @@ Item {
             startRadius: Styling.radius(3); endRadius: Styling.radius(3); enableShadow: false
             implicitWidth: root.islandButtonSize; implicitHeight: root.islandButtonSize
         }
-        SysTray {
-            visible: !Config.bar.hiddenIcons.includes("systray")
-            bar: root.islandBarProxy; enableShadow: false
-            startRadius: Styling.radius(3); endRadius: Styling.radius(3)
-            implicitHeight: root.islandButtonSize
-        }
+
         TaskTray {
             visible: !Config.bar.hiddenIcons.includes("tasktray")
             bar: root.islandBarProxy
             startRadius: Styling.radius(3); endRadius: Styling.radius(3)
-            implicitHeight: root.islandButtonSize
         }
         ControlsButton {
             visible: !Config.bar.hiddenIcons.includes("controls")
