@@ -9,14 +9,20 @@ import Quickshell.Io
  * Detects GPU vendor synchronously at initialization time so that
  * VideoWallpaperService and other consumers can rely on the vendor
  * being already detected when they first query it.
- *
- * Falls back to async Process detection if the synchronous read fails.
  */
 Singleton {
     id: root
 
-    // Synchronous detection: read the first available card*/device/vendor file
-    readonly property string vendor: {
+    // Synchronous vendor detection. Set during component initialization.
+    property string vendor: "unknown"
+
+    readonly property bool hasHardwareDecoder: root.vendor !== "unknown" && root.vendor !== ""
+    readonly property bool isNvidia: root.vendor === "nvidia"
+    readonly property bool isAmd:    root.vendor === "amd"
+    readonly property bool isIntel:  root.vendor === "intel"
+
+    // Run synchronous detection at component creation time
+    Component.onCompleted: {
         const dirs = ["card0", "card1", "card2"];
         for (let i = 0; i < dirs.length; i++) {
             try {
@@ -24,23 +30,20 @@ Singleton {
                 req.open("GET", "file:///sys/class/drm/" + dirs[i] + "/device/vendor", false); // synchronous
                 req.send();
                 const raw = req.responseText ? req.responseText.trim() : "";
-                if (raw === "0x10de") { console.log("GpuDetector: nvidia"); return "nvidia"; }
-                if (raw === "0x1002") { console.log("GpuDetector: amd"); return "amd"; }
-                if (raw === "0x8086") { console.log("GpuDetector: intel"); return "intel"; }
+                if (raw === "0x10de") { root.vendor = "nvidia"; break; }
+                if (raw === "0x1002") { root.vendor = "amd"; break; }
+                if (raw === "0x8086") { root.vendor = "intel"; break; }
             } catch(e) {
                 // card[0-2] may not exist, keep trying
             }
         }
-        console.log("GpuDetector: unknown (falling back to async detection)");
-        return "unknown";
-    }()
-    // Note: the () at the end makes this an immediately-invoked function expression,
-    // so vendor is set synchronously during component creation.
+        console.log("GpuDetector:", root.vendor);
 
-    readonly property bool hasHardwareDecoder: root.vendor !== "unknown" && root.vendor !== ""
-    readonly property bool isNvidia: root.vendor === "nvidia"
-    readonly property bool isAmd:    root.vendor === "amd"
-    readonly property bool isIntel:  root.vendor === "intel"
+        // If synchronous detection failed, try async fallback
+        if (root.vendor === "unknown") {
+            gpuDetect.running = true;
+        }
+    }
 
     // Async fallback detection for non-standard card numbering
     property Process gpuDetect: Process {
@@ -52,14 +55,13 @@ Singleton {
             "  0x8086) echo intel;; " +
             "  *) echo unknown;; " +
             "esac"]
-        running: root.vendor === "unknown"  // only run if sync failed
+        running: false  // started by Component.onCompleted if sync failed
         stdout: StdioCollector {
             onStreamFinished: {
                 let result = String(text).trim();
                 if (result && result.length > 0 && root.vendor === "unknown") {
+                    root.vendor = result;
                     console.log("GpuDetector (async fallback):", result);
-                    // Can't easily re-trigger bindings on readonly properties, so
-                    // this is informational only. Video service checks value at call time.
                 }
             }
         }
