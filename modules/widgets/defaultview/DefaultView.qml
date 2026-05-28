@@ -159,7 +159,7 @@ Item {
         : (200
             + (userInfo.visible ? userInfo.width + mainRow.spacing : 0)
             + (separator1.visible ? separator1.width + mainRow.spacing : 0)
-            + (clockRow.visible ? clockRow.implicitWidth + mainRow.spacing : 0)
+            + (clockItem.visible ? clockItem.implicitWidth + mainRow.spacing : 0)
             + (separator2.visible ? separator2.width + mainRow.spacing : 0)
             + (weatherRow.visible ? weatherRow.implicitWidth + mainRow.spacing : 0)
             + (notifIndicatorStandalone.visible ? notifIndicatorStandalone.width + mainRow.spacing : 0)
@@ -305,68 +305,18 @@ Item {
             spacing: 4
             z: 2 // Ensure it stays above notifications if overlap occurs (though they shouldn't)
 
-            // Clock section (compact, visible in island mode)
-            RowLayout {
-                id: clockRow
+            // Clock — clickable, opens calendar/weather popup (same as bar)
+            Clock {
+                id: clockItem
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 6
                 visible: Config.notchTheme === "island"
-
-                ClockIndicator {
-                    Layout.alignment: Qt.AlignVCenter
+                implicitHeight: 36
+                bar: QtObject {
+                    property string orientation: "horizontal"
+                    property bool vertical: false
+                    property string barPosition: "top"
                 }
-
-                Item {
-                    id: clockTextArea
-                    Layout.alignment: Qt.AlignVCenter
-                    implicitWidth: dateLabel.implicitWidth
-                    implicitHeight: dateLabel.implicitHeight
-                    z: 200
-
-                    Text {
-                        id: dateLabel
-                        text: new Date().toLocaleTimeString(Config.locale || Qt.locale(), "HH:mm")
-                        color: Colors.overBackground
-                        font.family: Config.theme.font
-                        font.pixelSize: 14
-                        font.weight: Font.Medium
-
-                        Timer {
-                            interval: 10000
-                            running: true
-                            repeat: true
-                            onTriggered: parent.text = new Date().toLocaleTimeString(Config.locale || Qt.locale(), "HH:mm")
-                        }
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: clockPopupAnchor.visible = !clockPopupAnchor.visible
-                    }
-
-                    Loader {
-                        id: clockPopupAnchor
-                        anchors.top: parent.bottom
-                        anchors.topMargin: 4
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        visible: false
-                        z: 201
-
-                        sourceComponent: Component {
-                            Clock {
-                                bar: QtObject {
-                                    property string orientation: "horizontal"
-                                    property bool vertical: false
-                                    property string barPosition: "top"
-                                }
-                                layerEnabled: false
-                                implicitHeight: 36
-                            }
-                        }
-                        active: true
-                    }
-                }
+                layerEnabled: false
             }
 
             UserInfo {
@@ -378,7 +328,7 @@ Item {
                 id: separator1
                 vert: true
                 anchors.verticalCenter: parent.verticalCenter
-                visible: clockRow.visible || userInfo.visible
+                visible: clockItem.visible || userInfo.visible
             }
 
             CompactPlayer {
@@ -386,7 +336,7 @@ Item {
                 width: parent.width
                     - (userInfo.visible ? userInfo.width + parent.spacing : 0)
                     - (separator1.visible ? separator1.width + parent.spacing : 0)
-                    - (clockRow.visible ? clockRow.implicitWidth + parent.spacing : 0)
+                    - (clockItem.visible ? clockItem.implicitWidth + parent.spacing : 0)
                     - (separator2.visible ? separator2.width + parent.spacing : 0)
                     - (weatherRow.visible ? weatherRow.implicitWidth + parent.spacing : 0)
                     - (notifIndicatorStandalone.visible ? notifIndicatorStandalone.width + parent.spacing : 0)
@@ -399,7 +349,7 @@ Item {
                 id: separator2
                 vert: true
                 anchors.verticalCenter: parent.verticalCenter
-                visible: clockRow.visible || weatherRow.visible
+                visible: clockItem.visible || weatherRow.visible
             }
 
             // Weather next to notification indicator (island mode only)
