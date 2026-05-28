@@ -13,6 +13,9 @@
   <a href="https://discord.gg/ehQYYW36Up">
     <img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=FFFFFF" alt="discord">
   </a>
+  <a href="https://github.com/leriart/axctl.c">
+    <img src="https://img.shields.io/badge/Powered%20by-Axctl.c-00599C?style=for-the-badge&logo=c&logoColor=FFFFFF&labelColor=0A0A0A" alt="axctl.c">
+  </a>
   <a href="https://github.com/Axenide/Ambxst">
     <img src="https://img.shields.io/badge/Fork%20of-Ambxst-E80012?style=for-the-badge&logo=github&logoColor=FFFFFF&labelColor=0A0A0A" alt="fork">
   </a>
