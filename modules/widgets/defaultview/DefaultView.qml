@@ -403,12 +403,25 @@ Item {
                 spacing: 4
                 visible: Config.notchTheme === "island"
 
-                Weather {
+                Item {
+                    id: weatherClickArea
                     Layout.alignment: Qt.AlignVCenter
                     Layout.maximumWidth: 120
-                    bar: QtObject {
-                        property string orientation: "horizontal"
-                        property bool vertical: false
+                    implicitWidth: weatherItem.implicitWidth
+                    implicitHeight: weatherItem.implicitHeight
+
+                    Weather {
+                        id: weatherItem
+                        bar: QtObject {
+                            property string orientation: "horizontal"
+                            property bool vertical: false
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: clockPopupInvoker.togglePopup()
                     }
                 }
 
