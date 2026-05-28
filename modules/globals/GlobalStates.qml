@@ -527,7 +527,7 @@ Singleton {
 
     property Process _applyProcess: Process {
         id: _applyProcess
-        command: ["sh", "-c", Quickshell.env("HOME") + "/Documentos/GitHub/NothingLess/scripts/apply-config.sh"]
+        command: ["sh", "-c", Qt.resolvedUrl("../../scripts/apply-config.sh").toString().replace("file://", "")]
         running: false
     }
 

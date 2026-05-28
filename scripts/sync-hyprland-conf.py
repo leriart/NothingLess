@@ -174,7 +174,14 @@ def resolve_action(action):
 
 
 def build_bind_line(modifiers, key, dispatcher, argument, flags):
-    """Build a hyprland.conf bind line."""
+    """Build a hyprland.conf bind line.
+
+    Hyprland bind syntax:
+      bind[flags] = MODS, KEY, DISPATCHER[, ARGS]
+    Supported flags: l=locked, r=release, e=repeat, m=mouse
+    For mouse binds (m flag): use 'bindm' keyword, no trailing argument.
+    Flags can be combined: bindel = locked + repeat (volume/brightness).
+    """
     if not key:
         return None
 
@@ -183,23 +190,25 @@ def build_bind_line(modifiers, key, dispatcher, argument, flags):
     if not dispatcher:
         return None
 
-    # Mouse bind with 'm' flag (for move only)
+    # Mouse bind with 'm' flag → use 'bindm' keyword (NOT 'bind ... , m')
     if "m" in flags:
-        if argument:
-            if not mods_str:
-                return f"bind = , {key}, {dispatcher}, {argument}, m"
-            return f"bind = {mods_str}, {key}, {dispatcher}, {argument}, m"
-        else:
-            if not mods_str:
-                return f"bind = , {key}, {dispatcher}, m"
-            return f"bind = {mods_str}, {key}, {dispatcher}, m"
+        arg_part = f", {argument}" if argument else ""
+        if not mods_str:
+            return f"bindm = , {key}, {dispatcher}{arg_part}"
+        return f"bindm = {mods_str}, {key}, {dispatcher}{arg_part}"
 
+    # Build bind type from flags: e=repeat, l=locked, r=release
+    # Hyprland convention: alphabetical order → 'bindel' (not 'bindle')
     bind_type = "bind"
+    flag_chars = ""
+    if "e" in flags:
+        flag_chars += "e"
+    if "l" in flags:
+        flag_chars += "l"
     if "r" in flags:
-        bind_type = "bindr"
-    elif "l" in flags:
-        bind_type = "bindl"
-    # 'e' (floating) — keep as bind since hyprland doesn't have a native single-char flag for that
+        flag_chars += "r"
+    if flag_chars:
+        bind_type = "bind" + flag_chars
 
     # Build the argument part (skip if empty to avoid trailing comma)
     arg_part = f", {argument}" if argument else ""
@@ -228,7 +237,11 @@ def build_lua_bind(modifiers, key, dispatcher, argument, flags):
 
     flags_str = ", " + ", ".join(lua_flags) if lua_flags else ""
 
-    return f'hl.bind({{ mods = {mods_lua}, key = "{key}", dispatcher = "{dispatcher}", arg = "{argument}"{flags_str} }})'
+    # Escape double quotes inside argument strings to prevent broken Lua syntax
+    # e.g. notify-send "Soon" → notify-send \"Soon\"
+    safe_arg = argument.replace('\\', '\\\\').replace('"', '\\"') if argument else ""
+
+    return f'hl.bind({{ mods = {mods_lua}, key = "{key}", dispatcher = "{dispatcher}", arg = "{safe_arg}"{flags_str} }})'
 
 
 def process_nothingless_binds(binds_data):
@@ -516,7 +529,6 @@ def build_conf_block():
                       ('workspaceSwipeTouch','workspace_swipe_touch'),
                       ('workspaceSwipeTouchInvert','workspace_swipe_touch_invert')]),
         ('misc', [('vrr','vrr'), ('mouseMoveEnablesDpms','mouse_move_enables_dpms'),
-                  ('mouseMoveEnablesDpms','mouse_move_enables_dpms'),
                   ('keyPressEnablesDpms','key_press_enables_dpms'),
                   ('disableAutoreload','disable_autoreload'),
                   ('focusOnActivate','focus_on_activate'),
@@ -535,6 +547,41 @@ def build_conf_block():
         for ck, kw in keys:
             if ck in cfg: lines.append('  ' + kw + ' = ' + fmt(cfg[ck]))
         lines.append('}')
+
+    # Workspace rules (hyprlang syntax)
+    ws_rules = cfg.get('workspaceRules', [])
+    if ws_rules:
+        lines.append('')
+        lines.append('# Workspace rules')
+        for rule in ws_rules:
+            ws_sel = rule.get('selector', '')
+            if not ws_sel:
+                continue
+            parts = []
+            if 'monitor' in rule and rule['monitor']:
+                parts.append(f'monitor:{rule["monitor"]}')
+            if 'gapsIn' in rule:
+                parts.append(f'gapsin:{rule["gapsIn"]}')
+            if 'gapsOut' in rule:
+                parts.append(f'gapsout:{rule["gapsOut"]}')
+            if 'borderSize' in rule:
+                parts.append(f'bordersize:{rule["borderSize"]}')
+            if 'rounding' in rule:
+                parts.append(f'rounding:{"true" if rule["rounding"] else "false"}')
+            if 'layout' in rule and rule['layout']:
+                parts.append(f'layoutopt:{rule["layout"]}')
+            if 'defaultFloat' in rule and rule['defaultFloat']:
+                parts.append('default:float')
+            if 'persistent' in rule and rule['persistent']:
+                parts.append('persistent:true')
+            if parts:
+                lines.append(f'workspace = {ws_sel}, {", ".join(parts)}')
+
+    # Smart gaps
+    if cfg.get('smartGaps'):
+        lines.append('')
+        lines.append('# Smart gaps: no gaps with single tiled window')
+        lines.append('workspace = w[tv1], gapsin:0, gapsout:0, bordersize:0, rounding:false')
 
     lines.append('# === END COMPOSITOR ===')
     return '\n'.join(lines) + '\n'
@@ -637,13 +684,46 @@ def build_lua_block():
 
     lines.append('})')
 
-    # Free Layout: windowrule float for all windows (lua syntax)
+    # Free Layout: float all windows (Hyprland 0.55+ hl.window_rule API)
     if _is_free:
-        # Insert at the top, right after the marker
         lines.insert(2, '-- Free Layout: float all windows')
-        lines.insert(3, '-- hl.windowrule("float, class:.*") - old syntax')
-        lines.insert(4, 'hl.windowrule("match:class .*, float on")')
+        lines.insert(3, 'hl.window_rule({ match = { class = ".*" }, float = true })')
         lines.insert(4, '')
+
+    # Workspace rules (Hyprland 0.55+ hl.workspace_rule API)
+    ws_rules = cfg.get('workspaceRules', [])
+    if ws_rules:
+        lines.append('')
+        lines.append('-- Workspace rules')
+        for rule in ws_rules:
+            ws_sel = rule.get('selector', '')
+            if not ws_sel:
+                continue
+            parts = {}
+            if 'monitor' in rule and rule['monitor']:
+                parts['monitor'] = f'"{rule["monitor"]}"'
+            if 'gapsIn' in rule:
+                parts['gapsIn'] = rule['gapsIn']
+            if 'gapsOut' in rule:
+                parts['gapsOut'] = rule['gapsOut']
+            if 'borderSize' in rule:
+                parts['borderSize'] = rule['borderSize']
+            if 'rounding' in rule:
+                parts['rounding'] = 'true' if rule['rounding'] else 'false'
+            if 'layout' in rule and rule['layout']:
+                parts['layout'] = f'"{rule["layout"]}"'
+            if 'defaultFloat' in rule:
+                parts['default_float'] = 'true' if rule['defaultFloat'] else 'false'
+            if 'persistent' in rule:
+                parts['persistent'] = 'true' if rule['persistent'] else 'false'
+            props = ', '.join(f'{k} = {v}' for k, v in parts.items())
+            lines.append(f'hl.workspace_rule({{ selector = "{ws_sel}", {props} }})')
+
+    # Smart gaps: no gaps when only one tiled window visible
+    if cfg.get('smartGaps'):
+        lines.append('')
+        lines.append('-- Smart gaps: no gaps with single tiled window')
+        lines.append('hl.workspace_rule({ selector = "w[tv1]", gapsIn = 0, gapsOut = 0, borderSize = 0, rounding = false })')
 
     lines.append('-- === END COMPOSITOR ===')
     return '\n'.join(lines) + '\n'
@@ -813,10 +893,26 @@ with open(LUA_PATH) as f:
     content = f.read()
 
 content = re.sub(re.escape(lua_marker) + '.*?' + re.escape(lua_end_marker), '', content, flags=re.DOTALL).strip()
-content += '\n' + lua_block
 
 if lua_binds_block:
     content = re.sub(re.escape(lua_binds_marker) + '.*?' + re.escape(lua_binds_end_marker), '', content, flags=re.DOTALL).strip()
+
+# Clean up any stray hyprlang syntax left in the Lua header (outside markers).
+# These are lines that are valid in .conf but invalid Lua, e.g.:
+#   exec-once = ..., bind = ..., source = ..., env = ...
+# They get left behind when the file was originally templated from .conf content.
+# NOTE: 'monitor' is NOT cleaned here — monitors_writer.py injects monitor=...
+# lines inside NOTHINGLESS MONITORS markers that must be preserved.
+_hyprlang_line_re = re.compile(
+    r'^(?:exec-once|exec|bind[a-z]*|source|env|windowrule|layerrule)\s*=.*$',
+    re.MULTILINE
+)
+content = _hyprlang_line_re.sub('', content)
+# Remove any resulting blank-line runs (more than 2 consecutive newlines)
+content = re.sub(r'\n{3,}', '\n\n', content).strip()
+
+content += '\n' + lua_block
+if lua_binds_block:
     content += '\n' + lua_binds_block
 
 with open(LUA_PATH, 'w') as f:

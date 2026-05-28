@@ -31,6 +31,19 @@ Singleton {
     signal subscribeFailed()
     signal configReloaded()
 
+    // Pending state for coalescing rapid updates (16ms debounce)
+    property var _pendingState: null
+    Timer {
+        id: _stateCoalesceTimer
+        interval: 16  // ~1 frame at 60fps
+        onTriggered: {
+            if (root._pendingState) {
+                root.applyState(root._pendingState);
+                root._pendingState = null;
+            }
+        }
+    }
+
     // Config path for axctl daemon
     property string configPath: (Quickshell.env("XDG_DATA_HOME") || (Quickshell.env("HOME") + "/.local/share")) + "/nothingless/axctl.toml"
 
@@ -55,13 +68,13 @@ Singleton {
         } else if (action === "focuswindow") {
             cmdArgs = ["window", "focus", getAddr(rawArgs)];
         } else if (action === "movetoworkspacesilent") {
-            // axctl v0.0.19 bug: move-to-workspace-silent returns Success but does nothing.
-            // Direct hyprctl dispatch via IpcPool (pooled processes, no leaks).
+            // axctl C fixed: Window.MoveToWorkspaceSilent works correctly.
+            // CLI: axctl window move-to-workspace-silent <ws> [window_id]
             let subParts = rawArgs.split(',');
             let ws = subParts[0].trim();
             let addr = subParts.length > 1 ? getAddr(subParts[1]) : "";
-            IpcPool.dispatch("movetoworkspacesilent " + ws + ",address:" + addr);
-            return;
+            cmdArgs = ["window", "move-to-workspace-silent", ws];
+            if (addr) cmdArgs.push(addr);
         } else if (action === "togglespecialworkspace") {
             cmdArgs = ["workspace", "toggle-special"];
             if (rawArgs) cmdArgs.push(rawArgs);
@@ -262,7 +275,7 @@ Singleton {
     }
 
     property Process axctlSubscribe: Process {
-        command: ["axctl", "subscribe"]
+        command: ["axctl", "-c", root.configPath, "subscribe"]
         running: false
 
         stdout: SplitParser {
@@ -271,9 +284,11 @@ Singleton {
                 try {
                     let parsedJson = JSON.parse(data);
 
-                    // Apply inline state immediately (every event carries full state)
+                    // Coalesce rapid state updates: keep only latest pending state
                     if (parsedJson.state) {
-                        root.applyState(parsedJson.state);
+                        root._pendingState = parsedJson.state;
+                        if (!_stateCoalesceTimer.running)
+                            _stateCoalesceTimer.start();
                     }
 
                     // Emit raw event for consumers

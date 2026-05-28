@@ -55,6 +55,7 @@ def normalize(m):
         "scale":       float(m.get("scale",1.0) or 1.0),
         "refreshRate": float(m.get("refreshRate",m.get("refresh_rate",60)) or 60),
         "transform":   int(m.get("transform",0) or 0),
+        "vrr":         int(m.get("vrr", m.get("activelyTearing", 0)) or 0),
         "enabled":     True,  # hyprctl only reports active monitors
         "focused":     bool(m.get("focused",False)),
         "make":        str(m.get("make","")),
@@ -62,6 +63,9 @@ def normalize(m):
         "description": str(m.get("description","")),
         # Available modes
         "modes":       m.get("availableModes", m.get("available_modes", [])),
+        # Hyprland 0.55+: HDR support
+        "hdrSupported": bool(m.get("hdrSupported", m.get("hdr_supported", False))),
+        "hdr":         bool(m.get("hdr", False)),
     }
 
 def normalize_custom(m):
@@ -75,38 +79,56 @@ def normalize_custom(m):
         "scale":       float(m.get("scale",1.0) or 1.0),
         "refreshRate": float(m.get("refreshRate",60) or 60),
         "transform":   int(m.get("transform",0) or 0),
+        "vrr":         int(m.get("vrr",0) or 0),
         "enabled":     bool(m.get("enabled",True)),
         "focused":     bool(m.get("focused",False)),
         "make":        str(m.get("make","")),
         "model":       str(m.get("model","")),
         "description": str(m.get("description","")),
-        "modes":       [],
+        "hdrSupported": bool(m.get("hdrSupported", False)),
+        "hdr":         bool(m.get("hdr", False)),
+        "modes":       m.get("modes", []),
     }
 
 def conf_line(m):
-    """Generate one monitor= line (nwg-displays format)."""
+    """Generate one monitor= line (nwg-displays format).
+
+    Hyprland 0.55 syntax: monitor=NAME,MODE,POS,SCALE[,transform,T]
+    """
     n = m["name"]
     if not m["enabled"]:
         return f"monitor={n},disable"
     mode = f"{m['width']}x{m['height']}@{m['refreshRate']:.2f}".rstrip('0').rstrip('.')
     pos  = f"{m['x']}x{m['y']}"
-    return f"monitor={n},{mode},{pos},{m['scale']}"
+    line = f"monitor={n},{mode},{pos},{m['scale']}"
+    # Append transform if non-zero (0=normal, 1=90°, 2=180°, 3=270°, 4=flipped, etc.)
+    transform = int(m.get("transform", 0) or 0)
+    if transform:
+        line += f",transform,{transform}"
+    return line
 
 def lua_block(m):
-    """Generate hl.monitor({...}) block."""
+    """Generate hl.monitor({...}) block (Hyprland 0.55+ Lua API)."""
     n = m["name"]
     if not m["enabled"]:
         return f'hl.monitor({{\n    output = "{n}",\n    disabled = true\n}})\n'
     mode = f"{m['width']}x{m['height']}@{m['refreshRate']:.2f}".rstrip('0').rstrip('.')
     pos  = f"{m['x']}x{m['y']}"
-    return (
-        f'hl.monitor({{\n'
-        f'    output = "{n}",\n'
-        f'    mode = "{mode}",\n'
-        f'    position = "{pos}",\n'
-        f'    scale = {m["scale"]}\n'
-        f'}})\n'
-    )
+    parts = [
+        f'    output = "{n}"',
+        f'    mode = "{mode}"',
+        f'    position = "{pos}"',
+        f'    scale = {m["scale"]}',
+    ]
+    # Transform (0=normal, 1-7=rotations/flips)
+    transform = int(m.get("transform", 0) or 0)
+    if transform:
+        parts.append(f'    transform = {transform}')
+    # VRR (variable refresh rate) — Hyprland 0.50+
+    vrr = m.get("vrr")
+    if vrr is not None and vrr != 0:
+        parts.append(f'    vrr = {vrr}')
+    return 'hl.monitor({\n' + ',\n'.join(parts) + '\n})\n'
 
 def generate(monitors):
     ts = datetime.now().strftime("%Y-%m-%d at %H:%M:%S")
@@ -134,8 +156,13 @@ def inject_nl(conf_lines, lua_lines):
         ("hyprland.lua",  lua_lines,  "-- === NOTHINGLESS MONITORS ===", "-- === END MONITORS ==="),
     ]:
         path = os.path.join(NL, ext)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         if not os.path.isfile(path):
-            continue
+            # Create file with header so markers can be injected
+            header = "-- NothingLess Hyprland config\n" if ext.endswith(".lua") \
+                else "# NothingLess Hyprland config\n"
+            with open(path, "w") as f:
+                f.write(header)
         filtered = [l for l in lines if l.startswith("monitor=")] if ext.endswith(".conf") \
               else [l for l in lines if l.startswith("hl.monitor")]
         block = f"{sm}\n" + "\n".join(filtered) + f"\n{em}"
@@ -158,14 +185,23 @@ def toml_entry(m):
         )
     mode = f"{m['width']}x{m['height']}@{m['refreshRate']:.2f}Hz"
     pos = f"{m['x']}x{m['y']}"
-    return (
-        f"[[monitors]]\n"
-        f'name = "{n}"\n'
-        f'mode = "{mode}"\n'
-        f'position = "{pos}"\n'
-        f'scale = {m["scale"]}\n'
-        f"enabled = true\n"
-    )
+    lines = [
+        f"[[monitors]]",
+        f'name = "{n}"',
+        f'mode = "{mode}"',
+        f'position = "{pos}"',
+        f'scale = {m["scale"]}',
+        f"enabled = true",
+    ]
+    # Transform (rotation)
+    transform = int(m.get("transform", 0) or 0)
+    if transform:
+        lines.append(f"transform = {transform}")
+    # VRR
+    vrr = int(m.get("vrr", 0) or 0)
+    if vrr:
+        lines.append(f"vrr = {vrr}")
+    return "\n".join(lines) + "\n"
 
 def write_axctl_monitors(monitors):
     """Update [[monitors]] section in axctl.toml with correct data."""

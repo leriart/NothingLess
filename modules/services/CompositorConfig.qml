@@ -672,7 +672,9 @@ QtObject {
     // No dependency on batchCommand, always gets current values
         function writeConfigToFile(batchCmd) {
         // Call the Python sync script which reads compositor.json directly
-        const scriptPath = Quickshell.env("HOME") + "/Documentos/GitHub/NothingLess/scripts/sync-hyprland-conf.py";
+        // Use Qt.resolvedUrl to find the script relative to this QML file,
+        // so it works regardless of where NothingLess is installed.
+        const scriptPath = Qt.resolvedUrl("../../scripts/sync-hyprland-conf.py").toString().replace("file://", "");
         syncProcess.command = ["python3", scriptPath];
         syncProcess.running = true;
     }
@@ -684,7 +686,7 @@ QtObject {
             if (code === 0) {
                 console.log("Config written to hyprland.conf/lua via sync script");
                 // Reload axctl daemon so it picks up the new config
-                reloadProcess.command = ["axctl", "reload"];
+                reloadProcess.command = ["axctl", "config", "reload"];
                 reloadProcess.running = true;
             } else {
                 console.error("sync-hyprland-conf.py failed, code:", code);

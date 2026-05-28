@@ -2,6 +2,8 @@
 //@ pragma ShellId nothingless
 //@ pragma DataDir $BASE/nothingless
 //@ pragma StateDir $BASE/nothingless
+//@ pragma NativeTextRendering
+//@ pragma DropExpensiveFonts
 
 import QtQuick
 import Quickshell
