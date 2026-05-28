@@ -15,6 +15,7 @@ Singleton {
     id: root
 
     // Optimal FPS based on hardware capability
+    // GpuDetector is now synchronous, so vendor is known at component creation time.
     readonly property int optimalFps: {
         if (GpuDetector.hasHardwareDecoder) return Config.performance.videoTargetFps || 24;
         return Math.min(Config.performance.videoTargetFps || 15, 15);
@@ -23,7 +24,7 @@ Singleton {
     // Whether we're using hardware decoding
     readonly property bool usingHardware: GpuDetector.hasHardwareDecoder
 
-    // Max threads for software decoding
+    // Max threads for software decoding (0 = hardware decoder handles it)
     readonly property int maxSoftwareThreads: {
         if (GpuDetector.isNvidia) return 0;  // HW only
         if (GpuDetector.isAmd)    return 0;  // HW via VA-API
