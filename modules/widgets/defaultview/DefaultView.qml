@@ -345,21 +345,22 @@ Item {
                     }
                 }
 
-                // Clock instance used only for its popup (anchored to clock text)
-                Clock {
-                    id: clockPopupInvoker
-                    anchors.top: clockTextArea.bottom
-                    anchors.topMargin: 4
-                    anchors.horizontalCenter: clockTextArea.horizontalCenter
-                    opacity: 0
-                    width: 0; height: 0
-                    bar: QtObject {
-                        property string orientation: "horizontal"
-                        property bool vertical: false
-                        property string barPosition: "top"
-                    }
-                    layerEnabled: false
+            }
+
+            // Hidden Clock used only for its popup (outside the Row to avoid layout gap)
+            Clock {
+                id: clockPopupInvoker
+                anchors.top: clockTextArea.bottom
+                anchors.topMargin: 4
+                anchors.horizontalCenter: clockTextArea.horizontalCenter
+                opacity: 0
+                width: 0; height: 0
+                bar: QtObject {
+                    property string orientation: "horizontal"
+                    property bool vertical: false
+                    property string barPosition: "top"
                 }
+                layerEnabled: false
             }
 
             UserInfo {
