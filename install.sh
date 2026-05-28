@@ -4,6 +4,8 @@ set -e
 # === Configuration ===
 REPO_URL="https://github.com/Leriart/NothingLess.git"
 INSTALL_PATH="$HOME/.local/src/nothingless"
+AXCTL_REPO="https://github.com/leriart/axctl.c.git"
+AXCTL_PATH="$HOME/.local/src/axctl.c"
 BIN_DIR="/usr/local/bin"
 QUICKSHELL_REPO="https://git.outfoxxed.me/outfoxxed/quickshell"
 
@@ -128,7 +130,7 @@ install_dependencies() {
       tesseract-langpack-chi_sim tesseract-langpack-chi_tra tesseract-langpack-kor tesseract-langpack-lat
       google-roboto-fonts google-roboto-mono-fonts dejavu-sans-fonts liberation-fonts
       google-noto-fonts-common google-noto-cjk-fonts google-noto-emoji-fonts
-      mpvpaper matugen R-CRAN-phosphoricons adw-gtk3-theme quickshell unzip curl
+      mpvpaper matugen R-CRAN-phosphoricons adw-gtk3-theme quickshell unzip curl json-c-devel wayland-devel gcc make pkg-config
     )
 
     log_info "Installing dependencies..."
@@ -180,6 +182,7 @@ install_color_presets
       matugen gpu-screen-recorder wl-clip-persist mpvpaper gradia
       quickshell ttf-phosphor-icons ttf-league-gothic adw-gtk-theme
       ttf-material-symbols-variable-git translate-shell songrec libqalculate
+      json-c wayland
     )
 
     log_info "Installing dependencies with $AUR_HELPER..."
@@ -219,7 +222,7 @@ install_color_presets
       tesseract-langpack-chi_sim tesseract-langpack-chi_tra tesseract-langpack-kor tesseract-langpack-lat
       google-roboto-fonts google-roboto-mono-fonts dejavu-sans-fonts liberation-fonts
       google-noto-fonts-common google-noto-cjk-fonts google-noto-emoji-fonts
-      mpvpaper matugen R-CRAN-phosphoricons adw-gtk3-theme quickshell unzip curl
+      mpvpaper matugen R-CRAN-phosphoricons adw-gtk3-theme quickshell unzip curl json-c-devel wayland-devel gcc make pkg-config
       translate-shell songrec libqalculate
     )
 
@@ -484,10 +487,47 @@ setup_launcher() {
   log_success "Launcher created"
 }
 
+# === Axctl Installation ===
+install_axctl() {
+  [[ "$DISTRO" == "nixos" ]] && return
+
+  has_cmd axctl && {
+    local ver
+    ver="$(axctl --version 2>/dev/null || echo "")"
+    if [[ "$ver" == *".c"* ]] || [[ "$ver" == *"0.1.0"* ]]; then
+      log_info "axctl.c $ver already installed"
+      return
+    fi
+  }
+
+  log_info "Installing axctl.c..."
+
+  if [[ -d "$AXCTL_PATH" ]]; then
+    log_info "Updating axctl.c..."
+    git -C "$AXCTL_PATH" fetch origin
+    git -C "$AXCTL_PATH" reset --hard origin/main
+  else
+    log_info "Cloning axctl.c to $AXCTL_PATH..."
+    mkdir -p "$(dirname "$AXCTL_PATH")"
+    git clone "$AXCTL_REPO" "$AXCTL_PATH"
+  fi
+
+  log_info "Building axctl.c..."
+  (cd "$AXCTL_PATH" && make clean && make) || {
+    log_error "axctl.c build failed"
+    return
+  }
+
+  log_info "Installing axctl to $BIN_DIR/axctl..."
+  sudo install -Dm755 "$AXCTL_PATH/axctl" "$BIN_DIR/axctl"
+  log_success "axctl.c installed ($(/usr/local/bin/axctl --version 2>/dev/null || echo "unknown"))"
+}
+
 # === Main ===
 migrate_old_paths
 install_dependencies "$1"
 setup_repo
+install_axctl
 install_quickshell
 install_ndot_font
 install_python_tools
