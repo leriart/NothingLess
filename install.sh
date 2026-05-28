@@ -526,10 +526,22 @@ install_axctl() {
   }
 
   # Kill any running daemon that may hold the binary busy
+  # Use SIGKILL (-9) because SIGTERM may not release the file immediately
   log_info "Stopping axctl daemon..."
-  sudo pkill -f "axctl.*daemon" 2>/dev/null || true
-  sudo pkill -f "axctl.*subscribe" 2>/dev/null || true
-  sleep 0.5
+  sudo pkill -9 -f "axctl.*daemon" 2>/dev/null || true
+  sudo pkill -9 -f "axctl.*subscribe" 2>/dev/null || true
+  # Also try fuser as a fallback if pkill missed something
+  local AXCTL_PID
+  AXCTL_PID="$(fuser "$BIN_DIR/axctl" 2>/dev/null | head -1)"
+  if [[ -n "$AXCTL_PID" ]]; then
+    sudo kill -9 "$AXCTL_PID" 2>/dev/null || true
+  fi
+  sleep 1
+  # Verify the binary is free
+  if fuser "$BIN_DIR/axctl" >/dev/null 2>&1; then
+    log_warn "axctl binary still busy, waiting..."
+    sleep 2
+  fi
 
   log_info "Installing axctl to $BIN_DIR/axctl..."
   sudo install -Dm755 "$AXCTL_PATH/axctl" "$BIN_DIR/axctl"
