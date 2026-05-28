@@ -14,11 +14,25 @@ Singleton {
     property string beforeSleepCmd: Config.system.idle.general.before_sleep_cmd ?? "loginctl lock-session"
     property string afterSleepCmd: Config.system.idle.general.after_sleep_cmd ?? "nothingless screen on"
 
+    // Kill any orphaned loginlock/sleep_monitor processes from previous
+    // NothingLess sessions before starting new ones. This prevents the
+    // accumulation of zombie bash+dbus-monitor processes across reloads.
+    property var killerProc: Process {
+        id: killerProc
+        command: ["pkill", "-f", "nothingless/scripts/(loginlock|sleep_monitor|nothingless)_monitor\\.sh"]
+        running: true
+        onExited: {
+            loginLockProc.running = true;
+            sleepMonitorProc.running = true;
+        }
+    }
+
     // Login Lock Daemon
-    // Helper script that listens to Lock signal and executes lockCmd from config
+    // Listens to org.freedesktop.login1.Session Lock signal via dbus-monitor
+    // and executes lockCmd from config.
     property var loginLockProc: Process {
         id: loginLockProc
-        running: true
+        running: false
         command: ["bash", Qt.resolvedUrl("../../scripts/loginlock.sh").toString().replace("file://", "")]
         onExited: exitCode => {
             if (exitCode !== 0) {
@@ -36,12 +50,13 @@ Singleton {
     }
 
     // Sleep Monitor Daemon
-    // Helper script that listens to PrepareForSleep signal and executes sleep commands from config
+    // Listens to org.freedesktop.login1.Manager PrepareForSleep signal
+    // and executes before/after sleep commands from config.
     property var sleepMonitorProc: Process {
         id: sleepMonitorProc
-        running: true
+        running: false
         command: ["bash", Qt.resolvedUrl("../../scripts/sleep_monitor.sh").toString().replace("file://", "")]
-        
+
         stdout: SplitParser {
             onRead: data => {
                 const signal = data.trim();
@@ -100,10 +115,10 @@ Singleton {
 
     function executeCommand(cmd) {
         if (!cmd) return;
-        
+
         // Escape backslashes and quotes for the QML string
         let escapedCmd = cmd.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-        
+
         try {
             let proc = Qt.createQmlObject(`
                 import Quickshell.Io
