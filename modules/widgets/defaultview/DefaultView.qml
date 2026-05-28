@@ -6,6 +6,7 @@ import qs.modules.services
 import qs.modules.notch
 import qs.modules.components
 import qs.modules.bar.clock
+import "../../widgets/dashboard/widgets"
 import qs.config
 
 Item {
@@ -346,30 +347,115 @@ Item {
                 }
             }
 
-    // Clock popup — anchored to the clock text area
+    // Clock popup — mini week calendar + weather
     BarPopup {
         id: clockPopup
         anchorItem: clockTextArea
         bar: QtObject {
             property string barPosition: "top"
         }
+        variant: "transparent"
+        popupPadding: 0
+
+        contentWidth: popupCol.implicitWidth
+        contentHeight: popupCol.implicitHeight
+
+        onIsOpenChanged: {
+            if (isOpen && !WeatherService.dataAvailable) {
+                WeatherService.updateWeather();
+            }
+        }
 
         Column {
-            spacing: 8
-            padding: 12
+            id: popupCol
+            spacing: 4
+            padding: 0
 
-            Text {
-                text: new Date().toLocaleDateString(Config.locale || Qt.locale(), "dddd")
-                color: Colors.primary
-                font.family: Config.theme.font
-                font.pixelSize: 16
-                font.weight: Font.Bold
+            // Mini calendar
+            StyledRect {
+                variant: "popup"
+                radius: 8
+                enableShadow: false
+                width: 332
+                height: calContent.height + 32
+
+                Column {
+                    id: calContent
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    anchors.topMargin: 16
+                    spacing: 8
+
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: new Date().toLocaleDateString(Qt.locale(), "MMMM yyyy")
+                        color: Colors.outline
+                        font.family: Config.theme.font
+                        font.pixelSize: 13
+                        font.weight: Font.Medium
+                    }
+
+                    // Days grid
+                    Grid {
+                        columns: 7
+                        spacing: 4
+                        horizontalItemAlignment: Grid.AlignHCenter
+
+                        Repeater {
+                            model: 7
+
+                            Text {
+                                required property int index
+                                text: Qt.locale().dayName(index + 1, Locale.ShortFormat)
+                                color: Colors.overBackground
+                                font.family: Config.theme.font
+                                font.pixelSize: 11
+                                font.weight: Font.Bold
+                                horizontalAlignment: Text.AlignHCenter
+                                width: 40
+                            }
+                        }
+                    }
+
+                    Grid {
+                        columns: 7
+                        spacing: 4
+                        horizontalItemAlignment: Grid.AlignHCenter
+
+                        Repeater {
+                            model: 7
+
+                            Item {
+                                required property int index
+                                width: 40
+                                height: 28
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() - new Date().getDay() + 1 + parent.index).getDate()
+                                    color: Colors.overBackground
+                                    font.family: Config.theme.font
+                                    font.pixelSize: 12
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            Text {
-                text: new Date().toLocaleDateString(Config.locale || Qt.locale(), "MMMM d, yyyy")
-                color: Colors.overBackground
-                font.family: Config.theme.font
-                font.pixelSize: 13
+
+            // Weather
+            StyledRect {
+                variant: "popup"
+                radius: 8
+                enableShadow: false
+                width: 332
+                height: 148
+                visible: WeatherService.dataAvailable
+
+                WeatherWidget {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                }
             }
         }
     }
