@@ -374,7 +374,6 @@ Item {
                     // =====================
                     ColumnLayout {
                         visible: root.currentSection === "performance"
-                        property string settingsSection: "performance"
                         Layout.fillWidth: true
                         spacing: 8
 
@@ -388,44 +387,319 @@ Item {
                         }
 
                         Text {
-                            text: "Toggle visual effects to improve performance"
+                            text: "Fine-tune rendering, visuals, and system resources"
                             font.family: Config.theme.font
                             font.pixelSize: Styling.fontSize(-2)
                             color: Colors.overSurfaceVariant
                             opacity: 0.7
+                            wrapMode: Text.WordWrap
                         }
 
-                        // Blur Transition toggle
+                        // ════════════════════════════════════════
+                        // RENDERING
+                        // ════════════════════════════════════════
+                        Separator { Layout.fillWidth: true }
+
+                        Text {
+                            text: "RENDERING"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-2)
+                            font.weight: Font.Bold
+                            color: Colors.primary
+                            font.letterSpacing: 1
+                        }
+
+                        SelectRow {
+                            Layout.fillWidth: true
+                            label: "Backend"
+                            description: "Rendering API (requires restart)"
+                            currentValue: Config.performance.renderBackend
+                            model: [
+                                { value: "auto",    label: "Auto" },
+                                { value: "opengl",  label: "OpenGL" },
+                                { value: "vulkan",  label: "Vulkan" }
+                            ]
+                            onSelected: val => { Config.performance.renderBackend = val; }
+                        }
+
+                        NumberInputRow {
+                            label: "Render Threads"
+                            value: Config.performance.maxRenderThreads
+                            minValue: 2
+                            maxValue: 16
+                            suffix: "threads"
+                            onValueEdited: val => { Config.performance.maxRenderThreads = val; }
+                        }
+
+                        ToggleRow {
+                            Layout.fillWidth: true
+                            label: "GPU Accelerated Effects"
+                            description: "Offload visual effects to GPU"
+                            checked: Config.performance.gpuAcceleratedEffects
+                            onToggled: checked => { Config.performance.gpuAcceleratedEffects = checked; }
+                        }
+
+                        ToggleRow {
+                            Layout.fillWidth: true
+                            label: "Layer Effects"
+                            description: "Master toggle for shadows and layer effects"
+                            checked: Config.performance.layerEffects
+                            onToggled: checked => { Config.performance.layerEffects = checked; }
+                        }
+
+                        // ════════════════════════════════════════
+                        // VIDEO WALLPAPER
+                        // ════════════════════════════════════════
+                        Separator { Layout.fillWidth: true }
+
+                        Text {
+                            text: "VIDEO WALLPAPER"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-2)
+                            font.weight: Font.Bold
+                            color: Colors.primary
+                            font.letterSpacing: 1
+                        }
+
+                        SelectRow {
+                            Layout.fillWidth: true
+                            label: "Decoder"
+                            description: "Video decoder backend (auto = best available)"
+                            currentValue: Config.performance.videoDecoder
+                            model: [
+                                { value: "auto",      label: "Auto" },
+                                { value: "hardware",  label: "Hardware (GPU)" },
+                                { value: "software",  label: "Software (CPU)" }
+                            ]
+                            onSelected: val => { Config.performance.videoDecoder = val; }
+                        }
+
+                        NumberInputRow {
+                            label: "Target FPS"
+                            value: Config.performance.videoTargetFps
+                            minValue: 10
+                            maxValue: 60
+                            suffix: "fps"
+                            onValueEdited: val => { Config.performance.videoTargetFps = val; }
+                        }
+
+                        SelectRow {
+                            Layout.fillWidth: true
+                            label: "Resolution"
+                            description: "Max decode resolution (lower = less GPU load)"
+                            currentValue: Config.performance.videoResolutionLimit
+                            model: [
+                                { value: "native", label: "Native" },
+                                { value: "1440p",  label: "1440p" },
+                                { value: "1080p",  label: "1080p" },
+                                { value: "720p",   label: "720p" }
+                            ]
+                            onSelected: val => { Config.performance.videoResolutionLimit = val; }
+                        }
+
+                        // ════════════════════════════════════════
+                        // VISUAL QUALITY
+                        // ════════════════════════════════════════
+                        Separator { Layout.fillWidth: true }
+
+                        Text {
+                            text: "VISUAL QUALITY"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-2)
+                            font.weight: Font.Bold
+                            color: Colors.primary
+                            font.letterSpacing: 1
+                        }
+
+                        SelectRow {
+                            Layout.fillWidth: true
+                            label: "Shadow Quality"
+                            description: "Window and popup shadows"
+                            currentValue: Config.performance.shadowQuality
+                            model: [
+                                { value: "off",     label: "Off" },
+                                { value: "low",     label: "Low" },
+                                { value: "medium",  label: "Medium" },
+                                { value: "high",    label: "High" }
+                            ]
+                            onSelected: val => { Config.performance.shadowQuality = val; }
+                        }
+
+                        SelectRow {
+                            Layout.fillWidth: true
+                            label: "Blur Quality"
+                            description: "Background blur quality for panels"
+                            currentValue: Config.performance.blurQuality
+                            model: [
+                                { value: "off",     label: "Off" },
+                                { value: "low",     label: "Low" },
+                                { value: "medium",  label: "Medium" },
+                                { value: "high",    label: "High" }
+                            ]
+                            onSelected: val => { Config.performance.blurQuality = val; }
+                        }
+
+                        ToggleRow {
+                            Layout.fillWidth: true
+                            label: "Rounded Corners"
+                            description: "Render screen corner overlays"
+                            checked: Config.performance.cornerRendering
+                            onToggled: checked => { Config.performance.cornerRendering = checked; }
+                        }
+
+                        ToggleRow {
+                            Layout.fillWidth: true
+                            label: "Frame Effect"
+                            description: "Screen border glow effect"
+                            checked: Config.performance.frameEffect
+                            onToggled: checked => { Config.performance.frameEffect = checked; }
+                        }
+
+                        NumberInputRow {
+                            label: "Thumbnail Cache"
+                            value: Config.performance.thumbnailCacheSize
+                            minValue: 10
+                            maxValue: 200
+                            suffix: "items"
+                            onValueEdited: val => { Config.performance.thumbnailCacheSize = val; }
+                        }
+
+                        // ════════════════════════════════════════
+                        // ANIMATIONS
+                        // ════════════════════════════════════════
+                        Separator { Layout.fillWidth: true }
+
+                        Text {
+                            text: "ANIMATIONS"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-2)
+                            font.weight: Font.Bold
+                            color: Colors.primary
+                            font.letterSpacing: 1
+                        }
+
                         ToggleRow {
                             Layout.fillWidth: true
                             label: "Blur Transition"
-                            description: "Animated blur when opening panels"
+                            description: "Animated blur when opening notch panels"
                             checked: Config.performance.blurTransition
-                            onToggled: checked => {
-                                Config.performance.blurTransition = checked;
-                            }
+                            onToggled: checked => { Config.performance.blurTransition = checked; }
                         }
 
-                        // Window Preview toggle
                         ToggleRow {
                             Layout.fillWidth: true
                             label: "Window Preview"
                             description: "Show window thumbnails in overview"
                             checked: Config.performance.windowPreview
-                            onToggled: checked => {
-                                Config.performance.windowPreview = checked;
-                            }
+                            onToggled: checked => { Config.performance.windowPreview = checked; }
                         }
 
-                        // Rotate Cover Art toggle
                         ToggleRow {
                             Layout.fillWidth: true
                             label: "Disable Cover Art Rotation"
                             description: "Stop the vinyl disc from spinning"
                             checked: !Config.performance.rotateCoverArt
-                            onToggled: checked => {
-                                Config.performance.rotateCoverArt = !checked;
-                            }
+                            onToggled: checked => { Config.performance.rotateCoverArt = !checked; }
+                        }
+
+                        // ════════════════════════════════════════
+                        // DASHBOARD
+                        // ════════════════════════════════════════
+                        Separator { Layout.fillWidth: true }
+
+                        Text {
+                            text: "DASHBOARD"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-2)
+                            font.weight: Font.Bold
+                            color: Colors.primary
+                            font.letterSpacing: 1
+                        }
+
+                        ToggleRow {
+                            Layout.fillWidth: true
+                            label: "Persist Tabs"
+                            description: "Keep tabs loaded in memory for faster switching"
+                            checked: Config.performance.dashboardPersistTabs
+                            onToggled: checked => { Config.performance.dashboardPersistTabs = checked; }
+                        }
+
+                        NumberInputRow {
+                            label: "Max Persistent Tabs"
+                            value: Config.performance.dashboardMaxPersistentTabs
+                            minValue: 1
+                            maxValue: 10
+                            suffix: "tabs"
+                            onValueEdited: val => { Config.performance.dashboardMaxPersistentTabs = val; }
+                        }
+
+                        // ════════════════════════════════════════
+                        // MONITORING
+                        // ════════════════════════════════════════
+                        Separator { Layout.fillWidth: true }
+
+                        Text {
+                            text: "MONITORING"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-2)
+                            font.weight: Font.Bold
+                            color: Colors.primary
+                            font.letterSpacing: 1
+                        }
+
+                        NumberInputRow {
+                            label: "System Monitor"
+                            value: Config.performance.systemMonitorInterval
+                            minValue: 500
+                            maxValue: 10000
+                            suffix: "ms"
+                            onValueEdited: val => { Config.performance.systemMonitorInterval = val; }
+                        }
+
+                        NumberInputRow {
+                            label: "Background Poll"
+                            value: Config.performance.backgroundServicePolling
+                            minValue: 1000
+                            maxValue: 30000
+                            suffix: "ms"
+                            onValueEdited: val => { Config.performance.backgroundServicePolling = val; }
+                        }
+
+                        // ════════════════════════════════════════
+                        // BOOT
+                        // ════════════════════════════════════════
+                        Separator { Layout.fillWidth: true }
+
+                        Text {
+                            text: "BOOT"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-2)
+                            font.weight: Font.Bold
+                            color: Colors.primary
+                            font.letterSpacing: 1
+                        }
+
+                        ToggleRow {
+                            Layout.fillWidth: true
+                            label: "Show Splash"
+                            description: "Display Nothing boot animation on start"
+                            checked: Config.performance.showSplash
+                            onToggled: checked => { Config.performance.showSplash = checked; }
+                        }
+
+                        NumberInputRow {
+                            label: "Splash Duration"
+                            value: Config.performance.splashDuration
+                            minValue: 1000
+                            maxValue: 10000
+                            suffix: "ms"
+                            onValueEdited: val => { Config.performance.splashDuration = val; }
+                        }
+
+                        // Bottom spacing
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 32
                         }
                     }
 
@@ -1182,6 +1456,88 @@ Item {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
                 onClicked: toggled(!checked)
+            }
+        }
+    }
+
+    // Separator line
+    component Separator: Rectangle {
+        Layout.fillWidth: true
+        height: 1
+        color: Colors.surfaceBright
+        opacity: 0.5
+    }
+
+    // Select row with dropdown-style multiple choice
+    component SelectRow: ColumnLayout {
+        id: selectRowRoot
+        property string label: ""
+        property string description: ""
+        property string currentValue: ""
+        property var model: []
+        signal selected(string value)
+
+        spacing: 4
+        Layout.fillWidth: true
+
+        Text {
+            text: selectRowRoot.label
+            font.family: Config.theme.font
+            font.pixelSize: Styling.fontSize(0)
+            color: Colors.overBackground
+        }
+
+        Text {
+            visible: description !== ""
+            text: selectRowRoot.description
+            font.family: Config.theme.font
+            font.pixelSize: Styling.fontSize(-2)
+            color: Colors.overSurfaceVariant
+            opacity: 0.7
+            wrapMode: Text.WordWrap
+            Layout.bottomMargin: 2
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            spacing: 6
+
+            Repeater {
+                model: selectRowRoot.model
+
+                delegate: StyledRect {
+                    id: selectButton
+                    required property var modelData
+                    required property int index
+
+                    property bool isSelected: selectRowRoot.currentValue === modelData.value
+                    property bool isHovered: false
+
+                    variant: isSelected ? "primary" : (isHovered ? "focus" : "common")
+                    radius: Styling.radius(-2)
+                    width: btnLabel.width + 24
+                    height: 32
+
+                    Text {
+                        id: btnLabel
+                        anchors.centerIn: parent
+                        text: selectButton.modelData.label
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(-1)
+                        font.weight: selectButton.isSelected ? Font.Bold : Font.Normal
+                        color: selectButton.isSelected ? Styling.srItem("primary") : Colors.overBackground
+                    }
+
+                    MouseArea {
+                        id: selectBtnArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onEntered: selectButton.isHovered = true
+                        onExited: selectButton.isHovered = false
+                        onClicked: selectRowRoot.selected(selectButton.modelData.value)
+                    }
+                }
             }
         }
     }

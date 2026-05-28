@@ -632,6 +632,7 @@ Item {
 
                                     model: ListModel {
                                         ListElement { text: "M3 (Material 3)"; key: "m3" }
+                                        ListElement { text: "Ambxst (Original)"; key: "ambxst" }
                                         ListElement { text: "── Windows ──"; key: "" }
                                         ListElement { text: "Windows Classic"; key: "windows-classic" }
                                         ListElement { text: "Windows XP"; key: "windows-xp" }
@@ -684,10 +685,10 @@ Item {
                                             
                                             // Restore saved speed for new style, or use default
                                             const styleDefaults = {
-                                                "m3": 300, "windows-classic": 100, "windows-xp": 200,
-                                                "windows-7": 250, "mac-classic": 80, "mac-legacy": 350,
-                                                "mac-modern": 300, "hyprland": 120, "android-legacy": 150,
-                                                "android-material": 200, "android-you": 300
+                                                "m3": 300, "ambxst": 250, "windows-classic": 100,
+                                                "windows-xp": 200, "windows-7": 250, "mac-classic": 80,
+                                                "mac-legacy": 350, "mac-modern": 300, "hyprland": 120,
+                                                "android-legacy": 150, "android-material": 200, "android-you": 300
                                             };
                                             const savedSpeed = savedSpeeds[key];
                                             if (savedSpeed !== undefined) {

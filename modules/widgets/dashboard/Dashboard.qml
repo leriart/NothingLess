@@ -211,16 +211,18 @@ NotchAnimationBehavior {
                     enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.spatialFast
-                        easing.type: Anim.easing("spatial").type
-                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
+                        easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
                     }
                 }
                 Behavior on animatedY2 {
                     enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.spatialDefault
-                        easing.type: Anim.easing("spatial").type
-                        easing.bezierCurve: Anim.easing("spatial").bezierCurve
+                        easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
                     }
                 }
 

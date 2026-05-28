@@ -38,6 +38,56 @@ QtObject {
     //   name       — human-readable name
 
     readonly property var _profiles: ({
+        // ─── AMBXST (New) ──────────────────────────────────────────────
+        "ambxst": {
+            name: "ambxst",
+            durations: {
+                standard:   { small: 150,  normal: 300, large: 450, extraLarge: 600 },
+                emphasized: { small: 250,  normal: 400, large: 550 },
+                spatial:    { fast: 150,   default: 300, slow: 450 },
+                spring:     { small: 400,  normal: 550, large: 750 }
+            },
+            easings: {
+                standard:       [0.2, 0.0, 0.0, 1.0],
+                emphasized:     [0.05, 0.7, 0.1, 1.0],
+                emphasizedExit: [0.3, 0.0, 0.8, 0.15],
+                collapse:       [0.25, 1.0, 0.5, 1.0],  // OutQuart
+                spatial:        [0.4, 0.0, 0.2, 1.0],
+                decelerate:     [0.0, 0.0, 0.2, 1.0],
+                accelerate:     [0.4, 0.0, 1.0, 1.0],
+                linear:         null
+            },
+            spring: { stiffness: 220, damping: 14, mass: 1.0 },
+            _overshoot: 1.7,
+            compositor: { curve: [0.34, 1.2, 0.64, 1.0], speed: 4.0, name: "nl-ambxst" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.87, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 0.5, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.87, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 0.5, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.90, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.8, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
+            }
+        },
+
         // ─── Material 3 (default) ──────────────────────────────────────
         "m3": {
             name: "Material 3",
@@ -51,16 +101,44 @@ QtObject {
                 standard:       [0.2, 0.0, 0.0, 1.0],
                 emphasized:     [0.05, 0.7, 0.1, 1.0],
                 emphasizedExit: [0.3, 0.0, 0.8, 0.15],
+                collapse:       [0.3, 0.0, 0.8, 0.15],
                 spatial:        [0.4, 0.0, 0.2, 1.0],
                 decelerate:     [0.0, 0.0, 0.2, 1.0],
                 accelerate:     [0.4, 0.0, 1.0, 1.0],
                 linear:         null
+            },
+            spring: { stiffness: 200, damping: 20, mass: 1.0 },
+            _overshoot: 1.08,
+            compositor: { curve: [0.2, 0.0, 0.0, 1.0], speed: 2.5, name: "nl-standard" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.92, to: 1.0, duration: "standardNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 0.88, duration: "standardNormal", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.92, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 0.88, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.95, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.92, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
             }
         },
 
         // ─── Windows Classic (95/98/ME/2000) ────────────────────────────
-        // Minimal animations, linear or very simple easing, short durations.
-        // Design principle: functional, no-nonsense, instant feedback.
         "windows-classic": {
             name: "Windows Classic",
             durations: {
@@ -70,19 +148,47 @@ QtObject {
                 spring:     { small: 100,  normal: 150, large: 200 }
             },
             easings: {
-                standard:       [0.0, 0.0, 1.0, 1.0],  // Linear
-                emphasized:     [0.0, 0.0, 1.0, 1.0],  // Linear
-                emphasizedExit: [0.0, 0.0, 1.0, 1.0],  // Linear
-                spatial:        [0.0, 0.0, 1.0, 1.0],  // Linear
-                decelerate:     [0.0, 0.0, 1.0, 1.0],  // Linear
-                accelerate:     [0.0, 0.0, 1.0, 1.0],  // Linear
+                standard:       [0.0, 0.0, 1.0, 1.0],
+                emphasized:     [0.0, 0.0, 1.0, 1.0],
+                emphasizedExit: [0.0, 0.0, 1.0, 1.0],
+                collapse:       [0.0, 0.0, 1.0, 1.0],
+                spatial:        [0.0, 0.0, 1.0, 1.0],
+                decelerate:     [0.0, 0.0, 1.0, 1.0],
+                accelerate:     [0.0, 0.0, 1.0, 1.0],
                 linear:         null
+            },
+            spring: { stiffness: 500, damping: 50, mass: 1.0 },
+            _overshoot: 1.0,
+            compositor: { curve: [0.0, 0.0, 1.0, 1.0], speed: 1.0, name: "nl-linear" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.92, to: 1.0, duration: "standardSmall", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 1.0, duration: "standardSmall", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.92, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 1.0, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.95, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.97, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
             }
         },
 
         // ─── Windows XP ─────────────────────────────────────────────────
-        // Gentle ease-out, slightly playful, medium durations.
-        // "Luna" theme: smooth but not overly animated.
         "windows-xp": {
             name: "Windows XP",
             durations: {
@@ -92,19 +198,47 @@ QtObject {
                 spring:     { small: 200,  normal: 300, large: 400 }
             },
             easings: {
-                standard:       [0.25, 0.1, 0.25, 1.0],  // Gentle ease
-                emphasized:     [0.0, 0.0, 0.2, 1.0],    // Ease-out emphasis
-                emphasizedExit: [0.4, 0.0, 1.0, 1.0],    // Ease-in
+                standard:       [0.25, 0.1, 0.25, 1.0],
+                emphasized:     [0.0, 0.0, 0.2, 1.0],
+                emphasizedExit: [0.4, 0.0, 1.0, 1.0],
+                collapse:       [0.4, 0.0, 1.0, 1.0],
                 spatial:        [0.25, 0.1, 0.25, 1.0],
                 decelerate:     [0.0, 0.0, 0.2, 1.0],
                 accelerate:     [0.4, 0.0, 1.0, 1.0],
                 linear:         null
+            },
+            spring: { stiffness: 180, damping: 18, mass: 1.0 },
+            _overshoot: 1.12,
+            compositor: { curve: [0.25, 0.1, 0.25, 1.0], speed: 2.0, name: "nl-xp" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.90, to: 1.0, duration: "standardNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 0.84, duration: "standardNormal", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.90, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 0.84, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.93, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.9, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
             }
         },
 
         // ─── Windows 7 (Aero) ───────────────────────────────────────────
-        // Glass aesthetic, smooth transitions, subtle overshoot.
-        // Aero Glass: animated taskbar thumbnails, flip3d, window previews.
         "windows-7": {
             name: "Windows 7",
             durations: {
@@ -114,18 +248,47 @@ QtObject {
                 spring:     { small: 300,  normal: 400, large: 550 }
             },
             easings: {
-                // Aero glass: smooth with gentle coefficient
                 standard:       [0.15, 0.60, 0.25, 0.90],
                 emphasized:     [0.05, 0.80, 0.15, 0.95],
                 emphasizedExit: [0.35, 0.05, 0.75, 0.35],
+                collapse:       [0.35, 0.05, 0.75, 0.35],
                 spatial:        [0.22, 0.50, 0.30, 0.88],
+                decelerate:     [0.0, 0.0, 0.2, 1.0],
+                accelerate:     [0.4, 0.0, 1.0, 1.0],
                 linear:         null
+            },
+            spring: { stiffness: 150, damping: 12, mass: 1.0 },
+            _overshoot: 1.20,
+            compositor: { curve: [0.1, 0.8, 0.1, 1.0], speed: 2.8, name: "nl-aero" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.89, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 0.82, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.89, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 0.82, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.92, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.88, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
             }
         },
 
         // ─── Mac OS Classic (pre-OS X) ──────────────────────────────────
-        // Almost no animations. Checkerboard, iris effects (Platinum).
-        // In practice: linear fades if anything.
         "mac-classic": {
             name: "Mac OS Classic",
             durations: {
@@ -135,19 +298,47 @@ QtObject {
                 spring:     { small: 80,   normal: 120, large: 150 }
             },
             easings: {
-                standard:       [0.0, 0.0, 1.0, 1.0],  // All linear
+                standard:       [0.0, 0.0, 1.0, 1.0],
                 emphasized:     [0.0, 0.0, 1.0, 1.0],
                 emphasizedExit: [0.0, 0.0, 1.0, 1.0],
+                collapse:       [0.0, 0.0, 1.0, 1.0],
                 spatial:        [0.0, 0.0, 1.0, 1.0],
                 decelerate:     [0.0, 0.0, 1.0, 1.0],
                 accelerate:     [0.0, 0.0, 1.0, 1.0],
                 linear:         null
+            },
+            spring: { stiffness: 400, damping: 40, mass: 1.0 },
+            _overshoot: 1.0,
+            compositor: { curve: [0.0, 0.0, 1.0, 1.0], speed: 0.5, name: "nl-linear" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.95, to: 1.0, duration: "standardSmall", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 1.0, duration: "standardSmall", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.95, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 1.0, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.98, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.98, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
             }
         },
 
         // ─── Mac OS X Leopard/Snow Leopard ──────────────────────────────
-        // Genie effect, smooth fade, sine-based curves.
-        // Aqua UI: jelly buttons, smooth scrolling, cover flow.
         "mac-legacy": {
             name: "Mac OS X",
             durations: {
@@ -157,19 +348,47 @@ QtObject {
                 spring:     { small: 350,  normal: 500, large: 700 }
             },
             easings: {
-                standard:       [0.42, 0.0, 0.58, 1.0],  // Sine ease-in-out
-                emphasized:     [0.25, 0.46, 0.45, 0.94], // Gentle overshoot
-                emphasizedExit: [0.55, 0.06, 0.68, 0.53], // Smooth exit
-                spatial:        [0.42, 0.0, 0.58, 1.0],   // Sine ease
+                standard:       [0.42, 0.0, 0.58, 1.0],
+                emphasized:     [0.25, 0.46, 0.45, 0.94],
+                emphasizedExit: [0.55, 0.06, 0.68, 0.53],
+                collapse:       [0.55, 0.06, 0.68, 0.53],
+                spatial:        [0.42, 0.0, 0.58, 1.0],
                 decelerate:     [0.0, 0.0, 0.2, 1.0],
                 accelerate:     [0.4, 0.0, 1.0, 1.0],
                 linear:         null
+            },
+            spring: { stiffness: 160, damping: 16, mass: 1.0 },
+            _overshoot: 1.30,
+            compositor: { curve: [0.42, 0.0, 0.58, 1.0], speed: 3.0, name: "nl-aqua" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.87, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 0.78, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.87, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 0.78, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.90, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.85, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
             }
         },
 
         // ─── macOS Modern (10.7+) ───────────────────────────────────────
-        // Spring animations, natural physics, smooth scrolling.
-        // Natural easing: mimic real-world physics (slight bounce).
         "mac-modern": {
             name: "macOS",
             durations: {
@@ -179,17 +398,47 @@ QtObject {
                 spring:     { small: 400,  normal: 550, large: 750 }
             },
             easings: {
-                // Spring: zeta=0.55, natural bounce
                 standard:       [0.28, 0.65, 0.18, 0.88],
                 emphasized:     [0.15, 0.78, 0.22, 0.90],
                 emphasizedExit: [0.30, 0.08, 0.65, 0.25],
+                collapse:       [0.30, 0.08, 0.65, 0.25],
                 spatial:        [0.32, 0.55, 0.25, 0.85],
+                decelerate:     [0.0, 0.0, 0.2, 1.0],
+                accelerate:     [0.4, 0.0, 1.0, 1.0],
                 linear:         null
+            },
+            spring: { stiffness: 180, damping: 14, mass: 1.0 },
+            _overshoot: 1.40,
+            compositor: { curve: [0.34, 0.6, 0.12, 0.8], speed: 2.5, name: "nl-natural" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.87, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 0.75, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.87, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 0.75, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.90, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.82, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
             }
         },
 
         // ─── Android Gingerbread/Honeycomb (pre-Material) ──────────────
-        // Simple transitions, basic fade, short durations.
         "android-legacy": {
             name: "Android (Legacy)",
             durations: {
@@ -199,19 +448,47 @@ QtObject {
                 spring:     { small: 150,  normal: 250, large: 350 }
             },
             easings: {
-                standard:       [0.4, 0.0, 0.6, 1.0],    // Gentle ease
-                emphasized:     [0.0, 0.0, 0.35, 1.0],   // Ease-out
-                emphasizedExit: [0.4, 0.0, 1.0, 1.0],    // Ease-in
+                standard:       [0.4, 0.0, 0.6, 1.0],
+                emphasized:     [0.0, 0.0, 0.35, 1.0],
+                emphasizedExit: [0.4, 0.0, 1.0, 1.0],
+                collapse:       [0.4, 0.0, 1.0, 1.0],
                 spatial:        [0.4, 0.0, 0.6, 1.0],
                 decelerate:     [0.0, 0.0, 0.35, 1.0],
                 accelerate:     [0.4, 0.0, 1.0, 1.0],
                 linear:         null
+            },
+            spring: { stiffness: 220, damping: 22, mass: 1.0 },
+            _overshoot: 1.06,
+            compositor: { curve: [0.4, 0.0, 0.6, 1.0], speed: 1.5, name: "nl-android-legacy" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.91, to: 1.0, duration: "standardNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 0.9, duration: "standardNormal", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.91, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 0.9, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.94, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.94, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
             }
         },
 
         // ─── Android Material Design (5.0-11) ───────────────────────────
-        // Responsive: fast start, slow end. Standard Material curves.
-        // FastOutSlowIn: immediate response + smooth deceleration.
         "android-material": {
             name: "Android Material",
             durations: {
@@ -221,19 +498,97 @@ QtObject {
                 spring:     { small: 250,  normal: 350, large: 500 }
             },
             easings: {
-                standard:       [0.4, 0.0, 0.2, 1.0],   // FastOutSlowIn
-                emphasized:     [0.4, 0.0, 0.2, 1.0],   // Same for emphasis
-                emphasizedExit: [0.4, 0.0, 1.0, 1.0],   // FastOutLinearIn
+                standard:       [0.4, 0.0, 0.2, 1.0],
+                emphasized:     [0.4, 0.0, 0.2, 1.0],
+                emphasizedExit: [0.4, 0.0, 1.0, 1.0],
+                collapse:       [0.4, 0.0, 1.0, 1.0],
                 spatial:        [0.4, 0.0, 0.2, 1.0],
-                decelerate:     [0.0, 0.0, 0.2, 1.0],   // LinearOutSlowIn
-                accelerate:     [0.4, 0.0, 1.0, 1.0],   // FastOutLinearIn
+                decelerate:     [0.0, 0.0, 0.2, 1.0],
+                accelerate:     [0.4, 0.0, 1.0, 1.0],
                 linear:         null
+            },
+            spring: { stiffness: 200, damping: 20, mass: 1.0 },
+            _overshoot: 1.10,
+            compositor: { curve: [0.4, 0.0, 0.2, 1.0], speed: 2.0, name: "nl-material" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.90, to: 1.0, duration: "standardNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 0.86, duration: "standardNormal", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.90, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 0.86, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.93, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.9, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
+            }
+        },
+
+        // ─── Hyprland Vanilla ──────────────────────────────────────────
+        "hyprland": {
+            name: "Hyprland (Vanilla)",
+            durations: {
+                standard:   { small: 100,  normal: 200, large: 300, extraLarge: 400 },
+                emphasized: { small: 150,  normal: 250, large: 400 },
+                spatial:    { fast: 100,   default: 200, slow: 350 },
+                spring:     { small: 200,  normal: 300, large: 400 }
+            },
+            easings: {
+                standard:       [0.2, 0.0, 0.1, 1.0],
+                emphasized:     [0.2, 0.0, 0.1, 1.0],
+                emphasizedExit: [0.4, 0.0, 0.8, 0.15],
+                collapse:       [0.4, 0.0, 0.8, 0.15],
+                spatial:        [0.2, 0.0, 0.1, 1.0],
+                decelerate:     [0.0, 0.0, 0.2, 1.0],
+                accelerate:     [0.4, 0.0, 1.0, 1.0],
+                linear:         null
+            },
+            spring: { stiffness: 220, damping: 18, mass: 1.0 },
+            _overshoot: 1.10,
+            compositor: { curve: [0.2, 0.0, 0.1, 1.0], speed: 4.0, name: "nl-hyprland" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.90, to: 1.0, duration: "standardNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 0.88, duration: "standardNormal", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.90, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 0.88, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.93, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.92, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
             }
         },
 
         // ─── Android 12+ (Material You) ─────────────────────────────────
-        // Expressive, organic, spring physics. Longer durations.
-        // Emphasized deceleration, adaptive motion based on context.
         "android-you": {
             name: "Android 12+",
             durations: {
@@ -243,12 +598,43 @@ QtObject {
                 spring:     { small: 450,  normal: 600, large: 850 }
             },
             easings: {
-                // Expressive spring: zeta=0.45, visible bounce
                 standard:       [0.15, 0.70, 0.20, 0.88],
                 emphasized:     [0.05, 0.85, 0.12, 0.92],
                 emphasizedExit: [0.30, 0.10, 0.68, 0.18],
+                collapse:       [0.30, 0.10, 0.68, 0.18],
                 spatial:        [0.30, 0.48, 0.25, 0.90],
+                decelerate:     [0.0, 0.0, 0.2, 1.0],
+                accelerate:     [0.4, 0.0, 1.0, 1.0],
                 linear:         null
+            },
+            spring: { stiffness: 180, damping: 14, mass: 1.0 },
+            _overshoot: 1.7,
+            compositor: { curve: [0.05, 0.7, 0.1, 1.0], speed: 3.0, name: "nl-you" },
+            transitions: {
+                pushEnter: {
+                    scale:       { from: 0.85, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                pushExit: {
+                    scale:       { from: 1.0, to: 0.52, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "standardNormal", easing: "collapse" }
+                },
+                popEnter: {
+                    scale:       { from: 0.85, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    opacity:     { from: 0, to: 1, duration: "standardNormal", easing: "collapse" }
+                },
+                popExit: {
+                    scale:       { from: 1.0, to: 0.52, duration: "emphasizedLarge", easing: "expand" },
+                    opacity:     { from: 1, to: 0, duration: "emphasizedLarge", easing: "collapse" }
+                },
+                animScale: {
+                    expand:     { from: 0.88, to: 1.0, duration: "emphasizedNormal", easing: "expand" },
+                    collapse:   { from: 1.0, to: 0.78, duration: "emphasizedNormal", easing: "expand" }
+                },
+                radius: {
+                    expand:     { duration: "standardNormal", easing: "expand" },
+                    collapse:   { duration: "standardNormal", easing: "collapse" }
+                }
             }
         }
     })
@@ -306,6 +692,9 @@ QtObject {
         const profile = root._profile;
         let key = type;
 
+        if (variant === "expand" && profile.easings.expand) return { type: Easing.BezierSpline, bezierCurve: profile.easings.expand };
+        if (variant === "collapse" && profile.easings.collapse) return { type: Easing.BezierSpline, bezierCurve: profile.easings.collapse };
+
         if (type === "emphasized") {
             if (variant === "exit" || variant === "accelerate")
                 key = "emphasizedExit";
@@ -339,47 +728,16 @@ QtObject {
     // ============================================
     // HYPRLAND ANIMATION CONFIG
     // ============================================
-    // Returns bezier curve and speed for Hyprland animations based on style.
-    // Dramatic, physics-driven bezier curves for Hyprland animations.
-    // Each style uses unique math to create a distinct feel:
-    //   Overshoot:     c1y > 1.0 or c2y < 0.0 → bouncy/snap effect
-    //   Anticipation:  c1x < 0.0 → pull back before moving
-    //   Spring:        c1y > 1.0, c2y < 0.0 → full spring bounce
-    //   Snappy:        c1x very small, c2x close to 1.0 → quick start, fast finish
-    //   Smooth:        symmetric → butter-smooth
-    readonly property var _hyprBeziers: ({
-        // M3 — standard Material Deceleration: immediate response, gentle end
-        "m3":               { curve: [0.2, 0.0, 0.0, 1.0], speed: 2.5, name: "nl-standard" },
-        // Windows Classic — linear, no easing at all
-        "windows-classic":  { curve: [0.0, 0.0, 1.0, 1.0], speed: 1.0, name: "nl-linear" },
-        // Windows XP — gentle ease-out with slight anticipation
-        "windows-xp":       { curve: [0.25, 0.1, 0.25, 1.0], speed: 2.0, name: "nl-xp" },
-        // Windows 7 Aero — smooth reveal with subtle overshoot bounce
-        "windows-7":        { curve: [0.1, 0.8, 0.1, 1.0], speed: 2.8, name: "nl-aero" },
-        // Mac OS Classic — no easing, near-instant
-        "mac-classic":      { curve: [0.0, 0.0, 1.0, 1.0], speed: 0.5, name: "nl-linear" },
-        // Mac OS X Aqua — sine-wave smooth, long tail
-        "mac-legacy":       { curve: [0.42, 0.0, 0.58, 1.0], speed: 3.0, name: "nl-aqua" },
-        // macOS Modern — natural spring: slight bounce, organic
-        "mac-modern":       { curve: [0.34, 0.6, 0.12, 0.8], speed: 2.5, name: "nl-natural" },
-        // Android Legacy — simple ease-in-out
-        "hyprland":         { curve: [0.2, 0.0, 0.1, 1.0], speed: 4.0, name: "nl-hyprland" },
-        "android-legacy":   { curve: [0.4, 0.0, 0.6, 1.0], speed: 1.5, name: "nl-android-legacy" },
-        // Android Material — FastOutSlowIn: immediate, then smooth
-        "android-material": { curve: [0.4, 0.0, 0.2, 1.0], speed: 2.0, name: "nl-material" },
-        // Android 12+ — Emphasized Deceleration: dramatic, expressive
-        "android-you":      { curve: [0.05, 0.7, 0.1, 1.0], speed: 3.0, name: "nl-you" }
-    })
-
     /*! Get Hyprland bezier animation config for the current style.
         @returns { curve: number[], speed: number, name: string }
         - curve: bezier control points for Hyprland's bezier keyword
         - speed: animation speed multiplier for Hyprland
         - name: unique bezier name to use in animation keywords */
     function hyprConfig() {
-        const cfg = root._hyprBeziers[root._styleKey];
-        if (!cfg) return root._hyprBeziers["m3"];
-        return cfg;
+        if (root._profile && root._profile.compositor) {
+            return root._profile.compositor;
+        }
+        return { curve: [0.2, 0.0, 0.0, 1.0], speed: 2.5, name: "nl-standard" };
     }
 
     /*! Get the Hyprland bezier definition line(s) needed for the current style.
@@ -454,101 +812,67 @@ QtObject {
     // GPU-friendly principle: opacity/scale/rotation cost ~1µs,
     // while x/y/width/height cost ~100µs (trigger relayout).
 
-    /*! Damped Spring Oscillator — the gold standard for organic motion.
-        Simulates a mass on a spring with damping.
-        @param stiffness:  (default 170) — spring tension, higher = snappier
-        @param damping:    (default 16)  — resistance, higher = less bounce
-        @param mass:       (default 1.0) — inertial mass, higher = slower
-        @param initialV:   (default 0)   — initial velocity for momentum
-        @returns { cx1, cy1, cx2, cy2 } bezier control points
-
-        Math behind the curve:
-          ω₀ = √(k/m)  (natural frequency)
-          ζ = d / (2√(km))  (damping ratio)
-          ζ < 1 → underdamped (bounces)
-          ζ ≈ 1 → critically damped (fastest without bounce)
-          ζ > 1 → overdamped (slow, no bounce)
-
-        Maps spring parameters to bezier by computing T_at_50% (half-life)
-        and T_at_90% (settle time) of the oscillator response. */
+    /*! Damped Spring Oscillator — uses Easing.OutBack for REAL overshoot.
+        Bezier curves get clamped to [0,1] by Qt Quick, killing the bounce.
+        OutBack is Qt's native overshoot easing — it ACTUALLY bounces.
+        @param stiffness: (default 170) — spring tension, higher = snappier
+        @param damping:   (default 16)  — resistance, higher = less bounce
+        @param mass:      (default 1.0) — inertial mass, higher = slower
+        @returns { type: Easing.OutBack, overshoot: Number, duration: ms, zeta: Number } */
     function springBezier(stiffness, damping, mass, initialV) {
         const k = stiffness || 170;
         const d = damping || 16;
         const m = Math.max(0.1, mass || 1.0);
-        const v0 = initialV || 0;
 
         // Natural frequency & damping ratio
         const w0 = Math.sqrt(k / m);
         const zeta = d / (2 * Math.sqrt(k * m));
 
-        // Approximate settle time: when envelope decays to 1%
-        // Envelope = e^(-zeta * w0 * t)
-        // t_settle ≈ ln(100) / (zeta * w0) ≈ 4.6 / (zeta * w0)
+        // Settle time (when envelope decays to 1%)
         const settleTime = zeta * w0 > 0.01 ? 4.6 / (zeta * w0) : 10.0;
         const settleMs = Math.round(settleTime * 1000);
 
-        // Calculate overshoot amount
-        // For zeta < 1: overshoot = e^(-pi*zeta / sqrt(1-zeta^2))
-        const overshoot = zeta < 1.0 ? Math.exp(-Math.PI * zeta / Math.sqrt(1 - zeta * zeta)) : 0;
+        // Spring overshoot amplitude: e^(-π·ζ / √(1-ζ²))
+        // ζ=0.7 → ~0.04 (barely visible)  ζ=0.4 → ~0.25  ζ=0.2 → ~0.53
+        const springOv = zeta < 1.0 ? Math.exp(-Math.PI * zeta / Math.sqrt(1 - zeta * zeta)) : 0;
 
-        // Generate bezier control points that approximate the spring
-        // cx1, cy1 = initial direction (velocity)
-        // cx2, cy2 = overshoot/recoil behavior
-        let cx1, cy1, cx2, cy2;
+        // Map spring amplitude to Qt OutBack overshoot parameter (0 to ~2.0)
+        // springOv 0.0 → qtOv 0.0  (no bounce)
+        // springOv 0.2 → qtOv 0.8  (gentle)
+        // springOv 0.5 → qtOv 2.0  (very bouncy)
+        const qtOvershoot = Math.min(2.0, springOv * 4.0);
 
-        if (zeta < 0.5) {
-            // Bouncy: overshoot visible
-            cx1 = 0.2 + zeta * 0.3;
-            cy1 = 1.2 + (0.5 - zeta) * 1.5;  // Overshoot up
-            cx2 = 0.3 + zeta * 0.3;
-            cy2 = -0.3 - (0.5 - zeta) * 0.5;  // Dip below zero (recoil)
-        } else if (zeta < 0.8) {
-            // Gentle bounce: slight overshoot
-            cx1 = 0.25 + zeta * 0.2;
-            cy1 = 0.8 + (0.8 - zeta) * 0.5;
-            cx2 = 0.4 + zeta * 0.1;
-            cy2 = 0.1 + (0.8 - zeta) * 0.2;
-        } else {
-            // Critically damped / overdamped: smooth, no bounce
-            cx1 = 0.3;
-            cy1 = 0.6;
-            cx2 = 0.5;
-            cy2 = 0.4;
-        }
-
-        // Clamp to valid bezier range
-        cx1 = Math.max(-0.5, Math.min(1.5, cx1));
-        cy1 = Math.max(-0.5, Math.min(2.0, cy1));
-        cx2 = Math.max(-0.5, Math.min(1.5, cx2));
-        cy2 = Math.max(-0.5, Math.min(2.0, cy2));
+        // Duration clamped to reasonable range
+        const duration = Math.max(80, Math.min(800, settleMs));
 
         return {
-            type: Easing.BezierSpline,
-            bezierCurve: [cx1, cy1, cx2, cy2],
-            duration: settleMs,
-            overshoot: overshoot,
+            type: Easing.OutBack,
+            overshoot: qtOvershoot,
+            bezierCurve: [],
+            duration: duration,
             zeta: zeta
         };
     }
 
-    /*! Natural spring easing — preset for UI elements.
-        Light stiffness, moderate damping = smooth, organic feel.
-        Similar to iOS spring animations. */
+    /*! Natural spring easing — reads from current profile's spring params.
+        Uses physics from the active style, not hardcoded defaults. */
     function spring(type, size) {
-        return root.springBezier(180, 18, 1.0, 0);
+        const sp = root._profile && root._profile.spring ? root._profile.spring : { stiffness: 180, damping: 18, mass: 1.0 };
+        return root.springBezier(sp.stiffness || 180, sp.damping || 18, sp.mass || 1.0, 0);
     }
 
-    /*! Snappy spring — for buttons, toggles, micro-interactions.
-        High stiffness, high damping = immediate response, no bounce. */
+    /*! Snappy spring — reads from profile with higher stiffness.
+        For buttons, toggles, micro-interactions. */
     function springSnappy() {
-        return root.springBezier(300, 25, 1.0, 0);
+        const sp = root._profile && root._profile.spring ? root._profile.spring : { stiffness: 300, damping: 25, mass: 1.0 };
+        return root.springBezier(sp.stiffness ? sp.stiffness * 1.3 : 300, sp.damping ? sp.damping * 1.4 : 25, sp.mass || 1.0, 0);
     }
 
-    /*! Expressive spring — for modals, notifications, cards.
-        Lower damping = visible overshoot = playful feel.
-        Similar to Android 12+ spring animations. */
+    /*! Expressive spring — reads from profile with reduced damping.
+        Lower damping = visible overshoot = playful feel. */
     function springExpressive() {
-        return root.springBezier(200, 12, 1.0, 0);
+        const sp = root._profile && root._profile.spring ? root._profile.spring : { stiffness: 200, damping: 12, mass: 1.0 };
+        return root.springBezier(sp.stiffness || 200, sp.damping ? sp.damping * 0.7 : 12, sp.mass || 1.0, 0);
     }
 
     /*! Anticipation easing — pull back before moving forward.
@@ -599,15 +923,13 @@ QtObject {
         };
     }
 
-    /*! Multi-stage animation — combines anticipation, move, and overshoot.
-        Use for elements that enter the screen (cards, modals, notifications).
-        @returns Array of { duration, easing } stages */
+    /*! Multi-stage animation — reads from profile spring.
+        Combines anticipation, move, and overshoot.
+        Use for elements that enter the screen (cards, modals, notifications). */
     function enterAnimation() {
-        const spring = root.springBezier(200, 14, 1.0, 0);
-        return {
-            duration: spring.duration,
-            easing: spring
-        };
+        const sp = root._profile && root._profile.spring ? root._profile.spring : { stiffness: 200, damping: 14, mass: 1.0 };
+        const s = root.springBezier(sp.stiffness || 200, sp.damping ? sp.damping * 0.85 : 14, sp.mass || 1.0, 0);
+        return { duration: s.duration, easing: s };
     }
 
     /*! Quick helper: get { duration, easing } for common cases. */
@@ -651,4 +973,42 @@ QtObject {
     readonly property int springLarge:   root.duration("spring", "large")
 
     readonly property bool animationsEnabled: root._baseScale > 0
+
+    // ============================================
+    // PROFILE-AWARE EASING ACCESSORS (REACTIVE)
+    // ============================================
+    // expandEasing uses Easing.OutBack for VISIBLE overshoot (bezier can't)
+    // collapseEasing uses Easing.BezierSpline (stays in [0,1] range)
+
+    // ============================================
+    // PER-PROFILE TRANSITIONS
+    // ============================================
+    // Anim.transitions → the active profile's transition config
+    // Used by Notch.qml, Bar, Dock, Lockscreen, OSD
+    readonly property var transitions: {
+        const p = root._safeProfile;
+        if (p && p.transitions) return p.transitions;
+        return root._profiles["ambxst"].transitions || {};
+    }
+
+    // Convenience: pushEnter config
+    readonly property var pushEnterConfig: root.transitions.pushEnter || {}
+    readonly property var pushExitConfig:  root.transitions.pushExit || {}
+    readonly property var popEnterConfig:   root.transitions.popEnter || {}
+    readonly property var popExitConfig:    root.transitions.popExit || {}
+    readonly property var animScaleConfig:  root.transitions.animScale || {}
+    readonly property var radiusConfig:     root.transitions.radius || {}
+
+    readonly property var _safeProfile: root._profile || root._profiles["m3"]
+    readonly property var expandEasing: {
+        const p = root._safeProfile;
+        const ov = p._overshoot !== undefined ? p._overshoot : 1.0;
+        return { type: Easing.OutBack, overshoot: ov, bezierCurve: [] };
+    }
+    // collapseEasing: Easing.OutQuart — exactly what Ambxst uses
+    // The return bounce comes from StackView transitions (scale: OutBack),
+    // not from the size Behaviors which use OutQuart for smooth closure.
+    readonly property var collapseEasing: {
+        return { type: Easing.OutQuart, bezierCurve: [] };
+    }
 }

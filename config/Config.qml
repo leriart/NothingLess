@@ -962,12 +962,41 @@ Singleton {
         }
 
         adapter: JsonAdapter {
+            // ─── Rendering ──────────────────────────────
+            property string renderBackend: "auto"
+            property int maxRenderThreads: 6
+            property bool gpuAcceleratedEffects: true
+            property bool layerEffects: true
+
+            // ─── Video Wallpaper ────────────────────────
+            property string videoDecoder: "auto"
+            property int videoTargetFps: 24
+            property string videoResolutionLimit: "native"
+
+            // ─── Visual Quality ─────────────────────────
+            property string shadowQuality: "high"
+            property string blurQuality: "medium"
+            property bool cornerRendering: true
+            property bool frameEffect: false
+            property int thumbnailCacheSize: 50
+
+            // ─── Animation ──────────────────────────────
             property bool blurTransition: true
             property bool windowPreview: true
             property bool wavyLine: true
             property bool rotateCoverArt: true
-            property bool dashboardPersistTabs: true
+
+            // ─── Dashboard ──────────────────────────────
+            property bool dashboardPersistTabs: false
             property int dashboardMaxPersistentTabs: 2
+
+            // ─── Monitoring ─────────────────────────────
+            property int systemMonitorInterval: 2000
+            property int backgroundServicePolling: 5000
+
+            // ─── Boot ───────────────────────────────────
+            property bool showSplash: true
+            property int splashDuration: 3000
         }
     }
 

@@ -783,7 +783,7 @@ Item {
                                 z: -1
                             }
 
-                            highlightMoveDuration: Config.animDuration > 0 ? Config.animDuration / 2 : 0
+                            highlightMoveDuration: Anim.animationsEnabled ? Anim.standardSmall / 2 : 0
                             highlightMoveVelocity: -1
 
                             delegate: Item {

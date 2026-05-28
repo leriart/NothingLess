@@ -267,32 +267,36 @@ Item {
             enabled: Anim.animationsEnabled && root.orientation === "vertical"
             NumberAnimation {
                 duration: Anim.standardSmall
-                easing.type: Anim.easing("standard").type
-                easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.type: Anim.springSnappy().type
+                easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
             }
         }
         Behavior on y {
             enabled: Anim.animationsEnabled && root.orientation === "horizontal"
             NumberAnimation {
                 duration: Anim.standardSmall
-                easing.type: Anim.easing("standard").type
-                easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.type: Anim.springSnappy().type
+                easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
             }
         }
         Behavior on width {
             enabled: Anim.animationsEnabled && root.orientation === "vertical"
             NumberAnimation {
                 duration: Anim.standardSmall
-                easing.type: Anim.easing("standard").type
-                easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.type: Anim.springSnappy().type
+                easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
             }
         }
         Behavior on height {
             enabled: Anim.animationsEnabled && root.orientation === "horizontal"
             NumberAnimation {
                 duration: Anim.standardSmall
-                easing.type: Anim.easing("standard").type
-                easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.type: Anim.springSnappy().type
+                easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
             }
         }
         // Bar content inside MouseArea (clicks pass through to children)
@@ -318,8 +322,9 @@ Item {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
                     duration: Anim.standardSmall
-                    easing.type: Anim.easing("standard").type
-                    easing.bezierCurve: Anim.easing("standard").bezierCurve
+                    easing.type: Anim.springSnappy().type
+                    easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
                 }
             }
             // Slide animation

@@ -321,9 +321,10 @@ ShellRoot {
     }
 
     // --- Boot Splash (NOTHING animation with chroma key) ---
+    // Duration and visibility controlled by Config.performance
     Loader {
         id: bootSplash
-        active: true
+        active: typeof Config !== "undefined" && Config.performance && Config.performance.showSplash !== false
         sourceComponent: Component {
             Variants {
                 model: Quickshell.screens
@@ -352,15 +353,25 @@ ShellRoot {
                             currentFrame: 0
                         }
 
-                        // Fade out and destroy after animation
+                        // Fade out (simple easing, Anim not available at splash context)
                         opacity: splashVisible ? 1.0 : 0.0
-                        Behavior on opacity { NumberAnimation { duration: 800 } }
+                        Behavior on opacity {
+                            NumberAnimation { duration: 800; easing.type: Easing.InOutQuad }
+                        }
 
                         property bool splashVisible: true
                         property bool splashEnded: false
 
+                        readonly property int splashDuration: {
+                            if (typeof Config !== "undefined" && Config.performance && Config.performance.splashDuration) {
+                                const dur = Config.performance.splashDuration;
+                                return dur >= 1000 ? dur : 3000;
+                            }
+                            return 3000;
+                        }
+
                         Timer {
-                            interval: 4500
+                            interval: splashBg.splashDuration - 800  // Fade starts before destroy
                             running: true
                             onTriggered: {
                                 splashBg.splashVisible = false
@@ -368,7 +379,7 @@ ShellRoot {
                         }
 
                         Timer {
-                            interval: 5300
+                            interval: splashBg.splashDuration
                             running: true
                             onTriggered: {
                                 splashAnim.playing = false

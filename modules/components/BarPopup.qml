@@ -119,8 +119,9 @@ PopupWindow {
         enabled: Anim.animationsEnabled
         NumberAnimation {
             duration: Anim.standardNormal
-            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+            easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
         }
     }
 
@@ -128,8 +129,9 @@ PopupWindow {
         enabled: Anim.animationsEnabled
         NumberAnimation {
             duration: Anim.standardNormal
-            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+            easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
         }
     }
 
@@ -218,7 +220,7 @@ PopupWindow {
 
     Timer {
         id: closeTimer
-        interval: Config.animDuration > 0 ? Config.animDuration + 50 : 50
+        interval: Anim.animationsEnabled ? Anim.standardNormal + 50 : 50
         onTriggered: {
             root.visible = false;
         }

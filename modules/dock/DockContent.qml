@@ -190,16 +190,18 @@ Item {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardSmall
-                easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
             }
         }
         Behavior on y {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardSmall
-                easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
             }
         }
 
@@ -207,8 +209,9 @@ Item {
             enabled: Anim.animationsEnabled && root.isVertical
             NumberAnimation {
                 duration: Anim.standardSmall
-                easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
             }
         }
 
@@ -216,8 +219,9 @@ Item {
             enabled: Anim.animationsEnabled && !root.isVertical
             NumberAnimation {
                 duration: Anim.standardSmall
-                easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
             }
         }
 
@@ -261,16 +265,18 @@ Item {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
                     duration: Anim.standardSmall
-                    easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                    easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
                 }
             }
             Behavior on y {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
                     duration: Anim.standardSmall
-                    easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                    easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
                 }
             }
 
@@ -280,8 +286,9 @@ Item {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
                     duration: Anim.standardSmall
-                    easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                    easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
                 }
             }
 
@@ -293,16 +300,18 @@ Item {
                     enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardSmall
-                        easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
                     }
                 }
                 Behavior on y {
                     enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardSmall
-                        easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                        easing.overshoot: Anim.springSnappy().overshoot || 0
                     }
                 }
             }

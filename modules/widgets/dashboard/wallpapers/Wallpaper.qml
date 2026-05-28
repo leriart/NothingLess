@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 import qs.modules.globals
 import qs.modules.theme
+import qs.modules.services
 import qs.config
 
 PanelWindow {
@@ -1082,8 +1083,18 @@ PanelWindow {
                 muted: true
                 fillMode: VideoOutput.PreserveAspectCrop
                 visible: !videoRoot.interpolate || videoRoot.multiplier <= 1
-                // Siempre a velocidad normal; el control de FPS lo hace el Timer
                 playbackRate: 1.0
+
+                onSourceChanged: {
+                    // GPU-aware optimization: adjust FPS target
+                    if (source && source.toString()) {
+                        const opt = VideoWallpaperService.optimize(String(source).replace("file://", ""));
+                        if (opt.isVideo && opt.fps < videoRoot.targetInputFps) {
+                            videoRoot.targetInputFps = opt.fps;
+                            console.log("VideoWallpaper: optimized FPS =", opt.fps, "HW:", opt.useHardware);
+                        }
+                    }
+                }
 
                 onMetaDataChanged: {
                     if (metaData.frameRate && metaData.frameRate > 0) {
@@ -1104,6 +1115,20 @@ PanelWindow {
                     } else {
                         captureTimer.stop()
                         frameAnimation.running = false
+                    }
+                }
+
+                // GPU optimization: pause video when screen locked = saves decode threads
+                Connections {
+                    target: SuspendManager
+                    function onWakeReadyChanged() {
+                        if (SuspendManager.wakeReady) {
+                            videoPlayer.play();
+                            VideoWallpaperService.onScreenUnlocked();
+                        } else {
+                            videoPlayer.pause();
+                            VideoWallpaperService.onScreenLocked();
+                        }
                     }
                 }
             }
@@ -1340,16 +1365,20 @@ PanelWindow {
             SequentialAnimation {
                 id: transitionAnimation
                 ParallelAnimation {
-                    NumberAnimation { target: wallImageContainer; property: "scale"; to: 1.01; duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
-                    NumberAnimation { target: wallImageContainer; property: "opacity"; to: 0.5; duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
+                    NumberAnimation { target: wallImageContainer; property: "scale"; to: 1.01; duration: Anim.standardNormal; easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                    easing.overshoot: Anim.springSnappy().overshoot || 0 }
+                    NumberAnimation { target: wallImageContainer; property: "opacity"; to: 0.5; duration: Anim.standardNormal; easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                    easing.overshoot: Anim.springSnappy().overshoot || 0 }
                 }
                 ParallelAnimation {
-                    NumberAnimation { target: wallImageContainer; property: "scale"; to: 1.0; duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
-                    NumberAnimation { target: wallImageContainer; property: "opacity"; to: 1.0; duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
+                    NumberAnimation { target: wallImageContainer; property: "scale"; to: 1.0; duration: Anim.standardNormal; easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                    easing.overshoot: Anim.springSnappy().overshoot || 0 }
+                    NumberAnimation { target: wallImageContainer; property: "opacity"; to: 1.0; duration: Anim.standardNormal; easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                    easing.overshoot: Anim.springSnappy().overshoot || 0 }
                 }
             }
 
@@ -1374,7 +1403,7 @@ PanelWindow {
                     // Trigger animation after new content is loaded
                     if (wallImageContainer.previousSource !== "" && 
                         wallImageContainer.source !== wallImageContainer.previousSource &&
-                        Config.animDuration > 0) {
+                        Anim.animationsEnabled) {
                         transitionAnimation.restart();
                     }
                     wallImageContainer.previousSource = wallImageContainer.source;

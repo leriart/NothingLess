@@ -24,13 +24,16 @@ Item {
         yScale: animScale
     }
 
-    property real animScale: screenNotchOpen ? 1.0 : 0.9
+    property real animScale: screenNotchOpen ? 1.0 : (Anim.animScaleConfig.collapse ? Anim.animScaleConfig.collapse.from : 0.9)
     Behavior on animScale {
         enabled: Anim.animationsEnabled
         NumberAnimation {
-            duration: Anim.standardNormal
-            easing.type: Anim.springSnappy().type
-            easing.bezierCurve: Anim.springSnappy().bezierCurve
+            property var _asc: screenNotchOpen ? Anim.animScaleConfig.expand : Anim.animScaleConfig.collapse
+            property var _ase: _asc && _asc.easing === "expand" ? Anim.expandEasing : (_asc && _asc.easing === "collapse" ? Anim.collapseEasing : Anim.springSnappy())
+            duration: _asc && _asc.duration ? Anim[_asc.duration] : Anim.emphasizedNormal
+            easing.type: _ase.type
+            easing.bezierCurve: _ase.bezierCurve || []
+            easing.overshoot: _ase.overshoot || 0
         }
     }
 
@@ -105,22 +108,24 @@ Item {
     readonly property bool sectionInvisible: root.mergeWithBar && !root.screenNotchOpen && !root.hasActiveNotifications
 
     Behavior on implicitWidth {
-        enabled: (screenNotchOpen || stackViewInternal.busy) && Anim.animationsEnabled
+        enabled: Anim.animationsEnabled
         NumberAnimation {
-            property var _ease: isExpanded ? Anim.springSnappy() : Anim.easing("standard")
-            duration: isExpanded ? Anim.emphasizedNormal : Anim.standardNormal
+            property var _ease: Anim.springSnappy()
+            duration: Anim.emphasizedNormal
             easing.type: _ease.type
             easing.bezierCurve: _ease.bezierCurve
+                        easing.overshoot: _ease.overshoot !== undefined ? _ease.overshoot : 0
         }
     }
 
     Behavior on implicitHeight {
-        enabled: (screenNotchOpen || stackViewInternal.busy) && Anim.animationsEnabled
+        enabled: Anim.animationsEnabled
         NumberAnimation {
-            property var _ease: isExpanded ? Anim.springSnappy() : Anim.easing("standard")
-            duration: isExpanded ? Anim.emphasizedNormal : Anim.standardNormal
+            property var _ease: Anim.springSnappy()
+            duration: Anim.emphasizedNormal
             easing.type: _ease.type
             easing.bezierCurve: _ease.bezierCurve
+                        easing.overshoot: _ease.overshoot !== undefined ? _ease.overshoot : 0
         }
     }
 
@@ -146,45 +151,49 @@ Item {
         Behavior on bottomLeftRadius {
             enabled: Anim.animationsEnabled
             NumberAnimation {
-                property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                property var _ease: (screenNotchOpen || hasActiveNotifications) ? Anim.expandEasing : Anim.springSnappy()
                 duration: Anim.standardNormal
                 easing.type: _ease.type
                 easing.bezierCurve: _ease.bezierCurve
+                        easing.overshoot: _ease.overshoot !== undefined ? _ease.overshoot : 0
             }
         }
 
         Behavior on bottomRightRadius {
             enabled: Anim.animationsEnabled
             NumberAnimation {
-                property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                property var _ease: (screenNotchOpen || hasActiveNotifications) ? Anim.expandEasing : Anim.springSnappy()
                 duration: Anim.standardNormal
                 easing.type: _ease.type
                 easing.bezierCurve: _ease.bezierCurve
+                        easing.overshoot: _ease.overshoot !== undefined ? _ease.overshoot : 0
             }
         }
 
         Behavior on topLeftRadius {
             enabled: Anim.animationsEnabled
             NumberAnimation {
-                property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                property var _ease: (screenNotchOpen || hasActiveNotifications) ? Anim.expandEasing : Anim.springSnappy()
                 duration: Anim.standardNormal
                 easing.type: _ease.type
                 easing.bezierCurve: _ease.bezierCurve
+                        easing.overshoot: _ease.overshoot !== undefined ? _ease.overshoot : 0
             }
         }
 
         Behavior on topRightRadius {
             enabled: Anim.animationsEnabled
             NumberAnimation {
-                property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                property var _ease: (screenNotchOpen || hasActiveNotifications) ? Anim.expandEasing : Anim.springSnappy()
                 duration: Anim.standardNormal
                 easing.type: _ease.type
                 easing.bezierCurve: _ease.bezierCurve
+                        easing.overshoot: _ease.overshoot !== undefined ? _ease.overshoot : 0
             }
         }
 
-        layer.enabled: true
-        layer.smooth: true
+        layer.enabled: Config.notchTheme === "default"
+        layer.smooth: Config.notchTheme === "default"
         layer.effect: MultiEffect {
             maskEnabled: true
             maskSource: notchFullMask
@@ -201,8 +210,8 @@ Item {
         anchors.centerIn: parent
         width: parent.implicitWidth
         height: parent.implicitHeight
-        layer.enabled: true
-        layer.smooth: true
+        layer.enabled: Config.notchTheme === "default"
+        layer.smooth: Config.notchTheme === "default"
 
         // Left corner mask
         Item {
@@ -303,40 +312,44 @@ Item {
             Behavior on topLeftRadius {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                    property var _ease: (screenNotchOpen || hasActiveNotifications) ? Anim.expandEasing : Anim.springSnappy()
                     duration: Anim.standardNormal
                     easing.type: _ease.type
                     easing.bezierCurve: _ease.bezierCurve
+                        easing.overshoot: _ease.overshoot !== undefined ? _ease.overshoot : 0
                 }
             }
 
             Behavior on topRightRadius {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                    property var _ease: (screenNotchOpen || hasActiveNotifications) ? Anim.expandEasing : Anim.springSnappy()
                     duration: Anim.standardNormal
                     easing.type: _ease.type
                     easing.bezierCurve: _ease.bezierCurve
+                        easing.overshoot: _ease.overshoot !== undefined ? _ease.overshoot : 0
                 }
             }
 
             Behavior on bottomLeftRadius {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                    property var _ease: (screenNotchOpen || hasActiveNotifications) ? Anim.expandEasing : Anim.springSnappy()
                     duration: Anim.standardNormal
                     easing.type: _ease.type
                     easing.bezierCurve: _ease.bezierCurve
+                        easing.overshoot: _ease.overshoot !== undefined ? _ease.overshoot : 0
                 }
             }
 
             Behavior on bottomRightRadius {
                 enabled: Anim.animationsEnabled
                 NumberAnimation {
-                    property var _ease: screenNotchOpen || hasActiveNotifications ? Anim.easing("emphasized") : Anim.easing("standard")
+                    property var _ease: (screenNotchOpen || hasActiveNotifications) ? Anim.expandEasing : Anim.springSnappy()
                     duration: Anim.standardNormal
                     easing.type: _ease.type
                     easing.bezierCurve: _ease.bezierCurve
+                        easing.overshoot: _ease.overshoot !== undefined ? _ease.overshoot : 0
                 }
             }
         }
@@ -426,76 +439,80 @@ Item {
                 pushEnter: Transition {
                     PropertyAnimation {
                         property: "opacity"
-                        from: 0
-                        to: 1
-                        duration: Anim.standardNormal
-                        easing.type: Anim.easing("decelerate").type
-                        easing.bezierCurve: Anim.easing("decelerate").bezierCurve
+                        from: Anim.pushEnterConfig.opacity ? Anim.pushEnterConfig.opacity.from : 0
+                        to: Anim.pushEnterConfig.opacity ? Anim.pushEnterConfig.opacity.to : 1
+                        duration: Anim.pushEnterConfig.opacity ? Anim[Anim.pushEnterConfig.opacity.duration] : Anim.standardNormal
+                        easing.type: Anim.collapseEasing.type
+                        easing.bezierCurve: Anim.collapseEasing.bezierCurve || []
                     }
                     PropertyAnimation {
                         property: "scale"
-                        from: 0.85
-                        to: 1
-                        duration: Anim.emphasizedNormal
-                        easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve
+                        from: Anim.pushEnterConfig.scale ? Anim.pushEnterConfig.scale.from : 0.85
+                        to: Anim.pushEnterConfig.scale ? Anim.pushEnterConfig.scale.to : 1
+                        duration: Anim.pushEnterConfig.scale ? Anim[Anim.pushEnterConfig.scale.duration] : Anim.emphasizedNormal
+                        easing.type: Anim.expandEasing.type
+                        easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                        easing.overshoot: Anim.expandEasing.overshoot || 0
                     }
                 }
 
                 pushExit: Transition {
                     PropertyAnimation {
                         property: "opacity"
-                        from: 1
-                        to: 0
-                        duration: Anim.standardNormal
-                        easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        from: Anim.pushExitConfig.opacity ? Anim.pushExitConfig.opacity.from : 1
+                        to: Anim.pushExitConfig.opacity ? Anim.pushExitConfig.opacity.to : 0
+                        duration: Anim.pushExitConfig.opacity ? Anim[Anim.pushExitConfig.opacity.duration] : Anim.standardNormal
+                        easing.type: Anim.collapseEasing.type
+                        easing.bezierCurve: Anim.collapseEasing.bezierCurve || []
                     }
                     PropertyAnimation {
                         property: "scale"
-                        from: 1
-                        to: 1.04
-                        duration: Anim.standardNormal
-                        easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        from: Anim.pushExitConfig.scale ? Anim.pushExitConfig.scale.from : 1
+                        to: Anim.pushExitConfig.scale ? Anim.pushExitConfig.scale.to : 0.85
+                        duration: Anim.pushExitConfig.scale ? Anim[Anim.pushExitConfig.scale.duration] : Anim.emphasizedNormal
+                        easing.type: Anim.expandEasing.type
+                        easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                        easing.overshoot: Anim.expandEasing.overshoot || 0
                     }
                 }
 
                 popEnter: Transition {
                     PropertyAnimation {
                         property: "opacity"
-                        from: 0
-                        to: 1
-                        duration: Anim.standardNormal
-                        easing.type: Anim.easing("decelerate").type
-                        easing.bezierCurve: Anim.easing("decelerate").bezierCurve
+                        from: Anim.popEnterConfig.opacity ? Anim.popEnterConfig.opacity.from : 0
+                        to: Anim.popEnterConfig.opacity ? Anim.popEnterConfig.opacity.to : 1
+                        duration: Anim.popEnterConfig.opacity ? Anim[Anim.popEnterConfig.opacity.duration] : Anim.standardNormal
+                        easing.type: Anim.collapseEasing.type
+                        easing.bezierCurve: Anim.collapseEasing.bezierCurve || []
                     }
                     PropertyAnimation {
                         property: "scale"
-                        from: 1.04
-                        to: 1
-                        duration: Anim.standardNormal
-                        easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve
+                        from: Anim.popEnterConfig.scale ? Anim.popEnterConfig.scale.from : 0.85
+                        to: Anim.popEnterConfig.scale ? Anim.popEnterConfig.scale.to : 1
+                        duration: Anim.popEnterConfig.scale ? Anim[Anim.popEnterConfig.scale.duration] : Anim.emphasizedNormal
+                        easing.type: Anim.expandEasing.type
+                        easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                        easing.overshoot: Anim.expandEasing.overshoot || 0
                     }
                 }
 
                 popExit: Transition {
                     PropertyAnimation {
                         property: "opacity"
-                        from: 1
-                        to: 0
-                        duration: Anim.emphasizedLarge
-                        easing.type: Anim.easing("emphasized", "exit").type
-                        easing.bezierCurve: Anim.easing("emphasized", "exit").bezierCurve
+                        from: Anim.popExitConfig.opacity ? Anim.popExitConfig.opacity.from : 1
+                        to: Anim.popExitConfig.opacity ? Anim.popExitConfig.opacity.to : 0
+                        duration: Anim.popExitConfig.opacity ? Anim[Anim.popExitConfig.opacity.duration] : Anim.emphasizedLarge
+                        easing.type: Anim.collapseEasing.type
+                        easing.bezierCurve: Anim.collapseEasing.bezierCurve || []
                     }
                     PropertyAnimation {
                         property: "scale"
-                        from: 1
-                        to: 0.94
-                        duration: Anim.emphasizedLarge
-                        easing.type: Anim.easing("emphasized", "exit").type
-                        easing.bezierCurve: Anim.easing("emphasized", "exit").bezierCurve
+                        from: Anim.popExitConfig.scale ? Anim.popExitConfig.scale.from : 1
+                        to: Anim.popExitConfig.scale ? Anim.popExitConfig.scale.to : 0.85
+                        duration: Anim.popExitConfig.scale ? Anim[Anim.popExitConfig.scale.duration] : Anim.emphasizedLarge
+                        easing.type: Anim.expandEasing.type
+                        easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                        easing.overshoot: Anim.expandEasing.overshoot || 0
                     }
                 }
 
@@ -665,59 +682,58 @@ Item {
 
             ctx.stroke();
         }
-        Connections {
-            target: Colors
-            function onPrimaryChanged() {
+
+        // Consolidated repaint — single debounced timer instead of 7 Connections
+        property bool _pendingRepaint: false
+
+        function _requestRepaint() {
+            if (!_repaintTimer.running) {
+                _repaintTimer.start();
+            }
+        }
+
+        Timer {
+            id: _repaintTimer
+            interval: 16  // ~60fps debounce
+            running: false
+            repeat: false
+            onTriggered: {
                 outlineCanvas.requestPaint();
             }
+        }
+
+        // Signal connections — all debounced through the timer
+        Connections {
+            target: Colors
+            function onPrimaryChanged() { outlineCanvas._requestRepaint(); }
         }
         Connections {
             target: Config.theme.srBg
-            function onBorderChanged() {
-                outlineCanvas.requestPaint();
-            }
+            function onBorderChanged() { outlineCanvas._requestRepaint(); }
         }
         Connections {
             target: notchRect
-            function onBottomLeftRadiusChanged() {
-                outlineCanvas.requestPaint();
-            }
-            function onBottomRightRadiusChanged() {
-                outlineCanvas.requestPaint();
-            }
-            function onWidthChanged() {
-                outlineCanvas.requestPaint();
-            }
-            function onHeightChanged() {
-                outlineCanvas.requestPaint();
-            }
+            function onBottomLeftRadiusChanged() { outlineCanvas._requestRepaint(); }
+            function onBottomRightRadiusChanged() { outlineCanvas._requestRepaint(); }
+            function onWidthChanged() { outlineCanvas._requestRepaint(); }
+            function onHeightChanged() { outlineCanvas._requestRepaint(); }
         }
         Connections {
             target: notchContainer
-            function onImplicitWidthChanged() {
-                outlineCanvas.requestPaint();
-            }
-            function onImplicitHeightChanged() {
-                outlineCanvas.requestPaint();
-            }
+            function onImplicitWidthChanged() { outlineCanvas._requestRepaint(); }
+            function onImplicitHeightChanged() { outlineCanvas._requestRepaint(); }
         }
         Connections {
             target: Config
-            function onNotchThemeChanged() {
-                outlineCanvas.requestPaint();
-            }
+            function onNotchThemeChanged() { outlineCanvas._requestRepaint(); }
         }
         Connections {
             target: leftCornerMaskPart
-            function onWidthChanged() {
-                outlineCanvas.requestPaint();
-            }
+            function onWidthChanged() { outlineCanvas._requestRepaint(); }
         }
         Connections {
             target: rightCornerMaskPart
-            function onWidthChanged() {
-                outlineCanvas.requestPaint();
-            }
+            function onWidthChanged() { outlineCanvas._requestRepaint(); }
         }
     }
 }

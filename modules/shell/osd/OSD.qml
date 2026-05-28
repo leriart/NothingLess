@@ -78,8 +78,9 @@ PanelWindow {
                         enabled: Anim.animationsEnabled
                         NumberAnimation {
                             duration: Anim.standardNormal
-                            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                            easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                    easing.overshoot: Anim.springSnappy().overshoot || 0
                         }
                     }
 
@@ -87,8 +88,9 @@ PanelWindow {
                         enabled: Anim.animationsEnabled
                         NumberAnimation {
                             duration: Anim.standardNormal
-                            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                            easing.type: Anim.springSnappy().type
+                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
+                    easing.overshoot: Anim.springSnappy().overshoot || 0
                         }
                     }
                 }

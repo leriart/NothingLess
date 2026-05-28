@@ -50,7 +50,8 @@ WlSessionLockSurface {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardNormal * 2
-                easing.type: Easing.OutQuint
+                easing.type: Anim.collapseEasing.type
+                    easing.bezierCurve: Anim.collapseEasing.bezierCurve || []
             }
         }
 
@@ -75,7 +76,9 @@ WlSessionLockSurface {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardNormal * 2
-                easing.type: Easing.OutExpo
+                easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
             }
         }
     }
@@ -103,7 +106,9 @@ WlSessionLockSurface {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardNormal * 2
-                easing.type: Easing.OutExpo
+                easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
             }
         }
     }
@@ -129,7 +134,8 @@ WlSessionLockSurface {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardNormal * 2
-                easing.type: Easing.OutQuint
+                easing.type: Anim.collapseEasing.type
+                    easing.bezierCurve: Anim.collapseEasing.bezierCurve || []
             }
         }
 
@@ -137,7 +143,9 @@ WlSessionLockSurface {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardNormal * 2
-                easing.type: Easing.OutExpo
+                easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
             }
         }
     }
@@ -179,7 +187,9 @@ WlSessionLockSurface {
                     enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardNormal * 2
-                        easing.type: Easing.OutExpo
+                        easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
                     }
                 }
 
@@ -187,7 +197,9 @@ WlSessionLockSurface {
                     enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardNormal * 2
-                        easing.type: Easing.OutExpo
+                        easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
                     }
                 }
             }
@@ -217,7 +229,9 @@ WlSessionLockSurface {
                     enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardNormal * 2
-                        easing.type: Easing.OutExpo
+                        easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
                     }
                 }
 
@@ -225,7 +239,9 @@ WlSessionLockSurface {
                     enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardNormal * 2
-                        easing.type: Easing.OutExpo
+                        easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
                     }
                 }
             }
@@ -255,7 +271,9 @@ WlSessionLockSurface {
                     enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardNormal * 2
-                        easing.type: Easing.OutExpo
+                        easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
                     }
                 }
 
@@ -263,7 +281,9 @@ WlSessionLockSurface {
                     enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardNormal * 2
-                        easing.type: Easing.OutExpo
+                        easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
                     }
                 }
             }
@@ -301,7 +321,9 @@ WlSessionLockSurface {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardNormal * 2
-                easing.type: Easing.OutExpo
+                easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
             }
         }
 
@@ -343,7 +365,9 @@ WlSessionLockSurface {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardNormal * 2
-                easing.type: Easing.OutExpo
+                easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
             }
         }
 
@@ -351,7 +375,9 @@ WlSessionLockSurface {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardNormal * 2
-                easing.type: Easing.OutExpo
+                easing.type: Anim.expandEasing.type
+                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
+                    easing.overshoot: Anim.expandEasing.overshoot || 0
             }
         }
 
@@ -591,7 +617,7 @@ WlSessionLockSurface {
     // Timer to unlock after exit animation
     Timer {
         id: unlockTimer
-        interval: Config.animDuration * 2  // Wait for zoom out (1x) + fade out (1x)
+        interval: Anim.emphasizedLarge * 2  // Wait for zoom out (1x) + fade out (1x)
         onTriggered: {
             GlobalStates.lockscreenVisible = false;
         }
@@ -698,7 +724,7 @@ WlSessionLockSurface {
                 // Error de autenticación
                 errorMessage = "Authentication failed";
                 console.warn("PAM auth failed with result:", result);
-                if (Config.animDuration > 0) {
+                if (Anim.animationsEnabled) {
                     wrongPasswordAnim.start();
                 }
             }
