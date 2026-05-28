@@ -359,13 +359,23 @@ setup_repo() {
   fi
 
   log_info "Checking repository status..."
-  git -C "$INSTALL_PATH" fetch origin
+  git -C "$INSTALL_PATH" fetch origin --depth=1 2>/dev/null || true
 
   local BRANCH
   BRANCH=$(git -C "$INSTALL_PATH" rev-parse --abbrev-ref HEAD)
 
   if [[ "$BRANCH" != "main" ]]; then
     log_warn "On branch '$BRANCH', not 'main'. Skipping update."
+    return
+  fi
+
+  # Compare commit hashes — skip if already up to date
+  local REMOTE_HASH LOCAL_HASH
+  REMOTE_HASH=$(git -C "$INSTALL_PATH" rev-parse origin/main 2>/dev/null || echo "")
+  LOCAL_HASH=$(git -C "$INSTALL_PATH" rev-parse HEAD 2>/dev/null || echo "")
+
+  if [[ -n "$REMOTE_HASH" && "$REMOTE_HASH" == "$LOCAL_HASH" ]]; then
+    log_info "NothingLess already up to date ($(echo "$LOCAL_HASH" | cut -c1-8))"
     return
   fi
 
@@ -487,35 +497,36 @@ setup_launcher() {
 install_axctl() {
   [[ "$DISTRO" == "nixos" ]] && return
 
-  has_cmd axctl && {
-    local ver
-    ver="$(axctl --version 2>/dev/null || echo "")"
-    if [[ "$ver" == *".c"* ]] || [[ "$ver" == *"0.1.0"* ]]; then
-      log_info "axctl.c $ver already installed"
-      return
-    fi
-  }
-
-  log_info "Installing axctl.c..."
-
-  if [[ -d "$AXCTL_PATH" ]]; then
-    log_info "Updating axctl.c..."
-    git -C "$AXCTL_PATH" fetch origin
-    git -C "$AXCTL_PATH" reset --hard origin/main
-  else
+  # Ensure repo exists
+  if [[ ! -d "$AXCTL_PATH" ]]; then
     log_info "Cloning axctl.c to $AXCTL_PATH..."
     mkdir -p "$(dirname "$AXCTL_PATH")"
     git clone "$AXCTL_REPO" "$AXCTL_PATH"
   fi
 
-  log_info "Building axctl.c..."
+  # Fetch latest and get remote commit hash
+  git -C "$AXCTL_PATH" fetch origin --depth=1 2>/dev/null || true
+  local remote_commit
+  remote_commit="$(git -C "$AXCTL_PATH" rev-parse origin/main 2>/dev/null || echo "")"
+  local local_commit
+  local_commit="$(git -C "$AXCTL_PATH" rev-parse HEAD 2>/dev/null || echo "")"
+
+  if [[ -n "$remote_commit" && "$remote_commit" == "$local_commit" && -f "$BIN_DIR/axctl" ]]; then
+    log_info "axctl.c already up to date ($(echo "$local_commit" | cut -c1-8))"
+    return
+  fi
+
+  # Update to remote
+  git -C "$AXCTL_PATH" reset --hard "$remote_commit" 2>/dev/null || git -C "$AXCTL_PATH" reset --hard origin/main
+
+  log_info "Building axctl.c ($(echo "$remote_commit" | cut -c1-8))..."
   (cd "$AXCTL_PATH" && make clean && make) || {
     log_error "axctl.c build failed"
     return
   }
 
-  # Kill any running daemon and shell that may hold the binary busy
-  log_info "Stopping axctl daemon and related processes..."
+  # Kill any running daemon that may hold the binary busy
+  log_info "Stopping axctl daemon..."
   sudo pkill -f "axctl.*daemon" 2>/dev/null || true
   sudo pkill -f "axctl.*subscribe" 2>/dev/null || true
   sleep 0.5
@@ -525,9 +536,7 @@ install_axctl() {
   log_success "axctl.c installed ($(/usr/local/bin/axctl --version 2>/dev/null || echo "unknown"))"
 
   log_info "Restarting axctl daemon..."
-  if has_cmd axctl; then
-    (axctl daemon >/dev/null 2>&1 &)
-  fi
+  (axctl daemon >/dev/null 2>&1 &)
 }
 
 # === Main ===
