@@ -153,11 +153,7 @@ Item {
 
     readonly property bool effectiveContainBar: Config.bar.containBar && ((Config.bar.frameEnabled !== undefined ? Config.bar.frameEnabled : false))
 
-    // Process for workspace switching
-    property Process wsProcess: Process {
-        running: false
-    }
-
+    // Workspace switching via IpcPool (debounced, pooled processes)
     StyledRect {
         id: bgRect
         variant: "bg"
@@ -173,11 +169,9 @@ Item {
     WheelHandler {
         onWheel: event => {
             if (event.angleDelta.y < 0) {
-                wsProcess.command = ["hyprctl", "dispatch", "workspace", "+1"];
-                wsProcess.running = true;
+                IpcPool.dispatch("workspace +1");
             } else if (event.angleDelta.y > 0) {
-                wsProcess.command = ["hyprctl", "dispatch", "workspace", "-1"];
-                wsProcess.running = true;
+                IpcPool.dispatch("workspace -1");
             }
         }
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
@@ -439,8 +433,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         console.log("Workspace click:", button.workspaceValue);
-                        wsProcess.command = ["hyprctl", "dispatch", "workspace", String(button.workspaceValue)];
-                        wsProcess.running = true;
+                        IpcPool.dispatch("workspace " + String(button.workspaceValue));
                     }
                 }
 
@@ -590,8 +583,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         console.log("Workspace click:", workspaceValue);
-                        wsProcess.command = ["hyprctl", "dispatch", "workspace", String(workspaceValue)];
-                        wsProcess.running = true;
+                        IpcPool.dispatch("workspace " + String(workspaceValue));
                     }
                 }
 

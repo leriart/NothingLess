@@ -56,19 +56,11 @@ Singleton {
             cmdArgs = ["window", "focus", getAddr(rawArgs)];
         } else if (action === "movetoworkspacesilent") {
             // axctl v0.0.19 bug: move-to-workspace-silent returns Success but does nothing.
-            // Direct hyprctl dispatch works, so we bypass axctl entirely.
+            // Direct hyprctl dispatch via IpcPool (pooled processes, no leaks).
             let subParts = rawArgs.split(',');
             let ws = subParts[0].trim();
             let addr = subParts.length > 1 ? getAddr(subParts[1]) : "";
-            let hyprProc = Qt.createQmlObject('import Quickshell.Io; Process { stderr: StdioCollector {} }', root);
-            hyprProc.command = ["hyprctl", "dispatch", "movetoworkspacesilent", ws + ",address:" + addr];
-            hyprProc.onExited.connect((code) => {
-                if (code !== 0) {
-                    console.warn("AxctlService hyprctl dispatch error:", hyprProc.command.join(' '), "→", hyprProc.stderr.text);
-                }
-                hyprProc.destroy();
-            });
-            hyprProc.running = true;
+            IpcPool.dispatch("movetoworkspacesilent " + ws + ",address:" + addr);
             return;
         } else if (action === "togglespecialworkspace") {
             cmdArgs = ["workspace", "toggle-special"];

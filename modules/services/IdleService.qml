@@ -19,7 +19,9 @@ Singleton {
     // accumulation of zombie bash+dbus-monitor processes across reloads.
     property var killerProc: Process {
         id: killerProc
-        command: ["pkill", "-f", "nothingless/scripts/(loginlock|sleep_monitor|nothingless)_monitor\\.sh"]
+        // -i, case-insensitive (repo path may be "NothingLess" or "nothingless")
+        // Matches: loginlock.sh, sleep_monitor.sh, nothingless-monitor.sh
+        command: ["pkill", "-f", "-i", "[Nn]othingless/scripts/(loginlock|sleep_monitor|nothingless-monitor)\\.sh"]
         running: true
         onExited: {
             loginLockProc.running = true;

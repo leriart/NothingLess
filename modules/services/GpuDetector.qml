@@ -21,9 +21,10 @@ Singleton {
     readonly property bool isIntel:  root.vendor === "intel"
 
     // Async GPU detection via Process
+    // Finds the first DRM card with a vendor file (not just card0)
     property Process gpuDetect: Process {
         command: ["bash", "-c",
-            "v=$(cat /sys/class/drm/card0/device/vendor 2>/dev/null); " +
+            "v=$(for f in /sys/class/drm/card*/device/vendor; do cat \"$f\" 2>/dev/null && break; done); " +
             "case $v in " +
             "  0x10de) echo nvidia;; " +
             "  0x1002) echo amd;; " +
