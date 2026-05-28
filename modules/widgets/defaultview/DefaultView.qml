@@ -403,21 +403,16 @@ Item {
                 spacing: 4
                 visible: Config.notchTheme === "island"
 
-                Item {
-                    id: weatherClickArea
+                Weather {
+                    id: weatherItem
                     Layout.alignment: Qt.AlignVCenter
                     Layout.maximumWidth: 120
-                    implicitWidth: weatherItem.implicitWidth
-                    implicitHeight: weatherItem.implicitHeight
-
-                    Weather {
-                        id: weatherItem
-                        bar: QtObject {
-                            property string orientation: "horizontal"
-                            property bool vertical: false
-                        }
+                    bar: QtObject {
+                        property string orientation: "horizontal"
+                        property bool vertical: false
                     }
 
+                    // Click overlay on top of weather
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
