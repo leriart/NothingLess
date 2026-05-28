@@ -14,9 +14,8 @@ Singleton {
     property string beforeSleepCmd: Config.system.idle.general.before_sleep_cmd ?? "loginctl lock-session"
     property string afterSleepCmd: Config.system.idle.general.after_sleep_cmd ?? "nothingless screen on"
 
-    // Kill any orphaned loginlock/sleep_monitor processes from previous
-    // NothingLess sessions before starting new ones. This prevents the
-    // accumulation of zombie bash+dbus-monitor processes across reloads.
+    // Kill any orphaned monitor processes from previous NothingLess sessions
+    // before starting the new unified one. Prevents accumulation across reloads.
     property var killerProc: Process {
         id: killerProc
         // -i, case-insensitive (repo path may be "NothingLess" or "nothingless")
@@ -24,40 +23,17 @@ Singleton {
         command: ["pkill", "-f", "-i", "[Nn]othingless/scripts/(loginlock|sleep_monitor|nothingless-monitor)\\.sh"]
         running: true
         onExited: {
-            loginLockProc.running = true;
-            sleepMonitorProc.running = true;
+            monitorProc.running = true;
         }
     }
 
-    // Login Lock Daemon
-    // Listens to org.freedesktop.login1.Session Lock signal via dbus-monitor
-    // and executes lockCmd from config.
-    property var loginLockProc: Process {
-        id: loginLockProc
+    // Unified Monitor Daemon
+    // Single script combining loginlock + sleep monitor.
+    // Outputs SUSPEND/WAKE on stdout for SuspendManager integration.
+    property var monitorProc: Process {
+        id: monitorProc
         running: false
-        command: ["bash", Qt.resolvedUrl("../../scripts/loginlock.sh").toString().replace("file://", "")]
-        onExited: exitCode => {
-            if (exitCode !== 0) {
-                console.warn("loginlock.sh exited with code " + exitCode + ". Restarting...");
-                loginLockRestartTimer.start();
-            }
-        }
-    }
-
-    property var loginLockRestartTimer: Timer {
-        id: loginLockRestartTimer
-        interval: 1000
-        repeat: false
-        onTriggered: loginLockProc.running = true
-    }
-
-    // Sleep Monitor Daemon
-    // Listens to org.freedesktop.login1.Manager PrepareForSleep signal
-    // and executes before/after sleep commands from config.
-    property var sleepMonitorProc: Process {
-        id: sleepMonitorProc
-        running: false
-        command: ["bash", Qt.resolvedUrl("../../scripts/sleep_monitor.sh").toString().replace("file://", "")]
+        command: ["bash", Qt.resolvedUrl("../../scripts/nothingless-monitor.sh").toString().replace("file://", "")]
 
         stdout: SplitParser {
             onRead: data => {
@@ -72,17 +48,17 @@ Singleton {
 
         onExited: exitCode => {
             if (exitCode !== 0) {
-                console.warn("sleep_monitor.sh exited with code " + exitCode + ". Restarting...");
-                sleepMonitorRestartTimer.start();
+                console.warn("nothingless-monitor.sh exited with code " + exitCode + ". Restarting in 2s...");
+                monitorRestartTimer.start();
             }
         }
     }
 
-    property var sleepMonitorRestartTimer: Timer {
-        id: sleepMonitorRestartTimer
-        interval: 1000
+    property var monitorRestartTimer: Timer {
+        id: monitorRestartTimer
+        interval: 2000
         repeat: false
-        onTriggered: sleepMonitorProc.running = true
+        onTriggered: monitorProc.running = true
     }
 
     // Master Idle Logic

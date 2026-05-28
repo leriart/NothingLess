@@ -3,6 +3,7 @@
 # 
 # Combines loginlock.sh and sleep_monitor.sh into a single daemon
 # with internal job control for reduced process count.
+# Outputs SUSPEND/WAKE on stdout for SuspendManager integration.
 
 LOCKFILE="/tmp/nothingless_monitor.lock"
 if [ -e "$LOCKFILE" ]; then
@@ -40,29 +41,29 @@ get_after_sleep_cmd() {
 	fi
 }
 
-# Job 1: Login lock monitor — lock on suspend/sleep
-monitor_loginlock() {
+# Job 1: Sleep monitor — trigger on suspend/resume
+# Outputs SUSPEND/WAKE for QML SuspendManager integration
+monitor_sleep() {
 	while true; do
 		dbus-monitor --system --profile "type='signal',interface='org.freedesktop.login1.Manager',member='PrepareForSleep'" 2>/dev/null | while read -r line; do
 			if echo "$line" | grep -q "boolean true"; then
-				# System going to sleep
-				eval "$(get_before_sleep_cmd)"
+				echo "SUSPEND"
+				eval "$(get_before_sleep_cmd)" &
 			elif echo "$line" | grep -q "boolean false"; then
-				# System woke up
-				eval "$(get_after_sleep_cmd)"
+				echo "WAKE"
+				eval "$(get_after_sleep_cmd)" &
 			fi
 		done
 		sleep 1  # Restart dbus-monitor on disconnect
 	done
 }
 
-# Job 2: Manual lock trigger via logind
+# Job 2: Lock screen monitor — trigger on screen lock
 monitor_lockscreen() {
 	while true; do
-		# Monitor for lock/unlock via logind
 		dbus-monitor --session "type='signal',interface='org.freedesktop.ScreenSaver',member='ActiveChanged'" 2>/dev/null | while read -r line; do
 			if echo "$line" | grep -q "boolean true"; then
-				eval "$(get_lock_cmd)"
+				eval "$(get_lock_cmd)" &
 			fi
 		done
 		sleep 1
@@ -70,7 +71,7 @@ monitor_lockscreen() {
 }
 
 # Start both jobs in background
-monitor_loginlock &
+monitor_sleep &
 monitor_lockscreen &
 
 # Wait for both (they run forever, so this never exits)
