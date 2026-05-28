@@ -321,6 +321,7 @@ Item {
                     Layout.alignment: Qt.AlignVCenter
                     text: new Date().toLocaleTimeString(Config.locale || Qt.locale(), "HH:mm")
                     color: Colors.overBackground
+                    font.family: Config.theme.font
                     font.pixelSize: 14
                     font.weight: Font.Medium
 
