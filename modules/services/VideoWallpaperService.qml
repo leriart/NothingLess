@@ -107,16 +107,23 @@ Singleton {
             return;
         }
 
-        checkProc.command = ["test", "-f", cachePath];
-        checkProc.onExited = (code) => {
+        // Disconnect previous handler to avoid leaks
+        try { checkProc.exited.disconnect(root._checkProcHandler); } catch(e) {}
+
+        root._checkProcHandler = (code) => {
+            checkProc.exited.disconnect(root._checkProcHandler);
             if (callback) callback(code === 0);
         };
+        checkProc.exited.connect(root._checkProcHandler);
+
+        checkProc.command = ["test", "-f", cachePath];
         checkProc.running = true;
     }
 
     property Process checkProc: Process {
         running: false
     }
+    property var _checkProcHandler: null
 
     /**
      * Generate a downscaled cache of a video file using ffmpeg.
