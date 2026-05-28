@@ -350,9 +350,9 @@ Item {
             // Hidden Clock used only for its popup (outside the Row to avoid layout gap)
             Clock {
                 id: clockPopupInvoker
-                anchors.top: root.bottom
+                anchors.top: parent.bottom
                 anchors.topMargin: 4
-                anchors.horizontalCenter: root.horizontalCenter
+                anchors.horizontalCenter: parent.horizontalCenter
                 opacity: 0
                 width: 0; height: 0
                 bar: QtObject {
