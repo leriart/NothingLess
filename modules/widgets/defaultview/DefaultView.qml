@@ -316,23 +316,63 @@ Item {
                     Layout.alignment: Qt.AlignVCenter
                 }
 
-                Text {
-                    id: dateLabel
+                Item {
+                    id: clockTextArea
                     Layout.alignment: Qt.AlignVCenter
-                    text: new Date().toLocaleTimeString(Config.locale || Qt.locale(), "HH:mm")
-                    color: Colors.overBackground
-                    font.family: Config.theme.font
-                    font.pixelSize: 14
-                    font.weight: Font.Medium
+                    implicitWidth: dateLabel.implicitWidth
+                    implicitHeight: dateLabel.implicitHeight
 
-                    Timer {
-                        interval: 10000
-                        running: true
-                        repeat: true
-                        onTriggered: parent.text = new Date().toLocaleTimeString(Config.locale || Qt.locale(), "HH:mm")
+                    Text {
+                        id: dateLabel
+                        text: new Date().toLocaleTimeString(Config.locale || Qt.locale(), "HH:mm")
+                        color: Colors.overBackground
+                        font.family: Config.theme.font
+                        font.pixelSize: 14
+                        font.weight: Font.Medium
+
+                        Timer {
+                            interval: 10000
+                            running: true
+                            repeat: true
+                            onTriggered: parent.text = new Date().toLocaleTimeString(Config.locale || Qt.locale(), "HH:mm")
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: clockPopup.toggle()
                     }
                 }
             }
+
+    // Clock popup — anchored to the clock text area
+    BarPopup {
+        id: clockPopup
+        anchorItem: clockTextArea
+        bar: QtObject {
+            property string barPosition: "top"
+        }
+
+        Column {
+            spacing: 8
+            padding: 12
+
+            Text {
+                text: new Date().toLocaleDateString(Config.locale || Qt.locale(), "dddd")
+                color: Colors.primary
+                font.family: Config.theme.font
+                font.pixelSize: 16
+                font.weight: Font.Bold
+            }
+            Text {
+                text: new Date().toLocaleDateString(Config.locale || Qt.locale(), "MMMM d, yyyy")
+                color: Colors.overBackground
+                font.family: Config.theme.font
+                font.pixelSize: 13
+            }
+        }
+    }
 
             UserInfo {
                 id: userInfo
