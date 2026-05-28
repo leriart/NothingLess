@@ -334,6 +334,11 @@ Item {
                 Weather {
                     Layout.alignment: Qt.AlignVCenter
                     Layout.maximumWidth: 120
+                    // Weather requires a 'bar' property — provide a minimal stub
+                    bar: QtObject {
+                        property string orientation: "horizontal"
+                        property bool vertical: false
+                    }
                 }
             }
 
