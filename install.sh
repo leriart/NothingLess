@@ -514,9 +514,20 @@ install_axctl() {
     return
   }
 
+  # Kill any running daemon and shell that may hold the binary busy
+  log_info "Stopping axctl daemon and related processes..."
+  sudo pkill -f "axctl.*daemon" 2>/dev/null || true
+  sudo pkill -f "axctl.*subscribe" 2>/dev/null || true
+  sleep 0.5
+
   log_info "Installing axctl to $BIN_DIR/axctl..."
   sudo install -Dm755 "$AXCTL_PATH/axctl" "$BIN_DIR/axctl"
   log_success "axctl.c installed ($(/usr/local/bin/axctl --version 2>/dev/null || echo "unknown"))"
+
+  log_info "Restarting axctl daemon..."
+  if has_cmd axctl; then
+    (axctl daemon >/dev/null 2>&1 &)
+  fi
 }
 
 # === Main ===
