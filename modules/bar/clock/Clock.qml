@@ -27,6 +27,7 @@ Item {
 
     // Popup visibility state
     property bool popupOpen: clockPopup.isOpen
+    function togglePopup() { clockPopup.toggle(); }
 
     readonly property bool weatherAvailable: WeatherService.dataAvailable
 
