@@ -155,19 +155,33 @@ Singleton {
 
         // --- Monitors ---
         if (state.monitors) {
-            let mappedMonitors = state.monitors.map(mon => ({
-                id: parseInt(mon.id) || 0,
-                name: mon.name,
-                focused: mon.is_focused,
-                width: mon.width,
-                height: mon.height,
-                refreshRate: mon.refresh_rate,
-                scale: mon.scale,
-                x: mon.metadata ? parseInt(mon.metadata.x) || 0 : 0,
-                y: mon.metadata ? parseInt(mon.metadata.y) || 0 : 0,
-                transform: mon.metadata ? parseInt(mon.metadata.transform) || 0 : 0,
-                activeWorkspace: { id: parseInt(mon.metadata ? mon.metadata.active_workspace : 0) || 0, name: mon.metadata ? mon.metadata.active_workspace : "" }
-            }));
+            let mappedMonitors = state.monitors.map(mon => {
+                let actWsId = parseInt(mon.metadata ? mon.metadata.active_workspace : 0) || 0;
+                let actWsName = mon.metadata ? mon.metadata.active_workspace : "";
+                if (actWsId === 0) {
+                    let wss = state.workspaces || root.workspaces.values || [];
+                    let w = wss.find(ws => (ws.monitor_id === mon.name || ws.monitor === mon.name) && (ws.is_active || ws.active));
+                    if (!w) w = wss.find(ws => (ws.monitor_id === mon.name || ws.monitor === mon.name) && !(ws.is_empty === true));
+                    if (!w) w = wss.find(ws => (ws.monitor_id === mon.name || ws.monitor === mon.name));
+                    if (w) {
+                        actWsId = parseInt(w.id) || 0;
+                        actWsName = w.name;
+                    }
+                }
+                return {
+                    id: parseInt(mon.id) || 0,
+                    name: mon.name,
+                    focused: mon.is_focused,
+                    width: mon.width,
+                    height: mon.height,
+                    refreshRate: mon.refresh_rate,
+                    scale: mon.scale,
+                    x: mon.metadata ? parseInt(mon.metadata.x) || 0 : 0,
+                    y: mon.metadata ? parseInt(mon.metadata.y) || 0 : 0,
+                    transform: mon.metadata ? parseInt(mon.metadata.transform) || 0 : 0,
+                    activeWorkspace: { id: actWsId, name: actWsName }
+                };
+            });
             root.monitors.values = mappedMonitors;
             let focused = mappedMonitors.find(m => m.focused) || null;
             if (focused !== root.focusedMonitor) {
