@@ -336,7 +336,6 @@ Item {
             UserInfo {
                 id: userInfo
                 anchors.verticalCenter: parent.verticalCenter
-                visible: Config.notchTheme !== "island"
             }
 
             Separator {
