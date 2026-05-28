@@ -310,7 +310,7 @@ Item {
                 id: clockItem
                 anchors.verticalCenter: parent.verticalCenter
                 visible: Config.notchTheme === "island"
-                implicitHeight: 36
+                implicitWidth: 140; implicitHeight: 36
                 bar: QtObject {
                     property string orientation: "horizontal"
                     property bool vertical: false
