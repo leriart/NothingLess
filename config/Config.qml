@@ -85,6 +85,7 @@ Singleton {
             "cp -n '" + root.presetDir + "/dock.json' '" + root.configDir + "/dock.json' 2>/dev/null || true; " +
             "cp -n '" + root.presetDir + "/ai.json' '" + root.configDir + "/ai.json' 2>/dev/null || true; " +
             "cp -n '" + root.presetDir + "/system.json' '" + root.configDir + "/system.json' 2>/dev/null || true; " +
+            "test -f '" + root.configDir + "/weather.json' || echo '{\"location\":\"\",\"unit\":\"C\"}' > '" + root.configDir + "/weather.json'; " +
             "echo 'Preset files copied if missing'"
         ]
     }
