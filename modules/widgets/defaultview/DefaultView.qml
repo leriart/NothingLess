@@ -1,9 +1,11 @@
 import QtQuick
+import QtQuick.Layouts
 import Quickshell.Services.Mpris
 import qs.modules.theme
 import qs.modules.services
 import qs.modules.notch
 import qs.modules.components
+import qs.modules.bar.clock
 import qs.config
 
 Item {
@@ -154,7 +156,13 @@ Item {
     // Computed dimensions
     readonly property real mainRowContentWidth: metricsActive
         ? Math.max(metricsRowWidth + mainRowMargin, 200)
-        : (200 + userInfo.width + separator1.width + separator2.width + notifIndicator.width + (mainRow.spacing * 4) + mainRowMargin)
+        : (200
+            + (userInfo.visible ? userInfo.width + mainRow.spacing : 0)
+            + (separator1.visible && (userInfo.visible || clockRow.visible) ? separator1.width + mainRow.spacing : 0)
+            + (clockRow.visible ? clockRow.implicitWidth + mainRow.spacing : 0)
+            + separator2.width + mainRow.spacing
+            + notifIndicator.width + mainRow.spacing
+            + mainRowMargin)
     readonly property real mainRowHeight: Config.showBackground ? (Config.notchTheme === "island" ? 36 : 44) : (Config.notchTheme === "island" ? 36 : 40)
     readonly property real notificationMinWidth: expandedState ? 420 : 320
     readonly property real notificationContainerHeight: notificationView.implicitHeight + notificationPaddingTop + notificationPaddingBottom
@@ -296,20 +304,60 @@ Item {
             spacing: 4
             z: 2 // Ensure it stays above notifications if overlap occurs (though they shouldn't)
 
+            // Clock/Weather section (compact, visible in island mode)
+            RowLayout {
+                id: clockRow
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 6
+                visible: Config.notchTheme === "island"
+
+                ClockIndicator {
+                    Layout.alignment: Qt.AlignVCenter
+                }
+
+                Text {
+                    id: dateLabel
+                    Layout.alignment: Qt.AlignVCenter
+                    text: new Date().toLocaleTimeString(Config.locale || Qt.locale(), "HH:mm")
+                    color: Colors.overBackground
+                    font.pixelSize: 14
+                    font.weight: Font.Medium
+
+                    Timer {
+                        interval: 10000
+                        running: true
+                        repeat: true
+                        onTriggered: parent.text = new Date().toLocaleTimeString(Config.locale || Qt.locale(), "HH:mm")
+                    }
+                }
+
+                Weather {
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.maximumWidth: 120
+                }
+            }
+
             UserInfo {
                 id: userInfo
                 anchors.verticalCenter: parent.verticalCenter
+                visible: Config.notchTheme !== "island"
             }
 
             Separator {
                 id: separator1
                 vert: true
                 anchors.verticalCenter: parent.verticalCenter
+                visible: clockRow.visible || userInfo.visible
             }
 
             CompactPlayer {
                 anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - userInfo.width - separator1.width - separator2.width - notifIndicator.width - (parent.spacing * 4)
+                width: parent.width
+                    - (userInfo.visible ? userInfo.width + parent.spacing : 0)
+                    - (separator1.visible ? separator1.width + parent.spacing : 0)
+                    - (clockRow.visible ? clockRow.implicitWidth + parent.spacing : 0)
+                    - separator2.width - parent.spacing
+                    - notifIndicator.width - parent.spacing
                 height: 32
                 player: activePlayer
                 notchHovered: expandedState
