@@ -158,10 +158,11 @@ Item {
         ? Math.max(metricsRowWidth + mainRowMargin, 200)
         : (200
             + (userInfo.visible ? userInfo.width + mainRow.spacing : 0)
-            + (separator1.visible && (userInfo.visible || clockRow.visible) ? separator1.width + mainRow.spacing : 0)
+            + (separator1.visible ? separator1.width + mainRow.spacing : 0)
             + (clockRow.visible ? clockRow.implicitWidth + mainRow.spacing : 0)
-            + separator2.width + mainRow.spacing
-            + notifIndicator.width + mainRow.spacing
+            + (separator2.visible ? separator2.width + mainRow.spacing : 0)
+            + (weatherRow.visible ? weatherRow.implicitWidth + mainRow.spacing : 0)
+            + (notifIndicatorStandalone.visible ? notifIndicatorStandalone.width + mainRow.spacing : 0)
             + mainRowMargin)
     readonly property real mainRowHeight: Config.showBackground ? (Config.notchTheme === "island" ? 36 : 44) : (Config.notchTheme === "island" ? 36 : 40)
     readonly property real notificationMinWidth: expandedState ? 420 : 320
@@ -304,7 +305,7 @@ Item {
             spacing: 4
             z: 2 // Ensure it stays above notifications if overlap occurs (though they shouldn't)
 
-            // Clock/Weather section (compact, visible in island mode)
+            // Clock section (compact, visible in island mode)
             RowLayout {
                 id: clockRow
                 anchors.verticalCenter: parent.verticalCenter
@@ -330,16 +331,6 @@ Item {
                         onTriggered: parent.text = new Date().toLocaleTimeString(Config.locale || Qt.locale(), "HH:mm")
                     }
                 }
-
-                Weather {
-                    Layout.alignment: Qt.AlignVCenter
-                    Layout.maximumWidth: 120
-                    // Weather requires a 'bar' property — provide a minimal stub
-                    bar: QtObject {
-                        property string orientation: "horizontal"
-                        property bool vertical: false
-                    }
-                }
             }
 
             UserInfo {
@@ -361,8 +352,9 @@ Item {
                     - (userInfo.visible ? userInfo.width + parent.spacing : 0)
                     - (separator1.visible ? separator1.width + parent.spacing : 0)
                     - (clockRow.visible ? clockRow.implicitWidth + parent.spacing : 0)
-                    - separator2.width - parent.spacing
-                    - notifIndicator.width - parent.spacing
+                    - (separator2.visible ? separator2.width + parent.spacing : 0)
+                    - (weatherRow.visible ? weatherRow.implicitWidth + parent.spacing : 0)
+                    - (notifIndicatorStandalone.visible ? notifIndicatorStandalone.width + parent.spacing : 0)
                 height: 32
                 player: activePlayer
                 notchHovered: expandedState
@@ -372,11 +364,36 @@ Item {
                 id: separator2
                 vert: true
                 anchors.verticalCenter: parent.verticalCenter
+                visible: clockRow.visible || weatherRow.visible
             }
 
-            NotificationIndicator {
-                id: notifIndicator
+            // Weather next to notification indicator (island mode only)
+            RowLayout {
+                id: weatherRow
                 anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                visible: Config.notchTheme === "island"
+
+                Weather {
+                    Layout.alignment: Qt.AlignVCenter
+                    Layout.maximumWidth: 120
+                    bar: QtObject {
+                        property string orientation: "horizontal"
+                        property bool vertical: false
+                    }
+                }
+
+                NotificationIndicator {
+                    id: notifIndicator
+                    Layout.alignment: Qt.AlignVCenter
+                }
+            }
+
+            // Non-island: NotificationIndicator standalone
+            NotificationIndicator {
+                id: notifIndicatorStandalone
+                anchors.verticalCenter: parent.verticalCenter
+                visible: Config.notchTheme !== "island"
             }
         }
 
