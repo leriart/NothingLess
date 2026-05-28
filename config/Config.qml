@@ -1662,7 +1662,7 @@ Singleton {
                 property JsonObject lockscreen: JsonObject {
                     property list<string> modifiers: ["SUPER"]
                     property string key: "L"
-                    property var action: ({ "id": "system.lock", "args": {} })
+                    property var action: ({ "id": "nothingless.lock", "args": {} })
                 }
                 property JsonObject overview: JsonObject {
                     property list<string> modifiers: ["SUPER"]
