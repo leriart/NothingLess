@@ -51,7 +51,6 @@ declare -A BINARY_CHECK=(
   ["jq"]="jq"
   ["playerctl"]="playerctl"
   ["wtype"]="wtype"
-  ["mpvpaper"]="mpvpaper"
   ["gradia"]="gradia"
   ["pipx"]="pipx"
   ["python-pipx"]="pipx"
@@ -130,7 +129,6 @@ install_dependencies() {
       tesseract-langpack-chi_sim tesseract-langpack-chi_tra tesseract-langpack-kor tesseract-langpack-lat
       google-roboto-fonts google-roboto-mono-fonts dejavu-sans-fonts liberation-fonts
       google-noto-fonts-common google-noto-cjk-fonts google-noto-emoji-fonts
-      mpvpaper matugen R-CRAN-phosphoricons adw-gtk3-theme quickshell unzip curl json-c-devel wayland-devel gcc make pkg-config
     )
 
     log_info "Installing dependencies..."
@@ -179,7 +177,6 @@ install_color_presets
       tesseract-data-chi_sim tesseract-data-chi_tra tesseract-data-kor tesseract-data-lat
       ttf-roboto ttf-roboto-mono ttf-dejavu ttf-liberation noto-fonts noto-fonts-cjk noto-fonts-emoji
       ttf-nerd-fonts-symbols
-      matugen gpu-screen-recorder wl-clip-persist mpvpaper gradia
       quickshell ttf-phosphor-icons ttf-league-gothic adw-gtk-theme
       ttf-material-symbols-variable-git translate-shell songrec libqalculate
       json-c wayland
@@ -222,7 +219,6 @@ install_color_presets
       tesseract-langpack-chi_sim tesseract-langpack-chi_tra tesseract-langpack-kor tesseract-langpack-lat
       google-roboto-fonts google-roboto-mono-fonts dejavu-sans-fonts liberation-fonts
       google-noto-fonts-common google-noto-cjk-fonts google-noto-emoji-fonts
-      mpvpaper matugen R-CRAN-phosphoricons adw-gtk3-theme quickshell unzip curl json-c-devel wayland-devel gcc make pkg-config
       translate-shell songrec libqalculate
     )
 
