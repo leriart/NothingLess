@@ -1077,7 +1077,7 @@ PanelWindow {
             Video {
                 id: videoPlayer
                 anchors.fill: parent
-                source: videoRoot.sourceFile ? "file://" + videoRoot.sourceFile : ""
+                // Source is managed by videoRoot._ensureCache() -> effectiveSource -> onEffectiveSourceChanged
                 loops: MediaPlayer.Infinite
                 autoPlay: true
                 muted: true
@@ -1305,15 +1305,54 @@ PanelWindow {
                 }
             }
 
+            // ─── Downscale Cache Support ─────────────────────────────────
+            // Effective source (may be a downscaled cache if resolution limit is set)
+            property string effectiveSource: sourceFile
+
+            // Start cache generation for the current source, fall back to original
+            function _ensureCache(sourcePath) {
+                const cachePath = VideoWallpaperService.getEffectivePath(sourcePath);
+                if (cachePath === sourcePath || !cachePath) {
+                    // No cache needed (native resolution or not a video)
+                    videoRoot.effectiveSource = sourcePath;
+                    return;
+                }
+                // Try to use the cache; if it doesn't exist, fall back to original
+                // and start generation in background
+                VideoWallpaperService.checkCache(cachePath, (exists) => {
+                    if (exists) {
+                        console.log("videoComponent: using cached", cachePath);
+                        videoRoot.effectiveSource = cachePath;
+                    } else {
+                        console.log("videoComponent: generating cache for", sourcePath);
+                        videoRoot.effectiveSource = sourcePath; // play original for now
+                        VideoWallpaperService.generateCache(sourcePath, cachePath, (success) => {
+                            if (success) {
+                                console.log("videoComponent: switching to cached version");
+                                videoRoot.effectiveSource = cachePath;
+                            }
+                        });
+                    }
+                });
+            }
+
             // -------------------------------------------------------------------
             // Source synchronization
             // -------------------------------------------------------------------
             onSourceFileChanged: {
                 console.log("videoComponent: sourceFile =", sourceFile)
                 if (sourceFile) {
-                    videoPlayer.source = "file://" + sourceFile
+                    videoRoot._ensureCache(sourceFile);
                 } else {
-                    videoPlayer.source = ""
+                    videoRoot.effectiveSource = "";
+                }
+            }
+
+            onEffectiveSourceChanged: {
+                if (videoRoot.effectiveSource) {
+                    videoPlayer.source = "file://" + videoRoot.effectiveSource;
+                } else {
+                    videoPlayer.source = "";
                 }
                 previousFrameSource.scheduleUpdate()
                 videoRoot.lastCaptureTime = Date.now()
@@ -1324,7 +1363,7 @@ PanelWindow {
 
             Component.onCompleted: {
                 if (sourceFile) {
-                    videoPlayer.source = "file://" + sourceFile
+                    videoRoot._ensureCache(sourceFile);
                 }
                 previousFrameSource.scheduleUpdate()
                 videoRoot.lastCaptureTime = Date.now()
