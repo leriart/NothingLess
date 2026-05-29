@@ -242,6 +242,8 @@ restart_nothingless() {
 	nohup "$0" >/dev/null 2>&1 &
 }
 
+PIPE="/tmp/nothingless_ipc.pipe"
+
 case "${1:-}" in
 update)
 	echo "Updating NothingLess..."
@@ -254,7 +256,6 @@ refresh)
 	;;
 run)
 	CMD="${2:-}"
-	PIPE="/tmp/nothingless_ipc.pipe"
 
 	if [ -z "$CMD" ]; then
 		echo "Error: No command specified for run"
