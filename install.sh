@@ -548,7 +548,7 @@ install_axctl() {
   log_success "axctl.c installed ($(/usr/local/bin/axctl --version 2>/dev/null || echo "unknown"))"
 
   log_info "Restarting axctl daemon..."
-  (axctl daemon >/dev/null 2>&1 &)
+  (axctl -c "$HOME/.local/share/nothingless/axctl.toml" daemon >/dev/null 2>&1 &)
 }
 
 # === Main ===
