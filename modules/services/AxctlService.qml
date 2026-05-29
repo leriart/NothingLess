@@ -202,7 +202,7 @@ Singleton {
     }
 
     // Ensure any stale axctl daemon is killed, then start fresh with correct config
-    property Process ensureFreshDaemon: Process {
+    property Process axctlProcess: Process {
         command: ["bash", "-c",
             "pkill -9 -f 'axctl.*daemon' 2>/dev/null; " +
             "sleep 0.2; " +
