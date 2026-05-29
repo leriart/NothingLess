@@ -720,6 +720,15 @@ ENDCONF
 		echo "Generating full config with sync-hyprland-conf.py..."
 		python3 "${SCRIPT_DIR}/scripts/sync-hyprland-conf.py" 2>&1 || echo "Warning: sync-hyprland-conf.py failed"
 	fi
+
+	# Clean up stale binds.json (Ambxs migration artifacts)
+	if [ -f "$HOME/.config/nothingless/binds.json" ]; then
+		if grep -q 'defaultAmbxstBinds\|"system.lock"' "$HOME/.config/nothingless/binds.json" 2>/dev/null; then
+			echo "Cleaning stale binds.json (Ambxs migration artifacts)..."
+			rm -f "$HOME/.config/nothingless/binds.json"
+			echo "binds.json will be regenerated with correct defaults on next NothingLess startup."
+		fi
+	fi
 	;;
 remove)
 	TARGET="${2:-}"
