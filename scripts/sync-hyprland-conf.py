@@ -46,7 +46,7 @@ ACTION_MAP = {
     "nothingless.reload":          ("exec", "nothingless reload"),
     "nothingless.quit":            ("exec", "nothingless quit"),
     "nothingless.toggle-metrics":  ("exec", "nothingless run toggle-metrics"),
-    "nothingless.lock":            ("exec", "nothingless lock"),
+    "nothingless.lock":            ("exec", "nothingless run lockscreen"),
 
     # Window actions
     # Window movement: SUPER + drag = MOVE (via m flag)
