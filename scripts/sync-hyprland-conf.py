@@ -291,7 +291,19 @@ def process_nothingless_binds(binds_data):
         bind = system.get(key_name)
         if not bind:
             continue
-        resolved = resolve_action(bind.get("action", {}))
+        # Repair lockscreen action if it's system.lock (Ambxs migration artifact)
+        action = bind.get("action", {})
+        if key_name == "lockscreen" and action.get("id") == "system.lock":
+            action = {"id": "nothingless.lock", "args": {}}
+            bind["action"] = action
+            # Persist the fix back to binds.json
+            try:
+                with open(BINDS_PATH, 'w') as f:
+                    json.dump(binds_data, f, indent=2)
+                print(f'Repaired lockscreen bind in {BINDS_PATH}: system.lock → nothingless.lock')
+            except Exception as e:
+                print(f'Warning: could not repair binds.json: {e}')
+        resolved = resolve_action(action)
         if not resolved:
             continue
         dispatcher, argument, flags = resolved
@@ -447,7 +459,12 @@ def build_binds_block():
             bind = system.get(key_name)
             if not bind:
                 continue
-            resolved = resolve_action(bind.get("action", {}))
+            # Same repair as in process_nothingless_binds
+            action = bind.get("action", {})
+            if key_name == "lockscreen" and action.get("id") == "system.lock":
+                action = {"id": "nothingless.lock", "args": {}}
+                bind["action"] = action
+            resolved = resolve_action(action)
             if not resolved:
                 continue
             dispatcher, argument, flags = resolved
