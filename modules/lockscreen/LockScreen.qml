@@ -695,9 +695,8 @@ WlSessionLockSurface {
     // PAM authentication process
     PamContext {
         id: pamAuth
-        // Use custom PAM config for lockscreen authentication
-        configDirectory: Qt.resolvedUrl("../../config/pam").toString().replace("file://", "")
-        config: "password.conf"
+        // Use system 'login' PAM service (always available, handles all auth methods)
+        config: "login"
 
         onPamMessage: {
             console.log("PAM Message:", this.message, "Type:", this.messageType, "Required:", this.responseRequired);
