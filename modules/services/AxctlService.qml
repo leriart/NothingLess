@@ -201,16 +201,20 @@ Singleton {
         running: true
     }
 
-    property Process axctlProcess: Process {
-        command: ["axctl", "-c", root.configPath, "daemon"]
+    // Ensure any stale axctl daemon is killed, then start fresh with correct config
+    property Process ensureFreshDaemon: Process {
+        command: ["bash", "-c",
+            "pkill -9 -f 'axctl.*daemon' 2>/dev/null; " +
+            "sleep 0.2; " +
+            "axctl -c \"" + root.configPath + "\" daemon"]
         running: true
         stdout: SplitParser {
             onRead: (data) => {
-                // Daemon logs can be printed here if needed
+                console.log("axctl:", String(data).trim())
             }
         }
         onExited: (code) => {
-            console.warn("axctl daemon exited with code:", code)
+            console.log("axctl daemon started (exit:", code + ")")
         }
     }
 
