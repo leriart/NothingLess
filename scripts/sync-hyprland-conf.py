@@ -327,17 +327,17 @@ def process_custom_binds(binds_data):
 
 
 def build_binds_block():
-    """Build the keybinds section for hyprland.conf and .lua."""
+    """Build the keybinds section for hyprland.conf, .lua, and axctl.toml."""
     try:
         with open(BINDS_PATH) as f:
             binds_data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
-        return "", ""
+        return "", "", ""
 
     core_lines, core_lua = process_nothingless_binds(binds_data)
     custom_lines, custom_lua = process_custom_binds(binds_data)
 
-    # Remove duplicates while preserving order
+    # --- hyprland.conf format ---
     seen = set()
     deduped = []
     for line in core_lines + custom_lines:
@@ -346,14 +346,13 @@ def build_binds_block():
             seen.add(line)
 
     if not deduped:
-        return "", ""
+        return "", "", ""
 
     block = "# === NOTHINGLESS KEYBINDS ===\n"
     block += "# Synced from NothingLess binds.json\n"
     for line in deduped:
         block += line + "\n"
 
-    # Windows-style default keybinds for Free layout
     if cfg.get('layout') == 'free':
         block += "\n# Windows-style keybinds (Free layout)\n"
         block += "bind = SUPER, Left, exec, hyprctl dispatch centerwindow && hyprctl dispatch resizeactive -50% 0\n"
@@ -367,6 +366,7 @@ def build_binds_block():
 
     block += "# === END KEYBINDS ===\n"
 
+    # --- hyprland.lua format ---
     seen_lua = set()
     deduped_lua = []
     for line in core_lua + custom_lua:
@@ -380,7 +380,106 @@ def build_binds_block():
         lua_block += line + "\n"
     lua_block += "-- === END KEYBINDS ===\n"
 
-    return block, lua_block
+    # --- axctl.toml format ---
+    # Generate TOML keybinds from scratch using the same bind data
+    def build_toml_bind_line(modifiers, key, dispatcher, argument, flags):
+        if not key or not dispatcher:
+            return None
+        mods_json = json.dumps(modifiers or [])
+        key_json = json.dumps(key)
+        disp_json = json.dumps(dispatcher)
+        arg_json = json.dumps(argument or "")
+        flags_json = json.dumps(flags or "")
+        return (
+            "[[keybinds]]\n"
+            f"modifiers = {mods_json}\n"
+            f"key = {key_json}\n"
+            f"dispatcher = {disp_json}\n"
+            f"argument = {arg_json}\n"
+            f"flags = {flags_json}\n"
+            "enabled = true\n"
+        )
+
+    toml_binds = []
+    seen_toml = set()
+
+    # Process nothingless core + system binds
+    nothingless = binds_data.get("nothingless", {})
+    if nothingless:
+        all_nl_keys = ["launcher", "dashboard", "assistant", "clipboard", "emoji",
+                       "notes", "tmux", "wallpapers"]
+        system = nothingless.get("system", {})
+        all_sys_keys = ["overview", "powermenu", "config", "lockscreen", "tools",
+                        "screenshot", "screenrecord", "lens", "reload", "quit", "toggle-metrics"]
+        for key_name in all_nl_keys:
+            bind = nothingless.get(key_name)
+            if not bind:
+                continue
+            resolved = resolve_action(bind.get("action", {}))
+            if not resolved:
+                continue
+            dispatcher, argument, flags = resolved
+            line = build_toml_bind_line(bind.get("modifiers", []), bind.get("key", ""),
+                                         dispatcher, argument, flags)
+            if line and line not in seen_toml:
+                seen_toml.add(line)
+                toml_binds.append(line)
+        for key_name in all_sys_keys:
+            bind = system.get(key_name)
+            if not bind:
+                continue
+            resolved = resolve_action(bind.get("action", {}))
+            if not resolved:
+                continue
+            dispatcher, argument, flags = resolved
+            line = build_toml_bind_line(bind.get("modifiers", []), bind.get("key", ""),
+                                         dispatcher, argument, flags)
+            if line and line not in seen_toml:
+                seen_toml.add(line)
+                toml_binds.append(line)
+
+    # Process custom binds
+    custom = binds_data.get("custom", [])
+    if custom:
+        for bind in custom:
+            if bind.get("enabled") is False:
+                continue
+            if bind.get("keys") and bind.get("actions"):
+                for key_obj in bind["keys"]:
+                    if not key_obj or not key_obj.get("key"):
+                        continue
+                    for action in bind["actions"]:
+                        if action.get("layouts") and cfg.get('layout') not in action.get("layouts", []):
+                            continue
+                        resolved = resolve_action(action)
+                        if not resolved:
+                            continue
+                        dispatcher, argument, flags = resolved
+                        line = build_toml_bind_line(key_obj.get("modifiers", []),
+                                                     key_obj["key"], dispatcher, argument, flags)
+                        if line and line not in seen_toml:
+                            seen_toml.add(line)
+                            toml_binds.append(line)
+            elif bind:
+                resolved = resolve_action(bind.get("action", {}))
+                if not resolved:
+                    continue
+                dispatcher, argument, flags = resolved
+                line = build_toml_bind_line(bind.get("modifiers", []), bind.get("key", ""),
+                                             dispatcher, argument, flags)
+                if line and line not in seen_toml:
+                    seen_toml.add(line)
+                    toml_binds.append(line)
+
+    toml_block = "\n".join(toml_binds)
+    if toml_block:
+        toml_block = "# === NOTHINGLESS KEYBINDS ===\n" + \
+                     "# Synced from NothingLess binds.json\n\n" + \
+                     toml_block + "\n# === END KEYBINDS ===\n"
+
+    return block, lua_block, toml_block
+
+
 
 
 # ============================================================================
@@ -869,7 +968,7 @@ lua_binds_end_marker = '-- === END KEYBINDS ==='
 
 conf_block = build_conf_block()
 lua_block = build_lua_block()
-binds_block, lua_binds_block = build_binds_block()
+binds_block, lua_binds_block, toml_binds_block = build_binds_block()
 
 # --- hyprland.conf ---
 with open(CONF_PATH) as f:
@@ -928,11 +1027,12 @@ try:
 
     # Remove everything from [appearance] through the last section before [[keybinds]]
     # This clears old values from CompositorTomlWriter that may conflict
-    pattern = re.compile(
+    # Remove old compositor block and ALL existing [[keybinds]] sections
+    old_compositor_pattern = re.compile(
         r'\n?\[appearance\].*?(?=\n?\[\[keybinds\]\]|\n?# === NOTHINGLESS|\Z)',
         re.DOTALL
     )
-    toml_content = pattern.sub('', toml_content).strip()
+    toml_content = old_compositor_pattern.sub('', toml_content).strip()
 
     # Also remove old marker block if present
     toml_content = re.sub(
@@ -940,24 +1040,37 @@ try:
         '', toml_content, flags=re.DOTALL
     ).strip()
 
-    # Insert the new block after [startup] section, before [[keybinds]]
-    # Find insertion point: either before [[keybinds]] or at end of file
-    keybinds_match = re.search(r'^\[\[keybinds\]\]', toml_content, re.MULTILINE)
-    if keybinds_match:
-        # Find the line before [[keybinds]] and insert there
-        before = toml_content[:keybinds_match.start()].rstrip()
-        after = toml_content[keybinds_match.start():]
-        toml_content = before + '\n\n' + toml_block.strip() + '\n\n' + after
-    else:
-        toml_content += '\n\n' + toml_block
+    # Remove ALL existing [[keybinds]] sections (they'll be replaced)
+    toml_content = re.sub(
+        r'\n?(\[\[keybinds\]\].*?)(?=\n\[|\Z)',
+        '', toml_content, flags=re.DOTALL
+    ).strip()
+
+    # Remove any leftover NOTHINGLESS KEYBINDS markers
+    toml_content = re.sub(
+        re.escape('# === NOTHINGLESS KEYBINDS ===') + '.*?' + re.escape('# === END KEYBINDS ==='),
+        '', toml_content, flags=re.DOTALL
+    ).strip()
+
+    # Insert the compositor block after [startup] section
+    toml_content = toml_content.rstrip() + '\n\n' + toml_block.strip() + '\n'
+
+    # Append keybinds (if any)
+    if toml_binds_block:
+        toml_content += '\n' + toml_binds_block.strip() + '\n'
 
     with open(AXCTL_TOML_PATH, 'w') as f:
         f.write(toml_content)
     print(f'axctl.toml: {len(toml_block)} chars (synced)')
+    if toml_binds_block:
+        print(f'axctl.toml keybinds: {len(toml_binds_block)} chars')
+
 except FileNotFoundError:
     print(f'axctl.toml: CREATED at {AXCTL_TOML_PATH}')
     with open(AXCTL_TOML_PATH, 'w') as f:
         f.write(toml_block)
-    print(f'axctl.toml: {len(toml_block)} chars')
+        if toml_binds_block:
+            f.write('\n\n' + toml_binds_block.strip() + '\n')
+    print(f'axctl.toml: {len(toml_block)} chars (compositor) + {len(toml_binds_block) if toml_binds_block else 0} chars (keybinds)')
 
 print('Done - hyprctl reload & axctl config reload recommended')
