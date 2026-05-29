@@ -70,9 +70,22 @@ monitor_lockscreen() {
 	done
 }
 
-# Start both jobs in background
+# Job 3: System lock monitor — catch loginctl lock-session (login1.Session.Lock)
+monitor_system_lock() {
+	while true; do
+		dbus-monitor --system "type='signal',interface='org.freedesktop.login1.Session',member='Lock'" 2>/dev/null | while read -r line; do
+			if echo "$line" | grep -q "member=Lock"; then
+				eval "$(get_lock_cmd)" &
+			fi
+		done
+		sleep 1
+	done
+}
+
+# Start all jobs in background
 monitor_sleep &
 monitor_lockscreen &
+monitor_system_lock &
 
 # Wait for both (they run forever, so this never exits)
 wait
