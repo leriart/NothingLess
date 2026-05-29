@@ -511,10 +511,7 @@ install_axctl() {
   local local_commit
   local_commit="$(git -C "$AXCTL_PATH" rev-parse HEAD 2>/dev/null || echo "")"
 
-  if [[ -n "$remote_commit" && "$remote_commit" == "$local_commit" && -f "$BIN_DIR/axctl" ]]; then
-    log_info "axctl.c already up to date ($(echo "$local_commit" | cut -c1-8))"
-    return
-  fi
+  log_info "Building axctl.c ($(echo "$remote_commit" | cut -c1-8))..."
 
   # Update to remote
   git -C "$AXCTL_PATH" reset --hard "$remote_commit" 2>/dev/null || git -C "$AXCTL_PATH" reset --hard origin/main
