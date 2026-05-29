@@ -291,7 +291,12 @@ def process_nothingless_binds(binds_data):
         bind = system.get(key_name)
         if not bind:
             continue
-        resolved = resolve_action(bind.get("action", {}))
+        # Force lockscreen to always use nothingless.lock action
+        # (binds.json may have system.lock from Ambxst migration)
+        action = bind.get("action", {})
+        if key_name == "lockscreen":
+            action = {"id": "nothingless.lock", "args": {}}
+        resolved = resolve_action(action)
         if not resolved:
             continue
         dispatcher, argument, flags = resolved
@@ -447,7 +452,11 @@ def build_binds_block():
             bind = system.get(key_name)
             if not bind:
                 continue
-            resolved = resolve_action(bind.get("action", {}))
+            # Force lockscreen to use nothingless.lock
+            action = bind.get("action", {})
+            if key_name == "lockscreen":
+                action = {"id": "nothingless.lock", "args": {}}
+            resolved = resolve_action(action)
             if not resolved:
                 continue
             dispatcher, argument, flags = resolved
