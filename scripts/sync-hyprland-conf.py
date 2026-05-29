@@ -7,6 +7,8 @@ BINDS_PATH = os.path.expanduser('~/.config/nothingless/binds.json')
 CONF_PATH = os.path.expanduser('~/.local/share/nothingless/hyprland.conf')
 LUA_PATH = os.path.expanduser('~/.local/share/nothingless/hyprland.lua')
 AXCTL_TOML_PATH = os.path.expanduser('~/.local/share/nothingless/axctl.toml')
+# Full path to nothingless binary (avoids Hyprland PATH issues)
+NOTHINGLESS_BIN = '/usr/local/bin/nothingless'
 COMPOSITOR_PATH = os.path.join(BASE, 'compositor.json')
 
 with open(COMPOSITOR_PATH) as f:
@@ -190,6 +192,12 @@ def build_bind_line(modifiers, key, dispatcher, argument, flags):
     if not dispatcher:
         return None
 
+    # Use full path for nothingless commands (avoids Hyprland PATH issues)
+    if dispatcher == "exec" and argument and argument.startswith("nothingless "):
+        argument = argument.replace("nothingless ", NOTHINGLESS_BIN + " ", 1)
+    elif dispatcher == "exec" and argument == "nothingless":
+        argument = NOTHINGLESS_BIN
+
     # Mouse bind with 'm' flag → use 'bindm' keyword (NOT 'bind ... , m')
     if "m" in flags:
         arg_part = f", {argument}" if argument else ""
@@ -223,6 +231,12 @@ def build_lua_bind(modifiers, key, dispatcher, argument, flags):
     """Build a hyprland.lua hl.bind() call."""
     if not key or not dispatcher:
         return None
+
+    # Use full path for nothingless commands
+    if dispatcher == "exec" and argument and argument.startswith("nothingless "):
+        argument = argument.replace("nothingless ", NOTHINGLESS_BIN + " ", 1)
+    elif dispatcher == "exec" and argument == "nothingless":
+        argument = NOTHINGLESS_BIN
 
     mods_lua = "{ " + ", ".join(f'"{m}"' for m in (modifiers or [])) + " }" if modifiers else "{}"
 
@@ -385,6 +399,11 @@ def build_binds_block():
     def build_toml_bind_line(modifiers, key, dispatcher, argument, flags):
         if not key or not dispatcher:
             return None
+        # Use full path for nothingless commands
+        if dispatcher == "exec" and argument and argument.startswith("nothingless "):
+            argument = argument.replace("nothingless ", NOTHINGLESS_BIN + " ", 1)
+        elif dispatcher == "exec" and argument == "nothingless":
+            argument = NOTHINGLESS_BIN
         mods_json = json.dumps(modifiers or [])
         key_json = json.dumps(key)
         disp_json = json.dumps(dispatcher)
