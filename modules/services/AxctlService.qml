@@ -201,12 +201,9 @@ Singleton {
         running: true
     }
 
-    // Ensure any stale axctl daemon is killed, then start fresh with correct config
+    // Start axctl daemon with correct config path
     property Process axctlProcess: Process {
-        command: ["bash", "-c",
-            "pkill -9 -f 'axctl.*daemon' 2>/dev/null; " +
-            "sleep 0.2; " +
-            "axctl -c \"" + root.configPath + "\" daemon"]
+        command: ["axctl", "-c", root.configPath, "daemon"]
         running: true
         stdout: SplitParser {
             onRead: (data) => {
