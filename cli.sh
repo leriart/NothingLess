@@ -316,15 +316,26 @@ print('Metrics toggled to', cfg['showMetrics'])
 	}
 	;;
 lock)
-	PID=$(find_nothingless_pid_cached)
-	if [ -z "$PID" ]; then
-		echo "Error: NothingLess is not running"
-		exit 1
+	# Fast path: Write directly to pipe if it exists (Zero latency)
+	if [ -p "$PIPE" ]; then
+		echo "lockscreen" >"$PIPE" &
+		exit 0
 	fi
-	qs ipc --pid "$PID" call nothingless run lockscreen 2>/dev/null || {
-		echo "Error: Could not activate lockscreen"
-		exit 1
-	}
+
+	# Fallback path: Use QS IPC with cached PID lookup
+	PID=$(find_nothingless_pid_cached)
+	if [ -n "$PID" ]; then
+		qs ipc --pid "$PID" call nothingless run lockscreen 2>/dev/null && exit 0
+	fi
+
+	# Ultimate fallback: systemd-logind lock session
+	if command -v loginctl &>/dev/null; then
+		loginctl lock-session
+		exit $?
+	fi
+
+	echo "Error: Could not activate lockscreen (nothingless not running, no loginctl)"
+	exit 1
 	;;
 reload)
 	restart_nothingless
