@@ -658,7 +658,7 @@ bind = SUPER, PERIOD, exec, nothingless run emoji
 bind = SUPER, N, exec, nothingless run notes
 bind = SUPER, T, exec, nothingless run tmux
 bind = SUPER, COMMA, exec, nothingless run wallpapers
-bind = SUPER, L, exec, nothingless lock
+bind = SUPER, L, exec, /usr/local/bin/nothingless run lockscreen
 bind = SUPER, TAB, exec, nothingless run overview
 bind = SUPER, ESCAPE, exec, nothingless run powermenu
 bind = SUPER, S, exec, nothingless run tools
@@ -713,6 +713,12 @@ ENDCONF
 
 		# Clean up stale .lua if switching from lua to conf
 		rm -f "$HYPR_LUA" 2>/dev/null || true
+	fi
+
+	# Run sync script to generate full configs (keybinds, compositor, axctl.toml)
+	if [ -f "${SCRIPT_DIR}/scripts/sync-hyprland-conf.py" ]; then
+		echo "Generating full config with sync-hyprland-conf.py..."
+		python3 "${SCRIPT_DIR}/scripts/sync-hyprland-conf.py" 2>&1 || echo "Warning: sync-hyprland-conf.py failed"
 	fi
 	;;
 remove)
