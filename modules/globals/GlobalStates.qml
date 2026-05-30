@@ -86,6 +86,10 @@ Singleton {
         if (availableLayouts.includes(layout)) {
             compositorLayout = layout;
             StateService.set("compositorLayout", layout);
+            // Sync to compositor.json so sync-hyprland.py reads the correct layout
+            if (Config.compositor) {
+                Config.compositor.layout = layout;
+            }
         }
     }
 

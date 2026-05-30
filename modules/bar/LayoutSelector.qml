@@ -51,6 +51,8 @@ StyledRect {
             return Icons.master;
         case "scrolling":
             return Icons.scrolling;
+        case "free":
+            return Icons.free;
         default:
             return Icons.dwindle;
         }
@@ -64,6 +66,8 @@ StyledRect {
             return "Master";
         case "scrolling":
             return "Scrolling";
+        case "free":
+            return "Free";
         default:
             return layout;
         }

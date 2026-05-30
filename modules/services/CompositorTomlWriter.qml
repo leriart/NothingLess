@@ -431,6 +431,58 @@ Singleton {
         toml += `invert = ${Config.compositor.workspaceSwipeInvert}\n`;
         toml += `touch = ${Config.compositor.workspaceSwipeTouch}\n`;
         toml += `touch_invert = ${Config.compositor.workspaceSwipeTouchInvert}\n`;
+        toml += `direction_lock_threshold = ${Config.compositor.workspaceSwipeDirectionLockThreshold}\n`;
+        toml += `close_max_timeout = ${Config.compositor.gestureCloseTimeout}\n`;
+
+        // ─── Gesture Bindings (End4Dots-style trackpad gestures) ───
+        // 3-finger swipe → move/resize window
+        if (Config.compositor.gesture3FingerSwipe) {
+            toml += "\n[[gestures]]\n";
+            toml += "fingers = 3\n";
+            toml += 'direction = "swipe"\n';
+            toml += 'action = "move"\n';
+        }
+        // 3-finger pinch → fullscreen toggle
+        if (Config.compositor.gesture3FingerPinch) {
+            toml += "\n[[gestures]]\n";
+            toml += "fingers = 3\n";
+            toml += 'direction = "pinch"\n';
+            toml += 'action = "fullscreen"\n';
+        }
+        // 4-finger horizontal → switch workspace
+        if (Config.compositor.gesture4FingerWorkspace) {
+            toml += "\n[[gestures]]\n";
+            toml += "fingers = 4\n";
+            toml += 'direction = "horizontal"\n';
+            toml += 'action = "workspace"\n';
+        }
+        // 4-finger up/down → toggle overview
+        if (Config.compositor.gesture4FingerOverview) {
+            toml += "\n[[gestures]]\n";
+            toml += "fingers = 4\n";
+            toml += 'direction = "up"\n';
+            toml += 'dispatcher = "exec"\n';
+            toml += 'argument = "nothingless run overview"\n';
+            toml += "\n[[gestures]]\n";
+            toml += "fingers = 4\n";
+            toml += 'direction = "down"\n';
+            toml += 'dispatcher = "exec"\n';
+            toml += 'argument = "nothingless run overview"\n';
+        }
+        // 4-finger pinch → close window
+        if (Config.compositor.gesture4FingerClose) {
+            toml += "\n[[gestures]]\n";
+            toml += "fingers = 4\n";
+            toml += 'direction = "pinch"\n';
+            toml += 'action = "close"\n';
+        }
+        // 3-finger down → toggle scratchpad
+        if (Config.compositor.gesture3FingerScratchpad) {
+            toml += "\n[[gestures]]\n";
+            toml += "fingers = 3\n";
+            toml += 'direction = "down"\n';
+            toml += 'action = "togglespecialworkspace"\n';
+        }
 
         // Dwindle
         toml += "\n[dwindle]\n";
@@ -694,6 +746,16 @@ print('Written TOML to', path)
         function onWorkspaceSwipeInvertChanged() { writeTomlFile(); }
         function onWorkspaceSwipeTouchChanged() { writeTomlFile(); }
         function onWorkspaceSwipeTouchInvertChanged() { writeTomlFile(); }
+
+        // Gesture Bindings
+        function onGesture3FingerSwipeChanged() { writeTomlFile(); }
+        function onGesture3FingerPinchChanged() { writeTomlFile(); }
+        function onGesture4FingerWorkspaceChanged() { writeTomlFile(); }
+        function onGesture4FingerOverviewChanged() { writeTomlFile(); }
+        function onGesture4FingerCloseChanged() { writeTomlFile(); }
+        function onGesture3FingerScratchpadChanged() { writeTomlFile(); }
+        function onWorkspaceSwipeDirectionLockThresholdChanged() { writeTomlFile(); }
+        function onGestureCloseTimeoutChanged() { writeTomlFile(); }
 
         // Dwindle
         function onDwindlePreserveSplitChanged() { writeTomlFile(); }

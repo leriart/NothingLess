@@ -529,7 +529,8 @@ def _walk_dict_sections():
     Skips non-dict sections (dispatchers, binds_flags, actions).
     """
     SKIP_SECTIONS = {"dispatchers", "binds_flags", "actions", "global_rules",
-                     "layer_rules", "binds_free_layout", "config_order", "config_derived"}
+                     "layer_rules", "binds_free_layout", "config_order", "config_derived",
+                     "gesture_bindings", "free_layout_rules"}
     tree = {}
     for section_name, section_data in DICT.items():
         if section_name in SKIP_SECTIONS or not isinstance(section_data, dict):
@@ -665,13 +666,22 @@ def _build_config_tree(compositor_json, output="conf"):
     When output="conf", entries with conf_skip=true are excluded.
     """
     tree = {}
+    _is_layout_free = compositor_json.get("layout", "") == "free"
     for section_name, entries in _walk_dict_sections().items():
+        # Skip layout-specific sections when that layout is not active
+        if section_name == "free" and not _is_layout_free:
+            continue
+        if section_name in ("dwindle", "master", "scrolling") and _is_layout_free:
+            continue
         for _dict_key, entry in entries:
             # Skip entries marked as conf-only incompatible
             if output == "conf" and entry.get("conf_skip", False):
                 continue
             nk = entry.get("nothingless_key")
             if not nk or nk not in compositor_json:
+                continue
+            # Skip layout directive when it's "free" (not a real Hyprland layout)
+            if nk == "layout" and compositor_json[nk] == "free":
                 continue
             val = compositor_json[nk]
             etype = entry.get("type", "")
@@ -974,7 +984,21 @@ def build_conf_compositor():
     local_cfg = dict(cfg)
     _apply_derived_config(local_cfg)
     tree = _build_config_tree(local_cfg)
-    return _render_conf_tree(tree, target="conf")
+    result = _render_conf_tree(tree, target="conf")
+
+    # Free layout: inject window rule from TOML dictionary
+    if cfg.get("layout") == "free":
+        rules = DICT.get("free_layout_rules", {})
+        conf_rule = rules.get("conf", "").strip()
+        if conf_rule:
+            result = result.replace(
+                "# === END COMPOSITOR ===",
+                "# Free Layout: float all windows (Windows-style)\n"
+                + conf_rule + "\n"
+                "# === END COMPOSITOR ==="
+            )
+
+    return result
 
 
 def build_lua_compositor():
@@ -982,7 +1006,21 @@ def build_lua_compositor():
     local_cfg = dict(cfg)
     _apply_derived_config(local_cfg)
     tree = _build_config_tree(local_cfg, output="lua")
-    return _render_lua_tree(tree, target="lua")
+    result = _render_lua_tree(tree, target="lua")
+
+    # Free layout: inject window rule from TOML dictionary
+    if cfg.get("layout") == "free":
+        rules = DICT.get("free_layout_rules", {})
+        lua_rule = rules.get("lua", "").strip()
+        if lua_rule:
+            result = result.replace(
+                "-- === END COMPOSITOR ===",
+                "-- Free Layout: float all windows (Windows-style)\n"
+                + lua_rule + "\n"
+                "-- === END COMPOSITOR ==="
+            )
+
+    return result
 
 def build_toml_compositor():
     """Build a minimal axctl.toml compositor block."""
@@ -1052,8 +1090,141 @@ def build_toml_compositor():
     if "snapMonitorGap" in cfg: lines.append(f"monitor_gap = {cfg['snapMonitorGap']}")
     lines.append("")
 
+    # Free Layout (only when active)
+    if _is_free:
+        lines.append("[general.free]")
+        if "freeGridSize" in cfg: lines.append(f"grid_size = {cfg['freeGridSize']}")
+        if "freeSnapSensitivity" in cfg: lines.append(f"snap_sensitivity = {cfg['freeSnapSensitivity']}")
+        if "freeSnapEdges" in cfg: lines.append(f"snap_edges = {tv(cfg['freeSnapEdges'])}")
+        if "freeSnapCenter" in cfg: lines.append(f"snap_center = {tv(cfg['freeSnapCenter'])}")
+        if "freeSnapGaps" in cfg: lines.append(f"snap_gaps = {cfg['freeSnapGaps']}")
+        if "freeTileByDefault" in cfg: lines.append(f"tile_by_default = {tv(cfg['freeTileByDefault'])}")
+        if "freeMaximizedByDefault" in cfg: lines.append(f"maximized_by_default = {tv(cfg['freeMaximizedByDefault'])}")
+        lines.append("")
+
     lines.append("# === END COMPOSITOR ===")
     return "\n".join(lines) + "\n"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SECTION C — BUILD GESTURE BINDINGS  (hyprland.lua + axctl.toml)
+#  ═══════════════════════════════════════════════════════════════════════════
+#
+#  Reads [gesture_bindings] from hyprlang-dict.toml.
+#  Each entry maps a compositor.json boolean toggle to hl.gesture() blocks.
+#  Nothing is hardcoded — the dictionary defines fingers, direction, and actions.
+# ═══════════════════════════════════════════════════════════════════════════
+
+def build_gesture_binds():
+    """Build gesture binding blocks for .conf, .lua, and .toml output.
+    
+    Reads [gesture_bindings] from the TOML dictionary and checks compositor.json
+    for the corresponding nothingless_key boolean. If true, generates the gesture
+    binding in each output format.
+    
+    Returns (conf_block, lua_block, toml_block) strings.
+    """
+    gb_section = DICT.get("gesture_bindings", {})
+    if not gb_section:
+        return "", "", ""
+    
+    conf_lines = []
+    lua_lines  = []
+    toml_blocks = []
+    
+    for _key, gb in sorted(gb_section.items()):
+        if not isinstance(gb, dict):
+            continue
+        
+        nk = gb.get("nothingless_key", "")
+        if not nk or not cfg.get(nk, False):
+            continue
+        
+        fingers   = gb.get("fingers", 0)
+        direction = gb.get("direction", "")
+        if not fingers or not direction:
+            continue
+        
+        # ── .conf format ──────────────────────────────────────────
+        conf_action = gb.get("conf_action", "")
+        if conf_action:
+            # Built-in action for .conf: gesture { fingers=N, direction=D, action=A }
+            conf_lines.append(
+                f"gesture {{\n"
+                f"    fingers = {fingers}\n"
+                f"    direction = {direction}\n"
+                f"    action = {conf_action}\n"
+                f"}}"
+            )
+        
+        # ── .lua format ──────────────────────────────────────────
+        lua_action     = gb.get("lua_action", "")
+        lua_dispatcher = gb.get("lua_dispatcher", "")
+        lua_argument   = gb.get("lua_argument", "")
+        
+        if lua_action:
+            # Built-in action: hl.gesture({ fingers = 3, direction = "swipe", action = "move" })
+            lua_lines.append(
+                f'hl.gesture({{ fingers = {fingers}, direction = "{direction}", action = "{lua_action}" }})'
+            )
+        elif lua_dispatcher:
+            # Custom dispatcher: hl.gesture({ ..., action = function() hl.dispatch(hl.dsp.exec("...")) end })
+            arg_escaped = escape_lua(nothingless_path(lua_argument) if lua_dispatcher == "exec" else lua_argument)
+            disp_entry = DICT.get("dispatchers", {}).get(lua_dispatcher)
+            if disp_entry:
+                lua_template = disp_entry["lua"]
+                if disp_entry.get("arg", False):
+                    lua_expr = lua_template.replace("{arg}", arg_escaped)
+                else:
+                    lua_expr = lua_template
+            else:
+                # Fallback: direct hl.dsp call
+                lua_expr = f'hl.dsp.{lua_dispatcher}("{arg_escaped}")'
+            
+            lua_lines.append(
+                f'hl.gesture({{ fingers = {fingers}, direction = "{direction}", '
+                f'action = function()\n'
+                f'    hl.dispatch({lua_expr})\n'
+                f'end }})'
+            )
+        
+        # ── .toml format ──────────────────────────────────────────
+        toml_action     = gb.get("toml_action", "")
+        toml_dispatcher = gb.get("toml_dispatcher", "")
+        toml_argument   = gb.get("toml_argument", "")
+        
+        block = "[[gestures]]\n"
+        block += f"fingers = {fingers}\n"
+        block += f'direction = "{direction}"\n'
+        
+        if toml_action:
+            block += f'action = "{toml_action}"\n'
+        elif toml_dispatcher:
+            if toml_dispatcher == "exec":
+                toml_argument = nothingless_path(toml_argument)
+            block += f'dispatcher = "{toml_dispatcher}"\n'
+            block += f'argument = "{toml_argument}"\n'
+        
+        toml_blocks.append(block)
+    
+    # ── Wrap in marker blocks ──
+    conf_block = ""
+    lua_block  = ""
+    toml_block = ""
+    
+    if conf_lines:
+        conf_block = "# === NOTHINGLESS GESTURES ===\n# Synced from NothingLess compositor.json\n"
+        conf_block += "\n".join(conf_lines) + "\n# === END GESTURES ===\n"
+    
+    if lua_lines:
+        lua_block = "-- === NOTHINGLESS GESTURES ===\n-- Synced from NothingLess compositor.json\n"
+        lua_block += "\n".join(lua_lines) + "\n-- === END GESTURES ===\n"
+    
+    if toml_blocks:
+        toml_block = "# === NOTHINGLESS GESTURES ===\n# Synced from NothingLess compositor.json\n\n"
+        toml_block += "\n".join(toml_blocks) + "\n# === END GESTURES ===\n"
+    
+    return conf_block, lua_block, toml_block
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1149,6 +1320,7 @@ def main():
     lua_compositor  = build_lua_compositor()
     toml_compositor = build_toml_compositor()
     binds_conf, binds_lua, binds_toml = build_all_binds()
+    gestures_conf, gestures_lua, gestures_toml = build_gesture_binds()
 
     # ── hyprland.conf ──
     try:
@@ -1163,10 +1335,13 @@ def main():
     content = _inject_block(content,
         "# === NOTHINGLESS KEYBINDS ===", "# === END KEYBINDS ===",
         binds_conf)
+    content = _inject_block(content,
+        "# === NOTHINGLESS GESTURES ===", "# === END GESTURES ===",
+        gestures_conf)
 
     with open(CONF_PATH, "w") as f:
         f.write(content)
-    print(f"hyprland.conf: {len(conf_compositor)}c compositor + {len(binds_conf)}c keybinds")
+    print(f"hyprland.conf: {len(conf_compositor)}c compositor + {len(binds_conf)}c keybinds + {len(gestures_conf)}c gestures")
 
     # ── hyprland.lua ──
     try:
@@ -1188,10 +1363,13 @@ def main():
     content = _inject_block(content,
         "-- === NOTHINGLESS KEYBINDS ===", "-- === END KEYBINDS ===",
         binds_lua)
+    content = _inject_block(content,
+        "-- === NOTHINGLESS GESTURES ===", "-- === END GESTURES ===",
+        gestures_lua)
 
     with open(LUA_PATH, "w") as f:
         f.write(content)
-    print(f"hyprland.lua: {len(lua_compositor)}c compositor + {len(binds_lua)}c keybinds")
+    print(f"hyprland.lua: {len(lua_compositor)}c compositor + {len(binds_lua)}c keybinds + {len(gestures_lua)}c gestures")
 
     # ── axctl.toml ──
     try:
@@ -1219,21 +1397,25 @@ def main():
         toml_content = toml_content.rstrip() + "\n\n" + toml_compositor.strip() + "\n"
         if binds_toml:
             toml_content += "\n" + binds_toml.strip() + "\n"
+        if gestures_toml:
+            toml_content += "\n" + gestures_toml.strip() + "\n"
 
         with open(TOML_PATH, "w") as f:
             f.write(toml_content)
-        print(f"axctl.toml: {len(toml_compositor)}c compositor + {len(binds_toml)}c keybinds")
+        print(f"axctl.toml: {len(toml_compositor)}c compositor + {len(binds_toml)}c keybinds + {len(gestures_toml)}c gestures")
 
     except FileNotFoundError:
         with open(TOML_PATH, "w") as f:
             f.write(toml_compositor)
             if binds_toml:
                 f.write("\n\n" + binds_toml.strip() + "\n")
+            if gestures_toml:
+                f.write("\n\n" + gestures_toml.strip() + "\n")
         print(f"axctl.toml: CREATED ({len(toml_compositor)}c compositor)")
 
     if do_apply:
         live_apply()
-        print("Done — hyprctl reload recommended if you use the .conf")
+        print("Done — compositor config applied")
     else:
         print("Done — hyprctl reload & axctl config reload recommended")
 

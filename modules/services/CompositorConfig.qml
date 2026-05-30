@@ -400,6 +400,16 @@ QtObject {
         function onWorkspaceSwipeTouchChanged() { applyCompositorConfig(); }
         function onWorkspaceSwipeTouchInvertChanged() { applyCompositorConfig(); }
 
+        // Gesture Bindings
+        function onGesture3FingerSwipeChanged() { applyCompositorConfig(); }
+        function onGesture3FingerPinchChanged() { applyCompositorConfig(); }
+        function onGesture4FingerWorkspaceChanged() { applyCompositorConfig(); }
+        function onGesture4FingerOverviewChanged() { applyCompositorConfig(); }
+        function onGesture4FingerCloseChanged() { applyCompositorConfig(); }
+        function onGesture3FingerScratchpadChanged() { applyCompositorConfig(); }
+        function onWorkspaceSwipeDirectionLockThresholdChanged() { applyCompositorConfig(); }
+        function onGestureCloseTimeoutChanged() { applyCompositorConfig(); }
+
         // Dwindle
         function onDwindlePreserveSplitChanged() { applyCompositorConfig(); }
         function onDwindlePseudotileChanged() { applyCompositorConfig(); }
@@ -537,22 +547,45 @@ QtObject {
         }
     }
 
-    // Float all existing windows when switching to Free layout
+    // Float all EXISTING windows + enable catch-all rule for NEW windows
     property Process floatAllProcess: Process {
-        command: ["bash", "-c", "hyprctl -j clients | python3 -c 'import json,sys; cs=json.load(sys.stdin); [print(c[\"address\"]) for c in cs if not c[\"floating\"]]' | while read addr; do hyprctl dispatch togglefloating address:$addr; done"]
+        command: ["bash", "-c",
+            // Create/enable catch-all float rule for new windows
+            "hyprctl eval \"nl_free_rule = hl.window_rule({ name = 'nl-free-float', match = { class = '.*' }, float = true })\" 2>/dev/null; " +
+            "hyprctl eval 'nl_free_rule:set_enabled(true)' 2>/dev/null; " +
+            // Float all existing non-floating windows
+            "count=0; " +
+            "while IFS= read -r addr; do " +
+            "  [ -n \"$addr\" ] && { " +
+            "    hyprctl eval \"hl.dispatch(hl.dsp.window.float({ window = 'address:$addr' }))\" 2>/dev/null; " +
+            "    count=$((count+1)); " +
+            "  }; " +
+            "done < <(hyprctl -j clients 2>/dev/null | jq -r '.[] | select(.floating != true) | .address'); " +
+            "echo \"NL_FLOAT: $count existing + rule for new windows\""
+        ]
         running: false
-        onExited: (code) => {
-            console.log("FloatAllProcess exited with code:", code);
-        }
+        stdout: StdioCollector { onStreamFinished: { if (text.length > 0) console.log(String(text.trim())); } }
+        stderr: StdioCollector { onStreamFinished: { if (text.length > 0) console.warn(String(text.trim())); } }
     }
 
-    // Tile all floating windows when leaving Free layout
+    // Tile all windows + disable catch-all rule
     property Process tileAllProcess: Process {
-        command: ["bash", "-c", "hyprctl -j clients | python3 -c 'import json,sys; cs=json.load(sys.stdin); [print(c[\"address\"]) for c in cs if c[\"floating\"]]' | while read addr; do hyprctl dispatch togglefloating address:$addr; done"]
+        command: ["bash", "-c",
+            // Disable the catch-all float rule
+            "hyprctl eval 'nl_free_rule:set_enabled(false)' 2>/dev/null; " +
+            // Unfloat all existing floating windows
+            "count=0; " +
+            "while IFS= read -r addr; do " +
+            "  [ -n \"$addr\" ] && { " +
+            "    hyprctl eval \"hl.dispatch(hl.dsp.window.float({ window = 'address:$addr' }))\" 2>/dev/null; " +
+            "    count=$((count+1)); " +
+            "  }; " +
+            "done < <(hyprctl -j clients 2>/dev/null | jq -r '.[] | select(.floating == true) | .address'); " +
+            "echo \"NL_TILE: $count existing + disabled float rule\""
+        ]
         running: false
-        onExited: (code) => {
-            console.log("TileAllProcess exited with code:", code);
-        }
+        stdout: StdioCollector { onStreamFinished: { if (text.length > 0) console.log(String(text.trim())); } }
+        stderr: StdioCollector { onStreamFinished: { if (text.length > 0) console.warn(String(text.trim())); } }
     }
 
     // Force re-apply when Config.compositor adapter becomes available

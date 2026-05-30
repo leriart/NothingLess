@@ -849,7 +849,7 @@ Singleton {
             property bool cursorHideOnTouch: false
             property bool cursorHideOnTablet: false
 
-            // Gestures
+            // Gestures (workspace swipe parameters)
             property bool workspaceSwipeCreateNew: true
             property bool workspaceSwipeForever: false
             property real workspaceSwipeCancelRatio: 0.5
@@ -860,6 +860,18 @@ Singleton {
             property bool workspaceSwipeInvert: true
             property bool workspaceSwipeTouch: false
             property bool workspaceSwipeTouchInvert: false
+
+            // Additional Gesture Parameters
+            property int workspaceSwipeDirectionLockThreshold: 10
+            property int gestureCloseTimeout: 1000
+
+            // Gesture Bindings (trackpad gestures — End4Dots style + extras)
+            property bool gesture3FingerSwipe: true
+            property bool gesture3FingerPinch: true
+            property bool gesture4FingerWorkspace: true
+            property bool gesture4FingerOverview: true
+            property bool gesture4FingerClose: false
+            property bool gesture3FingerScratchpad: false
 
             // Dwindle Layout
             property bool dwindlePreserveSplit: true

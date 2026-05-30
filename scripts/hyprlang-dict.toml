@@ -971,6 +971,8 @@ description = "In px, the distance to swipe before direction lock activates (tou
 type = "int"
 default = "10"
 lua = "gestures.workspace_swipe_direction_lock_threshold"
+conf = "gestures:workspace_swipe_direction_lock_threshold"
+nothingless_key = "workspaceSwipeDirectionLockThreshold"
 
 [gestures.workspace_swipe_forever]
 description = "If enabled, swiping will not clamp at neighboring workspaces but continue further"
@@ -991,6 +993,8 @@ description = "The timeout for a window to close when using a 1:1 gesture, in ms
 type = "int"
 default = "1000"
 lua = "gestures.close_max_timeout"
+conf = "gestures:close_max_timeout"
+nothingless_key = "gestureCloseTimeout"
 
 [group.auto_group]
 description = "Whether new windows will be automatically grouped into the focused unlocked group"
@@ -2965,7 +2969,7 @@ note = "Placeholder — argument is replaced at runtime with user's custom comma
 [config_order]
 # Section order for hyprland.conf (all sections)
 conf = ["general", "decoration", "input", "cursor", "gestures", "misc",
-        "xwayland", "dwindle", "master", "scrolling", "animations", "group",
+        "xwayland", "free", "dwindle", "master", "scrolling", "animations", "group",
         "binds", "opengl", "render", "ecosystem", "quirks", "debug"]
 # Section order for hyprland.lua (layout-only sections excluded — not in hl.config API)
 lua = ["general", "decoration", "input", "cursor", "gestures", "misc",
@@ -2979,7 +2983,7 @@ lua_exclude = ["dwindle", "master", "scrolling", "binds", "free"]
 # ── Free layout ───────────────────────────────────────────────────────
 
 [free.grid_size]
-description = "Grid size for free layout snapping"
+description = "Grid size for free layout snapping (axctl-only, not a Hyprland config key)"
 type = "int"
 default = "20"
 lua = "free.grid_size"
@@ -2988,7 +2992,7 @@ conf_skip = true
 nothingless_key = "freeGridSize"
 
 [free.maximized_by_default]
-description = "If true, new windows are maximized by default in free layout"
+description = "If true, new windows are maximized by default in free layout (axctl-only)"
 type = "bool"
 default = "false"
 lua = "free.maximized_by_default"
@@ -2997,7 +3001,7 @@ conf_skip = true
 nothingless_key = "freeMaximizedByDefault"
 
 [free.tile_by_default]
-description = "If true, new windows are tiled by default in free layout"
+description = "If true, new windows are tiled by default in free layout (axctl-only)"
 type = "bool"
 default = "false"
 lua = "free.tile_by_default"
@@ -3006,7 +3010,7 @@ conf_skip = true
 nothingless_key = "freeTileByDefault"
 
 [free.snap_center]
-description = "Enable snapping to center in free layout"
+description = "Enable snapping to center in free layout (axctl-only)"
 type = "bool"
 default = "true"
 lua = "free.snap_center"
@@ -3015,7 +3019,7 @@ conf_skip = true
 nothingless_key = "freeSnapCenter"
 
 [free.snap_edges]
-description = "Enable snapping to screen edges in free layout"
+description = "Enable snapping to screen edges in free layout (axctl-only)"
 type = "bool"
 default = "true"
 lua = "free.snap_edges"
@@ -3024,7 +3028,7 @@ conf_skip = true
 nothingless_key = "freeSnapEdges"
 
 [free.snap_gaps]
-description = "Gap size for snap zones in free layout"
+description = "Gap size for snap zones in free layout (axctl-only)"
 type = "int"
 default = "4"
 lua = "free.snap_gaps"
@@ -3033,7 +3037,7 @@ conf_skip = true
 nothingless_key = "freeSnapGaps"
 
 [free.snap_sensitivity]
-description = "Snap sensitivity in free layout"
+description = "Snap sensitivity in free layout (axctl-only)"
 type = "int"
 default = "10"
 lua = "free.snap_sensitivity"
@@ -3054,3 +3058,104 @@ description = "smartResizeAnchors: when true, resizeOnBorder=true + min grab are
 key = "smartResizeAnchors"  # compositor.json key that triggers this rule
 when_true = { resizeOnBorder = true, extendBorderGrabArea = "max(10, current)" }
 when_false = { resizeOnBorder = false, extendBorderGrabArea = 0 }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  FREE LAYOUT RULES — Window rules applied when free layout is active
+# ═══════════════════════════════════════════════════════════════════════════
+#  conf: windowrule block inserted into hyprland.conf when layout == "free"
+#  lua:  hl.window_rule() call inserted into hyprland.lua when layout == "free"
+#  The Python script reads these verbatim and injects them conditionally.
+# ═══════════════════════════════════════════════════════════════════════════
+
+[free_layout_rules]
+conf = '''
+windowrule {
+    match = .*
+    float = true
+}'''
+lua = 'hl.window_rule({ match = { class = ".*" }, float = true })'
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  GESTURE BINDINGS — Trackpad gesture action bindings (End4Dots style)
+# ═══════════════════════════════════════════════════════════════════════════
+#  Each entry maps a compositor.json boolean toggle to hl.gesture() blocks.
+#  These are NOT key-value config — they're gesture action bindings.
+#
+#  nothingless_key: compositor.json key (bool) — enables/disables the gesture
+#  fingers:         number of fingers for this gesture
+#  direction:       swipe | pinch | horizontal | up | down
+#  conf_action:     (optional) built-in action string for .conf format
+#  lua_action:      (optional) built-in action string for hl.gesture() in .lua
+#  lua_dispatcher:  (optional) custom dispatcher for .lua inline function body
+#  lua_argument:    (optional) argument for custom .lua dispatcher
+#  toml_action:     (optional) built-in action string for [[gestures]] in TOML
+#  toml_dispatcher: (optional) custom dispatcher for TOML [[gestures]]
+#  toml_argument:   (optional) argument for custom TOML dispatcher
+# ═══════════════════════════════════════════════════════════════════════════
+
+[gesture_bindings.3finger_swipe]
+description = "3-finger swipe to move/resize window"
+nothingless_key = "gesture3FingerSwipe"
+fingers = 3
+direction = "swipe"
+conf_action = "move"
+lua_action = "move"
+toml_action = "move"
+
+[gesture_bindings.3finger_pinch]
+description = "3-finger pinch to toggle fullscreen"
+nothingless_key = "gesture3FingerPinch"
+fingers = 3
+direction = "pinch"
+conf_action = "fullscreen"
+lua_action = "fullscreen"
+toml_action = "fullscreen"
+
+[gesture_bindings.4finger_workspace]
+description = "4-finger horizontal swipe to switch workspace"
+nothingless_key = "gesture4FingerWorkspace"
+fingers = 4
+direction = "horizontal"
+conf_action = "workspace"
+lua_action = "workspace"
+toml_action = "workspace"
+
+[gesture_bindings.4finger_overview_up]
+description = "4-finger swipe up to toggle overview (Mission Control)"
+nothingless_key = "gesture4FingerOverview"
+fingers = 4
+direction = "up"
+lua_dispatcher = "exec"
+lua_argument = "nothingless run overview"
+toml_dispatcher = "exec"
+toml_argument = "nothingless run overview"
+
+[gesture_bindings.4finger_overview_down]
+description = "4-finger swipe down to toggle overview (Mission Control)"
+nothingless_key = "gesture4FingerOverview"
+fingers = 4
+direction = "down"
+lua_dispatcher = "exec"
+lua_argument = "nothingless run overview"
+toml_dispatcher = "exec"
+toml_argument = "nothingless run overview"
+
+[gesture_bindings.4finger_close]
+description = "4-finger pinch to close the focused window"
+nothingless_key = "gesture4FingerClose"
+fingers = 4
+direction = "pinch"
+conf_action = "close"
+lua_action = "close"
+toml_action = "close"
+
+[gesture_bindings.3finger_scratchpad]
+description = "3-finger swipe down to toggle scratchpad (special workspace)"
+nothingless_key = "gesture3FingerScratchpad"
+fingers = 3
+direction = "down"
+conf_action = "togglespecialworkspace"
+lua_action = "togglespecialworkspace"
+toml_action = "togglespecialworkspace"

@@ -116,7 +116,7 @@ var data = {
     "cursorHideOnTouch": false,
     "cursorHideOnTablet": false,
 
-    // === Gestures ===
+    // === Gestures (workspace swipe parameters) ===
     "workspaceSwipeCreateNew": true,
     "workspaceSwipeForever": false,
     "workspaceSwipeCancelRatio": 0.5,
@@ -127,6 +127,18 @@ var data = {
     "workspaceSwipeInvert": true,
     "workspaceSwipeTouch": false,
     "workspaceSwipeTouchInvert": false,
+
+    // === Additional Gesture Parameters ===
+    "workspaceSwipeDirectionLockThreshold": 10,
+    "gestureCloseTimeout": 1000,
+
+    // === Gesture Bindings (trackpad gestures — End4Dots style + extras) ===
+    "gesture3FingerSwipe": true,
+    "gesture3FingerPinch": true,
+    "gesture4FingerWorkspace": true,
+    "gesture4FingerOverview": true,
+    "gesture4FingerClose": false,
+    "gesture3FingerScratchpad": false,
 
     // === Dwindle Layout ===
     "dwindlePreserveSplit": true,

@@ -14,6 +14,7 @@ QtObject {
     readonly property string dwindle: ""
     readonly property string master: ""
     readonly property string scrolling: ""
+    readonly property string free: layout
 
     // Powermenu
     readonly property string lock: ""

@@ -1741,6 +1741,118 @@ Item {
                                     Config.compositor.workspaceSwipeDistance = newValue;
                                 }
                             }
+
+                            // ─── Gesture Bindings (End4Dots-style) ───
+                            Separator { Layout.fillWidth: true }
+
+                            Text {
+                                text: "Trackpad Gesture Bindings"
+                                font.family: Config.theme.font
+                                font.pixelSize: Styling.fontSize(-2)
+                                font.weight: Font.Bold
+                                color: Colors.primary
+                                Layout.topMargin: 8
+                                Layout.bottomMargin: -4
+                            }
+
+                            Text {
+                                text: "End4Dots-style multi-finger trackpad gestures"
+                                font.family: Config.theme.font
+                                font.pixelSize: Styling.fontSize(-3)
+                                color: Colors.overSurfaceVariant
+                                opacity: 0.6
+                                Layout.bottomMargin: 4
+                            }
+
+                            ToggleRow {
+                                label: "3-Finger Swipe → Move/Resize"
+                                checked: Config.compositor.gesture3FingerSwipe ?? true
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.gesture3FingerSwipe = value;
+                                }
+                            }
+
+                            ToggleRow {
+                                label: "3-Finger Pinch → Fullscreen"
+                                checked: Config.compositor.gesture3FingerPinch ?? true
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.gesture3FingerPinch = value;
+                                }
+                            }
+
+                            ToggleRow {
+                                label: "4-Finger Horizontal → Switch Workspace"
+                                checked: Config.compositor.gesture4FingerWorkspace ?? true
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.gesture4FingerWorkspace = value;
+                                }
+                            }
+
+                            ToggleRow {
+                                label: "4-Finger Up/Down → Overview"
+                                checked: Config.compositor.gesture4FingerOverview ?? true
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.gesture4FingerOverview = value;
+                                }
+                            }
+
+                            ToggleRow {
+                                label: "4-Finger Pinch → Close Window"
+                                checked: Config.compositor.gesture4FingerClose ?? false
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.gesture4FingerClose = value;
+                                }
+                            }
+
+                            ToggleRow {
+                                label: "3-Finger Down → Scratchpad"
+                                checked: Config.compositor.gesture3FingerScratchpad ?? false
+                                onToggled: value => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.gesture3FingerScratchpad = value;
+                                }
+                            }
+
+                            Separator { Layout.fillWidth: true }
+
+                            Text {
+                                text: "Gesture Parameters"
+                                font.family: Config.theme.font
+                                font.pixelSize: Styling.fontSize(-2)
+                                font.weight: Font.Bold
+                                color: Colors.primary
+                                Layout.topMargin: 8
+                                Layout.bottomMargin: -4
+                            }
+
+                            NumberInputRow {
+                                label: "Direction Lock Threshold"
+                                value: Config.compositor.workspaceSwipeDirectionLockThreshold ?? 10
+                                minValue: 0
+                                maxValue: 200
+                                suffix: "px"
+                                onValueEdited: newValue => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.workspaceSwipeDirectionLockThreshold = newValue;
+                                }
+                            }
+
+                            NumberInputRow {
+                                label: "Close Timeout"
+                                value: Config.compositor.gestureCloseTimeout ?? 1000
+                                minValue: 100
+                                maxValue: 5000
+                                suffix: "ms"
+                                onValueEdited: newValue => {
+                                    GlobalStates.markCompositorChanged();
+                                    Config.compositor.gestureCloseTimeout = newValue;
+                                }
+                            }
                         }
 
                         // Layouts Section
