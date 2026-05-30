@@ -305,10 +305,7 @@ Item {
             TapHandler {
                 acceptedButtons: Qt.LeftButton
                 onDoubleTapped: {
-                    if (root.overviewRoot && root.overviewRoot.wsProcess) {
-                        root.overviewRoot.wsProcess.command = ["hyprctl", "dispatch", "workspace", String(root.workspaceId)];
-                        root.overviewRoot.wsProcess.running = true;
-                    }
+                    AxctlService.dispatch("workspace " + String(root.workspaceId));
                     Visibilities.setActiveModule("", true);
                 }
             }

@@ -428,10 +428,6 @@ Item {
     Drag.hotSpot.x: width / 2
     Drag.hotSpot.y: height / 2
 
-    Process {
-        id: wsProcess
-    }
-
     Timer {
         id: holdTimer
         interval: 180
@@ -528,8 +524,7 @@ Item {
                 holdTimer.stop();
                 var wsId = windowData?.workspace?.id;
                 if (wsId && wsId > 0) {
-                    wsProcess.command = ["hyprctl", "dispatch", "workspace", String(wsId)];
-                    wsProcess.running = true;
+                    AxctlService.dispatch("workspace " + String(wsId));
                     var ov = root.overviewRootRef;
                     if (ov && ov.refreshOverview) Qt.callLater(ov.refreshOverview);
                 }

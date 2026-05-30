@@ -17,8 +17,6 @@ Item {
     id: overviewRoot
     anchors.fill: parent
 
-    Process { id: wsSwitchProcess }
-
     // ── Window data from hyprctl ──
     property var rawWindows: []
     property var rawMonitors: []
@@ -768,8 +766,7 @@ Item {
                     Visibilities.setActiveModule("", true);
                     Qt.callLater(function() {
                         AxctlService.dispatch("focuswindow address:" + d.addr);
-                        wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(d.wsNum)];
-                        wsSwitchProcess.running = true;
+                        AxctlService.dispatch("workspace " + String(d.wsNum));
                     });
                 }
 
@@ -782,8 +779,7 @@ Item {
             } else if (mouse.button === Qt.LeftButton && !dragTracker._holding) {
                 var ws = dragTracker.wsAt(mouse.x, mouse.y);
                 if (ws > 0) {
-                    wsSwitchProcess.command = ["hyprctl", "dispatch", "workspace", String(ws)];
-                    wsSwitchProcess.running = true;
+                    AxctlService.dispatch("workspace " + String(ws));
                 }
             }
 

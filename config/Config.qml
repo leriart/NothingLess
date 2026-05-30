@@ -2426,6 +2426,78 @@ Singleton {
                     "enabled": true
                 },
                 {
+                    "name": "Switch Workspace Left (CTRL+SUPER+Left)",
+                    "keys": [
+                        {
+                            "modifiers": ["CTRL", "SUPER"],
+                            "key": "left"
+                        }
+                    ],
+                    "actions": [
+                        {
+                            "dispatcher": "workspace",
+                            "argument": "-1",
+                            "flags": "",
+                            "layouts": []
+                        }
+                    ],
+                    "enabled": true
+                },
+                {
+                    "name": "Switch Workspace Right (CTRL+SUPER+Right)",
+                    "keys": [
+                        {
+                            "modifiers": ["CTRL", "SUPER"],
+                            "key": "right"
+                        }
+                    ],
+                    "actions": [
+                        {
+                            "dispatcher": "workspace",
+                            "argument": "+1",
+                            "flags": "",
+                            "layouts": []
+                        }
+                    ],
+                    "enabled": true
+                },
+                {
+                    "name": "Move Window to Prev Workspace (SHIFT+CTRL+SUPER+Left)",
+                    "keys": [
+                        {
+                            "modifiers": ["SHIFT", "CTRL", "SUPER"],
+                            "key": "left"
+                        }
+                    ],
+                    "actions": [
+                        {
+                            "dispatcher": "movetoworkspace",
+                            "argument": "-1",
+                            "flags": "",
+                            "layouts": []
+                        }
+                    ],
+                    "enabled": true
+                },
+                {
+                    "name": "Move Window to Next Workspace (SHIFT+CTRL+SUPER+Right)",
+                    "keys": [
+                        {
+                            "modifiers": ["SHIFT", "CTRL", "SUPER"],
+                            "key": "right"
+                        }
+                    ],
+                    "actions": [
+                        {
+                            "dispatcher": "movetoworkspace",
+                            "argument": "+1",
+                            "flags": "",
+                            "layouts": []
+                        }
+                    ],
+                    "enabled": true
+                },
+                {
                     "name": "Drag Window",
                     "keys": [
                         {

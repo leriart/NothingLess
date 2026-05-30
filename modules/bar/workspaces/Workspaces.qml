@@ -169,9 +169,9 @@ Item {
     WheelHandler {
         onWheel: event => {
             if (event.angleDelta.y < 0) {
-                IpcPool.dispatch("workspace +1");
+                AxctlService.dispatch("workspace +1");
             } else if (event.angleDelta.y > 0) {
-                IpcPool.dispatch("workspace -1");
+                AxctlService.dispatch("workspace -1");
             }
         }
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
@@ -433,7 +433,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         console.log("Workspace click:", button.workspaceValue);
-                        IpcPool.dispatch("workspace " + String(button.workspaceValue));
+                        AxctlService.dispatch("workspace " + String(button.workspaceValue));
                     }
                 }
 

@@ -3113,14 +3113,27 @@ conf_action = "fullscreen"
 lua_action = "fullscreen"
 toml_action = "fullscreen"
 
-[gesture_bindings.4finger_workspace]
-description = "4-finger horizontal swipe to switch workspace"
+[gesture_bindings.4finger_workspace_left]
+description = "4-finger swipe left to switch to previous workspace"
 nothingless_key = "gesture4FingerWorkspace"
 fingers = 4
-direction = "horizontal"
+direction = "left"
 conf_action = "workspace"
-lua_action = "workspace"
-toml_action = "workspace"
+lua_dispatcher = "workspace"
+lua_argument = "-1"
+toml_dispatcher = "workspace"
+toml_argument = "-1"
+
+[gesture_bindings.4finger_workspace_right]
+description = "4-finger swipe right to switch to next workspace"
+nothingless_key = "gesture4FingerWorkspace"
+fingers = 4
+direction = "right"
+conf_action = "workspace"
+lua_dispatcher = "workspace"
+lua_argument = "+1"
+toml_dispatcher = "workspace"
+toml_argument = "+1"
 
 [gesture_bindings.4finger_overview_up]
 description = "4-finger swipe up to toggle overview (Mission Control)"
