@@ -1,0 +1,2918 @@
+# =============================================================================
+#  Hyprland Complete Configuration Dictionary
+#  =============================================================================
+#  Source: https://wiki.hypr.land/Configuring/Basics/Variables/ (v0.55+)
+#
+#  Each entry:
+#    description  — What this setting does
+#    type         — int|bool|float|str|color|vec2|gradient|css_gaps|font_weight
+#    default      — Default value (Lua literal)
+#    lua          — Dot.path for hl.config({})  [ALL entries have this]
+#    conf         — Colon:keyword for hyprland.conf  [MISSING if Lua-only]
+#    note         — (optional) Extra info
+#
+#  ⚠ Hyprland 0.55+ deprecated hyprlang (.conf) in favor of Lua.
+#    Entries WITHOUT a 'conf' field are Lua-only.
+# =============================================================================
+
+[general.border_size]
+description = "Size of the border around windows"
+type = "int"
+default = "1"
+lua = "general.border_size"
+conf = "general:border_size"
+
+[general.gaps_in]
+description = "Gaps between windows"
+type = "css_gaps"
+default = "5"
+lua = "general.gaps_in"
+conf = "general:gaps_in"
+
+[general.gaps_out]
+description = "Gaps between windows and monitor edges"
+type = "css_gaps"
+default = "20"
+lua = "general.gaps_out"
+conf = "general:gaps_out"
+
+[general.float_gaps]
+description = "Gaps between windows and monitor edges for floating windows. -1 means default."
+type = "css_gaps"
+default = "0"
+lua = "general.float_gaps"
+conf = "general:float_gaps"
+
+[general.gaps_workspaces]
+description = "Gaps between workspaces. Stacks with gaps_out."
+type = "css_gaps"
+default = "0"
+lua = "general.gaps_workspaces"
+conf = "general:gaps_workspaces"
+
+[general.col_inactive_border]
+description = "Border color for inactive windows"
+type = "gradient"
+default = "0xff444444"
+lua = "general.col.inactive_border"
+conf = "general:col:inactive_border"
+nothingless_key = "inactiveBorderColor"
+
+[general.col_active_border]
+description = "Border color for the active window"
+type = "gradient"
+default = "0xffffffff"
+lua = "general.col.active_border"
+conf = "general:col:active_border"
+nothingless_key = "activeBorderColor"
+
+[general.col_nogroup_border]
+description = "Inactive border color for window that cannot be added to a group"
+type = "gradient"
+default = "0xffffaaff"
+lua = "general.col.nogroup_border"
+conf = "general:col:nogroup_border"
+
+[general.col_nogroup_border_active]
+description = "Active border color for window that cannot be added to a group"
+type = "gradient"
+default = "0xffff00ff"
+lua = "general.col.nogroup_border_active"
+conf = "general:col:nogroup_border_active"
+
+[general.layout]
+description = "Which layout to use. Options: dwindle, master, scrolling, monocle"
+type = "str"
+default = '"dwindle"'
+lua = "general.layout"
+conf = "general:layout"
+
+[general.no_focus_fallback]
+description = "If true, will not fall back to the next available window when moving focus in a direction where no window was found"
+type = "bool"
+default = "false"
+lua = "general.no_focus_fallback"
+conf = "general:no_focus_fallback"
+
+[general.resize_on_border]
+description = "Enables resizing windows by clicking and dragging on borders and gaps"
+type = "bool"
+default = "false"
+lua = "general.resize_on_border"
+conf = "general:resize_on_border"
+
+[general.extend_border_grab_area]
+description = "Extends the area around the border where you can click and drag on, only used when resize_on_border is on"
+type = "int"
+default = "15"
+lua = "general.extend_border_grab_area"
+conf = "general:extend_border_grab_area"
+
+[general.hover_icon_on_border]
+description = "Show a cursor icon when hovering over borders, only used when resize_on_border is on"
+type = "bool"
+default = "true"
+lua = "general.hover_icon_on_border"
+conf = "general:hover_icon_on_border"
+
+[general.allow_tearing]
+description = "Master switch for allowing tearing to occur"
+type = "bool"
+default = "false"
+lua = "general.allow_tearing"
+conf = "general:allow_tearing"
+
+[general.resize_corner]
+description = "Force floating windows to use a specific corner when being resized (1-4 clockwise from top left, 0 to disable)"
+type = "int"
+default = "0"
+lua = "general.resize_corner"
+conf = "general:resize_corner"
+
+[general.modal_parent_blocking]
+description = "Whether parent windows of modals will be interactive"
+type = "bool"
+default = "true"
+lua = "general.modal_parent_blocking"
+conf = "general:modal_parent_blocking"
+
+[general.locale]
+description = "Overrides the system locale (e.g. en_US, es)"
+type = "str"
+default = '""'
+lua = "general.locale"
+conf = "general:locale"
+
+[general.snap_enabled]
+description = "Enable snapping for floating windows"
+type = "bool"
+default = "false"
+lua = "general.snap.enabled"
+conf = "general:snap:enabled"
+
+[general.snap_window_gap]
+description = "Minimum gap in pixels between windows before snapping"
+type = "int"
+default = "10"
+lua = "general.snap.window_gap"
+conf = "general:snap:window_gap"
+
+[general.snap_monitor_gap]
+description = "Minimum gap in pixels between window and monitor edges before snapping"
+type = "int"
+default = "10"
+lua = "general.snap.monitor_gap"
+conf = "general:snap:monitor_gap"
+
+[general.snap_border_overlap]
+description = "If true, windows snap such that only one border's worth of space is between them"
+type = "bool"
+default = "false"
+lua = "general.snap.border_overlap"
+conf = "general:snap:border_overlap"
+
+[general.snap_respect_gaps]
+description = "If true, snapping will respect gaps between windows (set in general:gaps_in)"
+type = "bool"
+default = "false"
+lua = "general.snap.respect_gaps"
+conf = "general:snap:respect_gaps"
+
+[decoration.rounding]
+description = "Rounded corners' radius (in layout px)"
+type = "int"
+default = "0"
+lua = "decoration.rounding"
+conf = "decoration:rounding"
+
+[decoration.rounding_power]
+description = "Adjusts the curve used for rounding corners. 2.0=circle, 4.0=squircle, 1.0=triangular. [1.0 - 10.0]"
+type = "float"
+default = "2.0"
+lua = "decoration.rounding_power"
+conf = "decoration:rounding_power"
+
+[decoration.active_opacity]
+description = "Opacity of active windows. [0.0 - 1.0]"
+type = "float"
+default = "1.0"
+lua = "decoration.active_opacity"
+conf = "decoration:active_opacity"
+
+[decoration.inactive_opacity]
+description = "Opacity of inactive windows. [0.0 - 1.0]"
+type = "float"
+default = "1.0"
+lua = "decoration.inactive_opacity"
+conf = "decoration:inactive_opacity"
+
+[decoration.fullscreen_opacity]
+description = "Opacity of fullscreen windows. [0.0 - 1.0]"
+type = "float"
+default = "1.0"
+lua = "decoration.fullscreen_opacity"
+conf = "decoration:fullscreen_opacity"
+
+[decoration.dim_modal]
+description = "Enables dimming of parents of modal windows"
+type = "bool"
+default = "true"
+lua = "decoration.dim_modal"
+
+[decoration.dim_inactive]
+description = "Enables dimming of inactive windows"
+type = "bool"
+default = "false"
+lua = "decoration.dim_inactive"
+conf = "decoration:dim_inactive"
+
+[decoration.dim_strength]
+description = "How much inactive windows should be dimmed. [0.0 - 1.0]"
+type = "float"
+default = "0.5"
+lua = "decoration.dim_strength"
+conf = "decoration:dim_strength"
+
+[decoration.dim_special]
+description = "How much to dim the rest of the screen by when a special workspace is open. [0.0 - 1.0]"
+type = "float"
+default = "0.2"
+lua = "decoration.dim_special"
+conf = "decoration:dim_special"
+
+[decoration.dim_around]
+description = "How much the dim_around window rule should dim by. [0.0 - 1.0]"
+type = "float"
+default = "0.4"
+lua = "decoration.dim_around"
+conf = "decoration:dim_around"
+
+[decoration.screen_shader]
+description = "A path to a custom shader to be applied at the end of rendering"
+type = "str"
+default = '""'
+lua = "decoration.screen_shader"
+conf = "decoration:screen_shader"
+
+[decoration.border_part_of_window]
+description = "Whether the window border should be a part of the window"
+type = "bool"
+default = "true"
+lua = "decoration.border_part_of_window"
+
+[decoration.shadow_enabled]
+description = "Enable drop shadows on windows"
+type = "bool"
+default = "true"
+lua = "decoration.shadow.enabled"
+conf = "decoration:shadow:enabled"
+
+[decoration.shadow_range]
+description = 'Shadow range ("size") in layout px'
+type = "int"
+default = "4"
+lua = "decoration.shadow.range"
+conf = "decoration:shadow:range"
+
+[decoration.shadow_render_power]
+description = "In what power to render the falloff (more power, faster falloff). [1 - 4]"
+type = "int"
+default = "3"
+lua = "decoration.shadow.render_power"
+conf = "decoration:shadow:render_power"
+
+[decoration.shadow_sharp]
+description = "If enabled, will make the shadows sharp, akin to an infinite render power"
+type = "bool"
+default = "false"
+lua = "decoration.shadow.sharp"
+conf = "decoration:shadow:sharp"
+
+[decoration.shadow_color]
+description = "Shadow's color. Alpha dictates shadow's opacity."
+type = "color"
+default = "0xee1a1a1a"
+lua = "decoration.shadow.color"
+conf = "decoration:shadow:color"
+nothingless_key = "shadowColor"
+
+[decoration.shadow_color_inactive]
+description = "Inactive shadow color. If not set, will fall back to color."
+type = "color"
+default = "unset"
+lua = "decoration.shadow.color_inactive"
+conf = "decoration:shadow:color_inactive"
+nothingless_key = "shadowColorInactive"
+
+[decoration.shadow_offset]
+description = "Shadow's rendering offset"
+type = "vec2"
+default = "{0, 0}"
+lua = "decoration.shadow.offset"
+conf = "decoration:shadow:offset"
+
+[decoration.shadow_scale]
+description = "Shadow's scale. [0.0 - 1.0]"
+type = "float"
+default = "1.0"
+lua = "decoration.shadow.scale"
+conf = "decoration:shadow:scale"
+
+[decoration.blur_enabled]
+description = "Enable kawase window background blur"
+type = "bool"
+default = "true"
+lua = "decoration.blur.enabled"
+conf = "decoration:blur:enabled"
+
+[decoration.blur_size]
+description = "Blur size (distance). Must be at least 1."
+type = "int"
+default = "8"
+lua = "decoration.blur.size"
+conf = "decoration:blur:size"
+
+[decoration.blur_passes]
+description = "The amount of passes to perform. Must be at least 1."
+type = "int"
+default = "1"
+lua = "decoration.blur.passes"
+conf = "decoration:blur:passes"
+
+[decoration.blur_ignore_opacity]
+description = "Make the blur layer ignore the opacity of the window"
+type = "bool"
+default = "true"
+lua = "decoration.blur.ignore_opacity"
+conf = "decoration:blur:ignore_opacity"
+
+[decoration.blur_new_optimizations]
+description = "Whether to enable further optimizations to the blur. Recommended to leave on."
+type = "bool"
+default = "true"
+lua = "decoration.blur.new_optimizations"
+conf = "decoration:blur:new_optimizations"
+
+[decoration.blur_xray]
+description = "If enabled, floating windows will ignore tiled windows in their blur. Only if new_optimizations is true."
+type = "bool"
+default = "false"
+lua = "decoration.blur.xray"
+conf = "decoration:blur:xray"
+
+[decoration.blur_noise]
+description = "How much noise to apply. [0.0 - 1.0]"
+type = "float"
+default = "0.0117"
+lua = "decoration.blur.noise"
+conf = "decoration:blur:noise"
+
+[decoration.blur_contrast]
+description = "Contrast modulation for blur. [0.0 - 2.0]"
+type = "float"
+default = "0.8916"
+lua = "decoration.blur.contrast"
+conf = "decoration:blur:contrast"
+
+[decoration.blur_brightness]
+description = "Brightness modulation for blur. [0.0 - 2.0]"
+type = "float"
+default = "0.8172"
+lua = "decoration.blur.brightness"
+conf = "decoration:blur:brightness"
+
+[decoration.blur_vibrancy]
+description = "Increase saturation of blurred colors. [0.0 - 1.0]"
+type = "float"
+default = "0.1696"
+lua = "decoration.blur.vibrancy"
+conf = "decoration:blur:vibrancy"
+
+[decoration.blur_vibrancy_darkness]
+description = "How strong the effect of vibrancy is on dark areas. [0.0 - 1.0]"
+type = "float"
+default = "0.0"
+lua = "decoration.blur.vibrancy_darkness"
+conf = "decoration:blur:vibrancy_darkness"
+
+[decoration.blur_special]
+description = "Whether to blur behind the special workspace (note: expensive)"
+type = "bool"
+default = "false"
+lua = "decoration.blur.special"
+conf = "decoration:blur:special"
+
+[decoration.blur_popups]
+description = "Whether to blur popups (e.g. right-click menus)"
+type = "bool"
+default = "false"
+lua = "decoration.blur.popups"
+conf = "decoration:blur:popups"
+
+[decoration.blur_popups_ignorealpha]
+description = "Works like ignore_alpha in layer rules. If pixel opacity is below set value, will not blur. [0.0 - 1.0]"
+type = "float"
+default = "0.2"
+lua = "decoration.blur.popups_ignorealpha"
+conf = "decoration:blur:popups_ignorealpha"
+
+[decoration.blur_input_methods]
+description = "Whether to blur input methods (e.g. fcitx5)"
+type = "bool"
+default = "false"
+lua = "decoration.blur.input_methods"
+conf = "decoration:blur:input_methods"
+
+[decoration.blur_input_methods_ignorealpha]
+description = "Works like ignore_alpha in layer rules for input methods. [0.0 - 1.0]"
+type = "float"
+default = "0.2"
+lua = "decoration.blur.input_methods_ignorealpha"
+conf = "decoration:blur:input_methods_ignorealpha"
+
+[decoration.glow_enabled]
+description = "Enable inner glow on windows"
+type = "bool"
+default = "false"
+lua = "decoration.glow.enabled"
+conf = "decoration:glow:enabled"
+
+[decoration.glow_range]
+description = 'Glow range ("size") in layout px'
+type = "int"
+default = "10"
+lua = "decoration.glow.range"
+conf = "decoration:glow:range"
+
+[decoration.glow_render_power]
+description = "In what power to render the falloff. [1 - 4]"
+type = "int"
+default = "3"
+lua = "decoration.glow.render_power"
+conf = "decoration:glow:render_power"
+
+[decoration.glow_color]
+description = "Glow's color. Alpha dictates glow's opacity."
+type = "color"
+default = "0xee1a1a1a"
+lua = "decoration.glow.color"
+conf = "decoration:glow:color"
+
+[decoration.glow_color_inactive]
+description = "Inactive glow color. If not set, will fall back to color."
+type = "color"
+default = "unset"
+lua = "decoration.glow.color_inactive"
+conf = "decoration:glow:color_inactive"
+
+[animations.enabled]
+description = "Enable animations"
+type = "bool"
+default = "true"
+lua = "animations.enabled"
+conf = "animations:enabled"
+nothingless_key = "animationsEnabled"
+
+[animations.workspace_wraparound]
+description = "Enable workspace wraparound, causing directional workspace animations to animate as if first and last workspaces were adjacent"
+type = "bool"
+default = "false"
+lua = "animations.workspace_wraparound"
+conf = "animations:workspace_wraparound"
+
+[input.kb_model]
+description = "Appropriate XKB keymap parameter"
+type = "str"
+default = '""'
+lua = "input.kb_model"
+conf = "input:kb_model"
+
+[input.kb_layout]
+description = "Appropriate XKB keymap parameter"
+type = "str"
+default = '"us"'
+lua = "input.kb_layout"
+conf = "input:kb_layout"
+
+[input.kb_variant]
+description = "Appropriate XKB keymap parameter"
+type = "str"
+default = '""'
+lua = "input.kb_variant"
+conf = "input:kb_variant"
+
+[input.kb_options]
+description = "Appropriate XKB keymap parameter"
+type = "str"
+default = '""'
+lua = "input.kb_options"
+conf = "input:kb_options"
+
+[input.kb_rules]
+description = "Appropriate XKB keymap parameter"
+type = "str"
+default = '""'
+lua = "input.kb_rules"
+conf = "input:kb_rules"
+
+[input.kb_file]
+description = "Path to your custom .xkb file"
+type = "str"
+default = '""'
+lua = "input.kb_file"
+conf = "input:kb_file"
+
+[input.numlock_by_default]
+description = "Engage numlock by default"
+type = "bool"
+default = "false"
+lua = "input.numlock_by_default"
+conf = "input:numlock_by_default"
+
+[input.resolve_binds_by_sym]
+description = "If true, keybinds specified by symbols are activated when you type the respective symbol with the current layout"
+type = "bool"
+default = "false"
+lua = "input.resolve_binds_by_sym"
+conf = "input:resolve_binds_by_sym"
+
+[input.repeat_rate]
+description = "The repeat rate for held-down keys, in repeats per second"
+type = "int"
+default = "25"
+lua = "input.repeat_rate"
+conf = "input:repeat_rate"
+
+[input.repeat_delay]
+description = "Delay before a held-down key is repeated, in milliseconds"
+type = "int"
+default = "600"
+lua = "input.repeat_delay"
+conf = "input:repeat_delay"
+
+[input.sensitivity]
+description = "Sets the mouse input sensitivity. Value clamped to [-1.0, 1.0]"
+type = "float"
+default = "0.0"
+lua = "input.sensitivity"
+conf = "input:sensitivity"
+nothingless_key = "mouseSensitivity"
+
+[input.accel_profile]
+description = "Sets the cursor acceleration profile. Options: adaptive, flat, custom. Leave empty for libinput default."
+type = "str"
+default = '""'
+lua = "input.accel_profile"
+conf = "input:accel_profile"
+nothingless_key = "mouseAccelProfile"
+
+[input.force_no_accel]
+description = "Force no cursor acceleration. Bypasses most pointer settings to get raw signal."
+type = "bool"
+default = "false"
+lua = "input.force_no_accel"
+
+[input.rotation]
+description = "Sets the rotation of a device in degrees clockwise. [0-359]"
+type = "int"
+default = "0"
+lua = "input.rotation"
+
+[input.left_handed]
+description = "Switches RMB and LMB"
+type = "bool"
+default = "false"
+lua = "input.left_handed"
+conf = "input:left_handed"
+nothingless_key = "mouseLeftHanded"
+
+[input.scroll_points]
+description = "Sets the scroll acceleration profile when accel_profile is custom. Format: <step> <points>"
+type = "str"
+default = '""'
+lua = "input.scroll_points"
+
+[input.scroll_method]
+description = "Sets the scroll method. Options: 2fg, edge, on_button_down, no_scroll"
+type = "str"
+default = '""'
+lua = "input.scroll_method"
+conf = "input:scroll_method"
+
+[input.scroll_button]
+description = "Sets the scroll button. Has to be an int (button code). 0 means default."
+type = "int"
+default = "0"
+lua = "input.scroll_button"
+
+[input.scroll_button_lock]
+description = "If enabled, pressing and releasing the button toggles the button lock for scrolling"
+type = "bool"
+default = "false"
+lua = "input.scroll_button_lock"
+
+[input.scroll_factor]
+description = "Multiplier added to scroll movement for external mice"
+type = "float"
+default = "1.0"
+lua = "input.scroll_factor"
+conf = "input:scroll_factor"
+nothingless_key = "mouseScrollFactor"
+
+[input.natural_scroll]
+description = "Inverts scrolling direction. When enabled, scrolling moves content directly."
+type = "bool"
+default = "false"
+lua = "input.natural_scroll"
+conf = "input:natural_scroll"
+nothingless_key = "mouseNaturalScroll"
+
+[input.follow_mouse]
+description = "Specify if and how cursor movement should affect window focus. 0=off, 1=always, 2=detached, 3=completely separate"
+type = "int"
+default = "1"
+lua = "input.follow_mouse"
+conf = "input:follow_mouse"
+
+[input.follow_mouse_shrink]
+description = "Shrinks inactive window hitboxes for focus detection by specified pixels. Creates dead zone in gaps."
+type = "int"
+default = "0"
+lua = "input.follow_mouse_shrink"
+
+[input.follow_mouse_threshold]
+description = "Smallest distance in logical pixels the mouse needs to travel for window under it to get focused"
+type = "float"
+default = "0.0"
+lua = "input.follow_mouse_threshold"
+
+[input.focus_on_close]
+description = "Controls focus behavior when window is closed. 0=next candidate, 1=under cursor, 2=most recent"
+type = "int"
+default = "0"
+lua = "input.focus_on_close"
+
+[input.mouse_refocus]
+description = "If disabled, mouse focus won't switch to hovered window unless mouse crosses a window boundary"
+type = "bool"
+default = "true"
+lua = "input.mouse_refocus"
+conf = "input:mouse_refocus"
+
+[input.float_switch_override_focus]
+description = "If 1 or 2, focus changes to window under cursor when switching tiled-to-floating and vice versa"
+type = "int"
+default = "1"
+lua = "input.float_switch_override_focus"
+conf = "input:float_switch_override_focus"
+
+[input.special_fallthrough]
+description = "If enabled, having only floating windows in special workspace will not block focusing regular workspace"
+type = "bool"
+default = "false"
+lua = "input.special_fallthrough"
+
+[input.off_window_axis_events]
+description = "Handles axis events around a focused window. 0=ignore, 1=out-of-bound, 2=fake coords, 3=warp cursor"
+type = "int"
+default = "1"
+lua = "input.off_window_axis_events"
+
+[input.emulate_discrete_scroll]
+description = "Emulates discrete scrolling from high resolution scroll events. 0=off, 1=non-standard only, 2=force all"
+type = "int"
+default = "1"
+lua = "input.emulate_discrete_scroll"
+
+[input.touchpad_disable_while_typing]
+description = "Disable the touchpad while typing"
+type = "bool"
+default = "true"
+lua = "input.touchpad.disable_while_typing"
+conf = "input:touchpad:disable_while_typing"
+
+[input.touchpad_natural_scroll]
+description = "Inverts scrolling direction on touchpad"
+type = "bool"
+default = "false"
+lua = "input.touchpad.natural_scroll"
+conf = "input:touchpad:natural_scroll"
+
+[input.touchpad_scroll_factor]
+description = "Multiplier applied to the amount of scroll movement on touchpad"
+type = "float"
+default = "1.0"
+lua = "input.touchpad.scroll_factor"
+conf = "input:touchpad:scroll_factor"
+
+[input.touchpad_middle_button_emulation]
+description = "Sending LMB and RMB simultaneously interpreted as middle click"
+type = "bool"
+default = "false"
+lua = "input.touchpad.middle_button_emulation"
+conf = "input:touchpad:middle_button_emulation"
+
+[input.touchpad_tap_button_map]
+description = "Sets the tap button mapping. Options: lrm (default), lmr"
+type = "str"
+default = '""'
+lua = "input.touchpad.tap_button_map"
+conf = "input:touchpad:tap_button_map"
+
+[input.touchpad_clickfinger_behavior]
+description = "1/2/3 finger button presses mapped to LMB/RMB/MMB respectively"
+type = "bool"
+default = "false"
+lua = "input.touchpad.clickfinger_behavior"
+conf = "input:touchpad:clickfinger_behavior"
+
+[input.touchpad_tap_to_click]
+description = "Tapping on touchpad with 1/2/3 fingers sends LMB/RMB/MMB"
+type = "bool"
+default = "true"
+lua = "input.touchpad.tap_to_click"
+conf = "input:touchpad:tap_to_click"
+
+[input.touchpad_drag_lock]
+description = "When enabled, lifting finger while dragging won't drop item. 0=disabled, 1=timeout, 2=sticky"
+type = "int"
+default = "0"
+lua = "input.touchpad.drag_lock"
+conf = "input:touchpad:drag_lock"
+
+[input.touchpad_tap_and_drag]
+description = "Sets the tap and drag mode for the touchpad"
+type = "bool"
+default = "true"
+lua = "input.touchpad.tap_and_drag"
+conf = "input:touchpad:tap_and_drag"
+
+[input.touchpad_flip_x]
+description = "Inverts the horizontal movement of the touchpad"
+type = "bool"
+default = "false"
+lua = "input.touchpad.flip_x"
+conf = "input:touchpad:flip_x"
+
+[input.touchpad_flip_y]
+description = "Inverts the vertical movement of the touchpad"
+type = "bool"
+default = "false"
+lua = "input.touchpad.flip_y"
+conf = "input:touchpad:flip_y"
+
+[input.touchpad_drag_3fg]
+description = "Enables three finger drag. 0=disabled, 1=3 fingers, 2=4 fingers"
+type = "int"
+default = "0"
+lua = "input.touchpad.drag_3fg"
+conf = "input:touchpad:drag_3fg"
+
+[input.touchdevice_transform]
+description = "Transform touch device input. Same transformations as monitors. -1 means unset."
+type = "int"
+default = "-1"
+lua = "input.touchdevice.transform"
+conf = "input:touchdevice:transform"
+
+[input.touchdevice_output]
+description = "The monitor to bind touch devices. Empty string stops auto-detection."
+type = "str"
+default = '"auto"'
+lua = "input.touchdevice.output"
+conf = "input:touchdevice:output"
+
+[input.touchdevice_enabled]
+description = "Whether input is enabled for touch devices"
+type = "bool"
+default = "true"
+lua = "input.touchdevice.enabled"
+conf = "input:touchdevice:enabled"
+
+[input.virtualkeyboard_share_states]
+description = "Unify key states with other keyboards. 0=no, 1=yes, 2=yes unless IME client"
+type = "int"
+default = "2"
+lua = "input.virtualkeyboard.share_states"
+conf = "input:virtualkeyboard:share_states"
+
+[input.virtualkeyboard_release_pressed_on_close]
+description = "Release all pressed keys by virtual keyboard on close"
+type = "bool"
+default = "false"
+lua = "input.virtualkeyboard.release_pressed_on_close"
+conf = "input:virtualkeyboard:release_pressed_on_close"
+
+[input.tablet_transform]
+description = "Transform tablet input. Same as monitor transformations. -1 means unset."
+type = "int"
+default = "-1"
+lua = "input.tablet.transform"
+conf = "input:tablet:transform"
+
+[input.tablet_output]
+description = "Monitor to bind tablets. Can be 'current' or monitor name. Empty = all monitors."
+type = "str"
+default = '""'
+lua = "input.tablet.output"
+conf = "input:tablet:output"
+
+[input.tablet_region_position]
+description = "Position of mapped region in monitor layout relative to top-left of bound monitor"
+type = "vec2"
+default = "{0, 0}"
+lua = "input.tablet.region_position"
+conf = "input:tablet:region_position"
+
+[input.tablet_absolute_region_position]
+description = "Whether to treat region_position as absolute position in monitor layout"
+type = "bool"
+default = "false"
+lua = "input.tablet.absolute_region_position"
+conf = "input:tablet:absolute_region_position"
+
+[input.tablet_region_size]
+description = "Size of the mapped region. {0,0} or invalid size means unset."
+type = "vec2"
+default = "{0, 0}"
+lua = "input.tablet.region_size"
+conf = "input:tablet:region_size"
+
+[input.tablet_relative_input]
+description = "Whether the input should be relative"
+type = "bool"
+default = "false"
+lua = "input.tablet.relative_input"
+conf = "input:tablet:relative_input"
+
+[input.tablet_left_handed]
+description = "If enabled, the tablet will be rotated 180 degrees"
+type = "bool"
+default = "false"
+lua = "input.tablet.left_handed"
+conf = "input:tablet:left_handed"
+
+[input.tablet_active_area_size]
+description = "Size of tablet's active area in mm"
+type = "vec2"
+default = "{0, 0}"
+lua = "input.tablet.active_area_size"
+conf = "input:tablet:active_area_size"
+
+[input.tablet_active_area_position]
+description = "Position of the active area in mm"
+type = "vec2"
+default = "{0, 0}"
+lua = "input.tablet.active_area_position"
+conf = "input:tablet:active_area_position"
+
+[input.tablettool_eraser_button_mode]
+description = "Eraser button behavior. 0=default hardware, 1=button event."
+type = "int"
+default = "0"
+lua = "input.tablettool.eraser_button_mode"
+conf = "input:tablettool:eraser_button_mode"
+
+[input.tablettool_eraser_button_override]
+description = "Button to use when eraser_button_mode=1. Must be valid button int. 0=default."
+type = "int"
+default = "0"
+lua = "input.tablettool.eraser_button_override"
+conf = "input:tablettool:eraser_button_override"
+
+[input.tablettool_pressure_range_min]
+description = "Minimum pressure range for the tool. Negative = default minimum."
+type = "float"
+default = "-1.0"
+lua = "input.tablettool.pressure_range_min"
+conf = "input:tablettool:pressure_range_min"
+
+[input.tablettool_pressure_range_max]
+description = "Maximum pressure range for the tool. Negative = default maximum."
+type = "float"
+default = "-1.0"
+lua = "input.tablettool.pressure_range_max"
+conf = "input:tablettool:pressure_range_max"
+
+[gestures.workspace_swipe_distance]
+description = "In px, the distance of the touchpad gesture"
+type = "int"
+default = "300"
+lua = "gestures.workspace_swipe_distance"
+conf = "gestures:workspace_swipe_distance"
+
+[gestures.workspace_swipe_touch]
+description = "Enable workspace swiping from the edge of a touchscreen"
+type = "bool"
+default = "false"
+lua = "gestures.workspace_swipe_touch"
+conf = "gestures:workspace_swipe_touch"
+
+[gestures.workspace_swipe_invert]
+description = "Invert the direction (touchpad only)"
+type = "bool"
+default = "true"
+lua = "gestures.workspace_swipe_invert"
+conf = "gestures:workspace_swipe_invert"
+
+[gestures.workspace_swipe_touch_invert]
+description = "Invert the direction (touchscreen only)"
+type = "bool"
+default = "false"
+lua = "gestures.workspace_swipe_touch_invert"
+conf = "gestures:workspace_swipe_touch_invert"
+
+[gestures.workspace_swipe_min_speed_to_force]
+description = "Minimum speed in px per timepoint to force change ignoring cancel_ratio. 0 disables."
+type = "int"
+default = "30"
+lua = "gestures.workspace_swipe_min_speed_to_force"
+conf = "gestures:workspace_swipe_min_speed_to_force"
+
+[gestures.workspace_swipe_cancel_ratio]
+description = "How much the swipe has to proceed to commence it. [0.0 - 1.0]"
+type = "float"
+default = "0.5"
+lua = "gestures.workspace_swipe_cancel_ratio"
+conf = "gestures:workspace_swipe_cancel_ratio"
+
+[gestures.workspace_swipe_create_new]
+description = "Whether a swipe right on the last workspace should create a new one"
+type = "bool"
+default = "true"
+lua = "gestures.workspace_swipe_create_new"
+conf = "gestures:workspace_swipe_create_new"
+
+[gestures.workspace_swipe_direction_lock]
+description = "If enabled, switching direction will be locked when you swipe past direction_lock_threshold"
+type = "bool"
+default = "true"
+lua = "gestures.workspace_swipe_direction_lock"
+conf = "gestures:workspace_swipe_direction_lock"
+
+[gestures.workspace_swipe_direction_lock_threshold]
+description = "In px, the distance to swipe before direction lock activates (touchpad only)"
+type = "int"
+default = "10"
+lua = "gestures.workspace_swipe_direction_lock_threshold"
+
+[gestures.workspace_swipe_forever]
+description = "If enabled, swiping will not clamp at neighboring workspaces but continue further"
+type = "bool"
+default = "false"
+lua = "gestures.workspace_swipe_forever"
+conf = "gestures:workspace_swipe_forever"
+
+[gestures.workspace_swipe_use_r]
+description = "If enabled, swiping will use the r prefix instead of m prefix for finding workspaces"
+type = "bool"
+default = "false"
+lua = "gestures.workspace_swipe_use_r"
+conf = "gestures:workspace_swipe_use_r"
+
+[gestures.close_max_timeout]
+description = "The timeout for a window to close when using a 1:1 gesture, in ms"
+type = "int"
+default = "1000"
+lua = "gestures.close_max_timeout"
+
+[group.auto_group]
+description = "Whether new windows will be automatically grouped into the focused unlocked group"
+type = "bool"
+default = "true"
+lua = "group.auto_group"
+conf = "group:auto_group"
+
+[group.insert_after_current]
+description = "Whether new windows in a group spawn after current or at group tail"
+type = "bool"
+default = "true"
+lua = "group.insert_after_current"
+conf = "group:insert_after_current"
+
+[group.focus_removed_window]
+description = "Whether Hyprland should focus on the window that has just been moved out of the group"
+type = "bool"
+default = "true"
+lua = "group.focus_removed_window"
+conf = "group:focus_removed_window"
+
+[group.drag_into_group]
+description = "Whether dragging a window into an unlocked group will merge them. 0=disabled, 1=enabled, 2=only groupbar"
+type = "int"
+default = "1"
+lua = "group.drag_into_group"
+conf = "group:drag_into_group"
+
+[group.merge_groups_on_drag]
+description = "Whether window groups can be dragged into other groups"
+type = "bool"
+default = "true"
+lua = "group.merge_groups_on_drag"
+conf = "group:merge_groups_on_drag"
+
+[group.merge_groups_on_groupbar]
+description = "Whether one group will be merged with another when dragged into its groupbar"
+type = "bool"
+default = "true"
+lua = "group.merge_groups_on_groupbar"
+conf = "group:merge_groups_on_groupbar"
+
+[group.merge_floated_into_tiled_on_groupbar]
+description = "Whether dragging a floating window into a tiled window groupbar will merge them"
+type = "bool"
+default = "false"
+lua = "group.merge_floated_into_tiled_on_groupbar"
+conf = "group:merge_floated_into_tiled_on_groupbar"
+
+[group.group_on_movetoworkspace]
+description = "Whether using movetoworkspace[silent] will merge the window into the workspace's solitary unlocked group"
+type = "bool"
+default = "false"
+lua = "group.group_on_movetoworkspace"
+
+[group.col_border_active]
+description = "Active group border color"
+type = "gradient"
+default = "0x66ffff00"
+lua = "group.col.border_active"
+conf = "group:col:border_active"
+
+[group.col_border_inactive]
+description = "Inactive (out of focus) group border color"
+type = "gradient"
+default = "0x66777700"
+lua = "group.col.border_inactive"
+conf = "group:col:border_inactive"
+
+[group.col_border_locked_active]
+description = "Active locked group border color"
+type = "gradient"
+default = "0x66ff5500"
+lua = "group.col.border_locked_active"
+conf = "group:col:border_locked_active"
+
+[group.col_border_locked_inactive]
+description = "Inactive locked group border color"
+type = "gradient"
+default = "0x66775500"
+lua = "group.col.border_locked_inactive"
+conf = "group:col:border_locked_inactive"
+
+[group.groupbar_enabled]
+description = "Enables groupbars"
+type = "bool"
+default = "true"
+lua = "group.groupbar.enabled"
+conf = "group:groupbar:enabled"
+
+[group.groupbar_font_family]
+description = "Font used to display groupbar titles, use misc.font_family if not specified"
+type = "str"
+default = '""'
+lua = "group.groupbar.font_family"
+
+[group.groupbar_font_size]
+description = "Font size of groupbar title"
+type = "int"
+default = "8"
+lua = "group.groupbar.font_size"
+
+[group.groupbar_font_weight_active]
+description = "Font weight of active groupbar title"
+type = "font_weight"
+default = '"normal"'
+lua = "group.groupbar.font_weight_active"
+
+[group.groupbar_font_weight_inactive]
+description = "Font weight of inactive groupbar title"
+type = "font_weight"
+default = '"normal"'
+lua = "group.groupbar.font_weight_inactive"
+
+[group.groupbar_gradients]
+description = "Enables gradients on groupbar"
+type = "bool"
+default = "false"
+lua = "group.groupbar.gradients"
+
+[group.groupbar_height]
+description = "Height of the groupbar"
+type = "int"
+default = "14"
+lua = "group.groupbar.height"
+conf = "group:groupbar:height"
+
+[group.groupbar_indicator_gap]
+description = "Height of gap between groupbar indicator and title"
+type = "int"
+default = "0"
+lua = "group.groupbar.indicator_gap"
+conf = "group:groupbar:indicator_gap"
+
+[group.groupbar_indicator_height]
+description = "Height of the groupbar indicator"
+type = "int"
+default = "3"
+lua = "group.groupbar.indicator_height"
+conf = "group:groupbar:indicator_height"
+
+[group.groupbar_stacked]
+description = "Render the groupbar as a vertical stack"
+type = "bool"
+default = "false"
+lua = "group.groupbar.stacked"
+
+[group.groupbar_priority]
+description = "Sets the decoration priority for groupbars"
+type = "int"
+default = "3"
+lua = "group.groupbar.priority"
+conf = "group:groupbar:priority"
+
+[group.groupbar_render_titles]
+description = "Whether to render titles in the group bar decoration"
+type = "bool"
+default = "true"
+lua = "group.groupbar.render_titles"
+
+[group.groupbar_text_offset]
+description = "Adjust vertical position for titles"
+type = "int"
+default = "0"
+lua = "group.groupbar.text_offset"
+
+[group.groupbar_text_padding]
+description = "Set horizontal padding for titles"
+type = "int"
+default = "0"
+lua = "group.groupbar.text_padding"
+
+[group.groupbar_scrolling]
+description = "Whether scrolling in the groupbar changes group active window"
+type = "bool"
+default = "true"
+lua = "group.groupbar.scrolling"
+
+[group.groupbar_rounding]
+description = "How much to round the indicator"
+type = "int"
+default = "1"
+lua = "group.groupbar.rounding"
+
+[group.groupbar_rounding_power]
+description = "Curve for rounding groupbar corners. [1.0 - 10.0]"
+type = "float"
+default = "2.0"
+lua = "group.groupbar.rounding_power"
+
+[group.groupbar_gradient_rounding]
+description = "How much to round the gradients"
+type = "int"
+default = "2"
+lua = "group.groupbar.gradient_rounding"
+
+[group.groupbar_gradient_rounding_power]
+description = "Curve for rounding gradient corners. [1.0 - 10.0]"
+type = "float"
+default = "2.0"
+lua = "group.groupbar.gradient_rounding_power"
+
+[group.groupbar_round_only_edges]
+description = "Round only the indicator edges of the entire groupbar"
+type = "bool"
+default = "true"
+lua = "group.groupbar.round_only_edges"
+
+[group.groupbar_gradient_round_only_edges]
+description = "Round only the gradient edges of the entire groupbar"
+type = "bool"
+default = "true"
+lua = "group.groupbar.gradient_round_only_edges"
+
+[group.groupbar_text_color]
+description = "Color for window titles in the groupbar"
+type = "color"
+default = "0xffffffff"
+lua = "group.groupbar.text_color"
+
+[group.groupbar_text_color_inactive]
+description = "Color for inactive windows' titles in groupbar"
+type = "color"
+default = "unset"
+lua = "group.groupbar.text_color_inactive"
+
+[group.groupbar_text_color_locked_active]
+description = "Color for active window's title in a locked group"
+type = "color"
+default = "unset"
+lua = "group.groupbar.text_color_locked_active"
+
+[group.groupbar_text_color_locked_inactive]
+description = "Color for inactive windows' titles in locked groups"
+type = "color"
+default = "unset"
+lua = "group.groupbar.text_color_locked_inactive"
+
+[group.groupbar_col_active]
+description = "Active group bar background color"
+type = "gradient"
+default = "0x66ffff00"
+lua = "group.groupbar.col.active"
+conf = "group:groupbar:col:active"
+
+[group.groupbar_col_inactive]
+description = "Inactive group bar background color"
+type = "gradient"
+default = "0x66777700"
+lua = "group.groupbar.col.inactive"
+conf = "group:groupbar:col:inactive"
+
+[group.groupbar_col_locked_active]
+description = "Active locked group bar background color"
+type = "gradient"
+default = "0x66ff5500"
+lua = "group.groupbar.col.locked_active"
+conf = "group:groupbar:col:locked_active"
+
+[group.groupbar_col_locked_inactive]
+description = "Inactive locked group bar background color"
+type = "gradient"
+default = "0x66775500"
+lua = "group.groupbar.col.locked_inactive"
+conf = "group:groupbar:col:locked_inactive"
+
+[group.groupbar_gaps_in]
+description = "Gap size between gradients in groupbar"
+type = "int"
+default = "2"
+lua = "group.groupbar.gaps_in"
+
+[group.groupbar_gaps_out]
+description = "Gap size between gradients and window in groupbar"
+type = "int"
+default = "2"
+lua = "group.groupbar.gaps_out"
+
+[group.groupbar_keep_upper_gap]
+description = "Add or remove upper gap"
+type = "bool"
+default = "true"
+lua = "group.groupbar.keep_upper_gap"
+
+[group.groupbar_middle_click_close]
+description = "Whether middle clicking the groupbar closes the clicked window"
+type = "bool"
+default = "true"
+lua = "group.groupbar.middle_click_close"
+
+[group.groupbar_blur]
+description = "Applies blur to the groupbar indicators and gradients"
+type = "bool"
+default = "false"
+lua = "group.groupbar.blur"
+
+[misc.disable_hyprland_logo]
+description = "Disables the random Hyprland logo / anime girl background"
+type = "bool"
+default = "false"
+lua = "misc.disable_hyprland_logo"
+conf = "misc:disable_hyprland_logo"
+
+[misc.disable_splash_rendering]
+description = "Disables the Hyprland splash rendering (requires monitor reload)"
+type = "bool"
+default = "false"
+lua = "misc.disable_splash_rendering"
+conf = "misc:disable_splash_rendering"
+
+[misc.disable_scale_notification]
+description = "Disables notification popup when a monitor fails to set a suitable scale"
+type = "bool"
+default = "false"
+lua = "misc.disable_scale_notification"
+
+[misc.col_splash]
+description = "Changes the color of the splash text (requires monitor reload)"
+type = "color"
+default = "0xffffffff"
+lua = "misc.col.splash"
+conf = "misc:col:splash"
+
+[misc.font_family]
+description = "Set the global default font to render text (debug fps/notification, config errors, etc.)"
+type = "str"
+default = '"Sans"'
+lua = "misc.font_family"
+
+[misc.splash_font_family]
+description = "Changes the font used to render the splash text (requires monitor reload)"
+type = "str"
+default = '""'
+lua = "misc.splash_font_family"
+
+[misc.force_default_wallpaper]
+description = "Enforce any of the 3 default wallpapers. -1=random. [-1/0/1/2]"
+type = "int"
+default = "-1"
+lua = "misc.force_default_wallpaper"
+conf = "misc:force_default_wallpaper"
+
+[misc.vrr]
+description = "Controls VRR (Adaptive Sync). 0=off, 1=on, 2=fullscreen only, 3=fullscreen with video/game content type"
+type = "int"
+default = "0"
+lua = "misc.vrr"
+conf = "misc:vrr"
+
+[misc.mouse_move_enables_dpms]
+description = "If DPMS is set to off, wake up monitors if mouse moves"
+type = "bool"
+default = "false"
+lua = "misc.mouse_move_enables_dpms"
+conf = "misc:mouse_move_enables_dpms"
+
+[misc.key_press_enables_dpms]
+description = "If DPMS is set to off, wake up monitors if a key is pressed"
+type = "bool"
+default = "false"
+lua = "misc.key_press_enables_dpms"
+conf = "misc:key_press_enables_dpms"
+
+[misc.name_vk_after_proc]
+description = "Name virtual keyboards after the processes that create them"
+type = "bool"
+default = "true"
+lua = "misc.name_vk_after_proc"
+
+[misc.always_follow_on_dnd]
+description = "Will make mouse focus follow the mouse when drag and dropping"
+type = "bool"
+default = "true"
+lua = "misc.always_follow_on_dnd"
+
+[misc.layers_hog_keyboard_focus]
+description = "If true, will make keyboard-interactive layers keep their focus on mouse move"
+type = "bool"
+default = "true"
+lua = "misc.layers_hog_keyboard_focus"
+
+[misc.animate_manual_resizes]
+description = "If true, will animate manual window resizes/moves"
+type = "bool"
+default = "false"
+lua = "misc.animate_manual_resizes"
+conf = "misc:animate_manual_resizes"
+
+[misc.animate_mouse_windowdragging]
+description = "If true, will animate windows being dragged by mouse"
+type = "bool"
+default = "false"
+lua = "misc.animate_mouse_windowdragging"
+conf = "misc:animate_mouse_windowdragging"
+
+[misc.disable_autoreload]
+description = "If true, the config will not reload automatically on save"
+type = "bool"
+default = "false"
+lua = "misc.disable_autoreload"
+conf = "misc:disable_autoreload"
+
+[misc.enable_swallow]
+description = "Enable window swallowing"
+type = "bool"
+default = "false"
+lua = "misc.enable_swallow"
+
+[misc.swallow_regex]
+description = "The class regex for windows that should be swallowed (usually a terminal)"
+type = "str"
+default = '""'
+lua = "misc.swallow_regex"
+
+[misc.swallow_exception_regex]
+description = "The title regex for windows that should NOT be swallowed by swallow_regex windows"
+type = "str"
+default = '""'
+lua = "misc.swallow_exception_regex"
+
+[misc.focus_on_activate]
+description = "Whether Hyprland should focus an app that requests to be focused"
+type = "bool"
+default = "false"
+lua = "misc.focus_on_activate"
+conf = "misc:focus_on_activate"
+
+[misc.mouse_move_focuses_monitor]
+description = "Whether mouse moving into a different monitor should focus it"
+type = "bool"
+default = "true"
+lua = "misc.mouse_move_focuses_monitor"
+conf = "misc:mouse_move_focuses_monitor"
+
+[misc.allow_session_lock_restore]
+description = "If true, will allow you to restart a lockscreen app in case it crashes"
+type = "bool"
+default = "false"
+lua = "misc.allow_session_lock_restore"
+
+[misc.session_lock_xray]
+description = "If true, keep rendering workspaces below your lockscreen"
+type = "bool"
+default = "false"
+lua = "misc.session_lock_xray"
+
+[misc.background_color]
+description = "Change the background color (requires disable_hyprland_logo)"
+type = "color"
+default = "0x111111"
+lua = "misc.background_color"
+
+[misc.close_special_on_empty]
+description = "Close the special workspace if the last window is removed"
+type = "bool"
+default = "true"
+lua = "misc.close_special_on_empty"
+
+[misc.on_focus_under_fullscreen]
+description = "Behavior when tiled window requests focus under fullscreen. 0=ignore, 1=take over, 2=unfullscreen"
+type = "int"
+default = "2"
+lua = "misc.on_focus_under_fullscreen"
+
+[misc.exit_window_retains_fullscreen]
+description = "If true, closing a fullscreen window makes the next focused window fullscreen"
+type = "bool"
+default = "false"
+lua = "misc.exit_window_retains_fullscreen"
+
+[misc.initial_workspace_tracking]
+description = "If enabled, windows open on workspace they were invoked on. 0=disabled, 1=single-shot, 2=persistent"
+type = "int"
+default = "1"
+lua = "misc.initial_workspace_tracking"
+
+[misc.middle_click_paste]
+description = "Whether to enable middle-click-paste (primary selection)"
+type = "bool"
+default = "true"
+lua = "misc.middle_click_paste"
+
+[misc.render_unfocused_fps]
+description = "Maximum limit for render_unfocused windows' fps in background"
+type = "int"
+default = "15"
+lua = "misc.render_unfocused_fps"
+
+[misc.disable_xdg_env_checks]
+description = "Disable the warning if XDG environment is externally managed"
+type = "bool"
+default = "false"
+lua = "misc.disable_xdg_env_checks"
+
+[misc.disable_hyprland_qtutils_check]
+description = "Disable the warning if hyprland-qtutils is not installed"
+type = "bool"
+default = "false"
+lua = "misc.disable_hyprland_qtutils_check"
+
+[misc.lockdead_screen_delay]
+description = "Delay after which lockdead screen appears (5 seconds max)"
+type = "int"
+default = "1000"
+lua = "misc.lockdead_screen_delay"
+
+[misc.enable_anr_dialog]
+description = "Whether to enable the ANR (app not responding) dialog when apps hang"
+type = "bool"
+default = "true"
+lua = "misc.enable_anr_dialog"
+
+[misc.anr_missed_pings]
+description = "Number of missed pings before showing the ANR dialog"
+type = "int"
+default = "5"
+lua = "misc.anr_missed_pings"
+
+[misc.size_limits_tiled]
+description = "Whether to apply min_size and max_size rules to tiled windows"
+type = "bool"
+default = "false"
+lua = "misc.size_limits_tiled"
+
+[misc.disable_watchdog_warning]
+description = "Whether to disable the warning about not using start-hyprland"
+type = "bool"
+default = "false"
+lua = "misc.disable_watchdog_warning"
+
+[layout.single_window_aspect_ratio]
+description = "When only a single window is shown, add padding to conform to aspect ratio. e.g. {4, 3}"
+type = "vec2"
+default = "{0, 0}"
+lua = "layout.single_window_aspect_ratio"
+conf = "layout:single_window_aspect_ratio"
+
+[layout.single_window_aspect_ratio_tolerance]
+description = "Tolerance for single_window_aspect_ratio padding. [0 - 1]"
+type = "float"
+default = "0.1"
+lua = "layout.single_window_aspect_ratio_tolerance"
+conf = "layout:single_window_aspect_ratio_tolerance"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  DWINDLE LAYOUT
+# ═══════════════════════════════════════════════════════════════════════════
+
+[dwindle.preserve_split]
+description = "Whether to preserve the split direction when switching window focus"
+type = "bool"
+default = "true"
+lua = "dwindle.preserve_split"
+conf = "dwindle:preserve_split"
+nothingless_key = "dwindlePreserveSplit"
+
+[dwindle.force_split]
+description = "Force all new windows to use a split direction. 0=off, 1=always, 2=only non-floating"
+type = "int"
+default = "0"
+lua = "dwindle.force_split"
+conf = "dwindle:force_split"
+nothingless_key = "dwindleForceSplit"
+
+[dwindle.smart_split]
+description = "Try to choose a split direction based on available space"
+type = "bool"
+default = "true"
+lua = "dwindle.smart_split"
+conf = "dwindle:smart_split"
+nothingless_key = "dwindleSmartSplit"
+
+[dwindle.pseudotile]
+description = "If enabled, pseudo-tile floating windows to their position"
+type = "bool"
+default = "false"
+lua = "dwindle.pseudotile"
+conf = "dwindle:pseudotile"
+nothingless_key = "dwindlePseudotile"
+
+[dwindle.smart_resizing]
+description = "Whether to enable smart window resizing"
+type = "bool"
+default = "true"
+lua = "dwindle.smart_resizing"
+conf = "dwindle:smart_resizing"
+nothingless_key = "dwindleSmartResizing"
+
+[dwindle.special_scale_factor]
+description = "Scale factor for special workspace windows (0.0 - 1.0)"
+type = "float"
+default = "0.8"
+lua = "dwindle.special_scale_factor"
+conf = "dwindle:special_scale_factor"
+nothingless_key = "dwindleSpecialScaleFactor"
+
+[dwindle.permanent_direction_override]
+description = "If set to true, the direction override will persist across window changes"
+type = "bool"
+default = "false"
+lua = "dwindle.permanent_direction_override"
+conf = "dwindle:permanent_direction_override"
+nothingless_key = "dwindlePermanentDirectionOverride"
+
+[dwindle.default_split_ratio]
+description = "The default split ratio for new windows. 1 = even split."
+type = "float"
+default = "1.0"
+lua = "dwindle.default_split_ratio"
+conf = "dwindle:default_split_ratio"
+nothingless_key = "dwindleDefaultSplitRatio"
+
+[dwindle.split_width_multiplier]
+description = "Scale factor applied to new window widths after a split"
+type = "float"
+default = "1.0"
+lua = "dwindle.split_width_multiplier"
+conf = "dwindle:split_width_multiplier"
+nothingless_key = "dwindleSplitWidthMultiplier"
+
+[dwindle.use_active_for_splits]
+description = "Whether to use the active window as reference for new splits"
+type = "bool"
+default = "true"
+lua = "dwindle.use_active_for_splits"
+conf = "dwindle:use_active_for_splits"
+nothingless_key = "dwindleUseActiveForSplits"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  MASTER LAYOUT
+# ═══════════════════════════════════════════════════════════════════════════
+
+[master.orientation]
+description = "Master area orientation. Options: left, right, top, bottom"
+type = "str"
+default = '"left"'
+lua = "master.orientation"
+conf = "master:orientation"
+nothingless_key = "masterOrientation"
+
+[master.mfact]
+description = "The size ratio of the master area. [0.0 - 1.0]"
+type = "float"
+default = "0.55"
+lua = "master.mfact"
+conf = "master:mfact"
+nothingless_key = "masterMfact"
+
+[master.new_status]
+description = "Status of new windows. Options: master, slave, inherit"
+type = "str"
+default = '"slave"'
+lua = "master.new_status"
+conf = "master:new_status"
+nothingless_key = "masterNewStatus"
+
+[master.new_on_top]
+description = "Whether new windows are added on top of the stack"
+type = "bool"
+default = "false"
+lua = "master.new_on_top"
+conf = "master:new_on_top"
+nothingless_key = "masterNewOnTop"
+
+[master.new_on_active]
+description = "Whether new windows replace the active window position"
+type = "bool"
+default = "false"
+lua = "master.new_on_active"
+conf = "master:new_on_active"
+nothingless_key = "masterNewOnActive"
+
+[master.smart_resizing]
+description = "Whether to enable smart window resizing in master layout"
+type = "bool"
+default = "true"
+lua = "master.smart_resizing"
+conf = "master:smart_resizing"
+nothingless_key = "masterSmartResizing"
+
+[master.allow_small_split]
+description = "Allow splits smaller than the minimum size"
+type = "bool"
+default = "false"
+lua = "master.allow_small_split"
+conf = "master:allow_small_split"
+nothingless_key = "masterAllowSmallSplit"
+
+[master.special_scale_factor]
+description = "Scale factor for special workspace windows (0.0 - 1.0)"
+type = "float"
+default = "0.8"
+lua = "master.special_scale_factor"
+conf = "master:special_scale_factor"
+nothingless_key = "masterSpecialScaleFactor"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SCROLLING LAYOUT
+# ═══════════════════════════════════════════════════════════════════════════
+
+[scrolling.column_width]
+description = "Width of each column as a fraction of available space. [0.0 - 1.0]"
+type = "float"
+default = "0.3"
+lua = "scrolling.column_width"
+conf = "scrolling:column_width"
+nothingless_key = "scrollingColumnWidth"
+
+[scrolling.direction]
+description = "Which direction new windows scroll. Options: left, right"
+type = "str"
+default = '"right"'
+lua = "scrolling.direction"
+conf = "scrolling:direction"
+nothingless_key = "scrollingDirection"
+
+[scrolling.explicit_column_widths]
+description = "Comma-separated list of explicit column widths"
+type = "str"
+default = '""'
+lua = "scrolling.explicit_column_widths"
+conf = "scrolling:explicit_column_widths"
+nothingless_key = "scrollingExplicitColumnWidths"
+
+[scrolling.focus_fit_method]
+description = "How to fit the focused window. Options: center, left, right"
+type = "str"
+default = '"center"'
+lua = "scrolling.focus_fit_method"
+conf = "scrolling:focus_fit_method"
+nothingless_key = "scrollingFocusFitMethod"
+
+[scrolling.follow_focus]
+description = "Whether to scroll to follow the focused window"
+type = "bool"
+default = "true"
+lua = "scrolling.follow_focus"
+conf = "scrolling:follow_focus"
+nothingless_key = "scrollingFollowFocus"
+
+[scrolling.follow_min_visible]
+description = "Minimum fraction of the focused window that must remain visible. [0.0 - 1.0]"
+type = "float"
+default = "0.1"
+lua = "scrolling.follow_min_visible"
+conf = "scrolling:follow_min_visible"
+nothingless_key = "scrollingFollowMinVisible"
+
+[scrolling.fullscreen_on_one_column]
+description = "Whether fullscreen takes just one column or the whole monitor"
+type = "bool"
+default = "true"
+lua = "scrolling.fullscreen_on_one_column"
+conf = "scrolling:fullscreen_on_one_column"
+nothingless_key = "scrollingFullscreenOnOneColumn"
+
+[binds.pass_mouse_when_bound]
+description = "If disabled, will not pass mouse events to apps if a keybind has been triggered"
+type = "bool"
+default = "false"
+lua = "binds.pass_mouse_when_bound"
+conf = "binds:pass_mouse_when_bound"
+
+[binds.scroll_event_delay]
+description = "In ms, how many ms to wait after a scroll event to allow passing another one for binds"
+type = "int"
+default = "300"
+lua = "binds.scroll_event_delay"
+conf = "binds:scroll_event_delay"
+
+[binds.workspace_back_and_forth]
+description = "If enabled, attempt to switch to currently focused workspace will switch to previous workspace"
+type = "bool"
+default = "false"
+lua = "binds.workspace_back_and_forth"
+conf = "binds:workspace_back_and_forth"
+
+[binds.hide_special_on_workspace_change]
+description = "If enabled, changing active workspace will hide special workspace on that monitor"
+type = "bool"
+default = "false"
+lua = "binds.hide_special_on_workspace_change"
+conf = "binds:hide_special_on_workspace_change"
+
+[binds.allow_workspace_cycles]
+description = "If enabled, workspaces don't forget their previous workspace"
+type = "bool"
+default = "false"
+lua = "binds.allow_workspace_cycles"
+conf = "binds:allow_workspace_cycles"
+
+[binds.workspace_center_on]
+description = "Whether switching workspaces should center cursor on workspace (0) or last active window (1)"
+type = "int"
+default = "0"
+lua = "binds.workspace_center_on"
+
+[binds.focus_preferred_method]
+description = "Preferred focus finding method. 0=history, 1=length"
+type = "int"
+default = "0"
+lua = "binds.focus_preferred_method"
+
+[binds.ignore_group_lock]
+description = "If enabled, move into_group/out_of_group dispatchers will ignore lock per group"
+type = "bool"
+default = "false"
+lua = "binds.ignore_group_lock"
+
+[binds.movefocus_cycles_fullscreen]
+description = "If enabled, focus direction on fullscreen will cycle fullscreen instead of moving in direction"
+type = "bool"
+default = "false"
+lua = "binds.movefocus_cycles_fullscreen"
+
+[binds.movefocus_cycles_groupfirst]
+description = "If enabled, focus direction in grouped window cycles within group first"
+type = "bool"
+default = "false"
+lua = "binds.movefocus_cycles_groupfirst"
+
+[binds.window_direction_monitor_fallback]
+description = "If enabled, moving window/focus over monitor edge moves to next monitor in that direction"
+type = "bool"
+default = "true"
+lua = "binds.window_direction_monitor_fallback"
+conf = "binds:window_direction_monitor_fallback"
+
+[binds.disable_keybind_grabbing]
+description = "If enabled, apps that request keybinds to be disabled (e.g. VMs) will not be able to do so"
+type = "bool"
+default = "false"
+lua = "binds.disable_keybind_grabbing"
+conf = "binds:disable_keybind_grabbing"
+
+[binds.allow_pin_fullscreen]
+description = "If enabled, allow fullscreen to pinned windows and restore pinned status afterwards"
+type = "bool"
+default = "false"
+lua = "binds.allow_pin_fullscreen"
+
+[binds.drag_threshold]
+description = "Movement threshold in pixels for window dragging and c/g bind flags. 0 to disable."
+type = "int"
+default = "0"
+lua = "binds.drag_threshold"
+
+[xwayland.enabled]
+description = "Allow running applications using X11"
+type = "bool"
+default = "true"
+lua = "xwayland.enabled"
+conf = "xwayland:enabled"
+nothingless_key = "xwaylandEnabled"
+
+[xwayland.use_nearest_neighbor]
+description = "Uses nearest neighbor filtering for xwayland apps, making them pixelated rather than blurry"
+type = "bool"
+default = "true"
+lua = "xwayland.use_nearest_neighbor"
+conf = "xwayland:use_nearest_neighbor"
+nothingless_key = "xwaylandUseNearestNeighbor"
+
+[xwayland.force_zero_scaling]
+description = "Forces a scale of 1 on xwayland windows on scaled displays"
+type = "bool"
+default = "false"
+lua = "xwayland.force_zero_scaling"
+conf = "xwayland:force_zero_scaling"
+nothingless_key = "xwaylandForceZeroScaling"
+
+[xwayland.create_abstract_socket]
+description = "Create abstract Unix domain socket for XWayland connections (Linux only, requires restart)"
+type = "bool"
+default = "false"
+lua = "xwayland.create_abstract_socket"
+conf = "xwayland:create_abstract_socket"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  COLOR DEFAULTS — symbolic color name → hex fallback
+#  Used when compositor.json values are symbolic names (e.g. "shadow")
+#  instead of hex codes. The shell resolves these at runtime, but config
+#  files need valid hex fallbacks.
+# ═══════════════════════════════════════════════════════════════════════════
+
+[color_defaults.shadow]
+hex = "0xee1a1a1a"
+description = "Default shadow color (used when shadowColor = \"shadow\")"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  DISPATCHERS — Lua API mappings for hyprland.lua generation
+#  ═══════════════════════════════════════════════════════════════════════════
+#  Each entry maps a Hyprland dispatcher name to its hl.dsp.* Lua expression.
+#  {arg} is replaced with the resolved argument at generation time.
+#  arg = true means the dispatcher takes an argument.
+#  ═══════════════════════════════════════════════════════════════════════════
+
+[dispatchers.exec]
+lua = 'hl.dsp.exec_cmd("{arg}")'
+arg = true
+
+[dispatchers.execr]
+lua = 'hl.dsp.exec_raw("{arg}")'
+arg = true
+
+[dispatchers.killactive]
+lua = 'hl.dsp.window.close()'
+
+[dispatchers.closewindow]
+lua = 'hl.dsp.window.close()'
+
+[dispatchers.killwindow]
+lua = 'hl.dsp.window.kill()'
+
+[dispatchers.togglefloating]
+lua = 'hl.dsp.window.float()'
+
+[dispatchers.setfloating]
+lua = 'hl.dsp.window.float()'
+
+[dispatchers.settiled]
+lua = 'hl.dsp.window.float()'
+
+[dispatchers.fullscreen]
+lua = 'hl.dsp.window.fullscreen()'
+
+[dispatchers.fullscreenstate]
+lua = 'hl.dsp.window.fullscreen_state({ internal = {arg}, client = {arg} })'
+arg = true
+
+[dispatchers.pseudo]
+lua = 'hl.dsp.window.pseudo()'
+
+[dispatchers.togglegroup]
+lua = 'hl.dsp.group.toggle()'
+
+[dispatchers.changegroupactive]
+lua = 'hl.dsp.group.next()'
+
+[dispatchers.movegroupwindow]
+lua = 'hl.dsp.group.move_window()'
+
+[dispatchers.lockgroups]
+lua = 'hl.dsp.group.lock()'
+
+[dispatchers.lockactivegroup]
+lua = 'hl.dsp.group.lock_active()'
+
+[dispatchers.movefocus]
+lua = 'hl.dsp.focus({ direction = "{arg}" })'
+arg = true
+
+[dispatchers.movewindow]
+lua = 'hl.dsp.window.move({ direction = "{arg}" })'
+arg = true
+
+[dispatchers.workspace]
+lua = 'hl.dsp.focus({ workspace = "{arg}" })'
+arg = true
+
+[dispatchers.movetoworkspace]
+lua = 'hl.dsp.window.move({ workspace = "{arg}" })'
+arg = true
+
+[dispatchers.movetoworkspacesilent]
+lua = 'hl.dsp.window.move({ workspace = "{arg}", follow = false })'
+arg = true
+
+[dispatchers.togglespecialworkspace]
+lua = 'hl.dsp.workspace.toggle_special("{arg}")'
+arg = true
+
+[dispatchers.focusmonitor]
+lua = 'hl.dsp.focus({ monitor = "{arg}" })'
+arg = true
+
+[dispatchers.centerwindow]
+lua = 'hl.dsp.window.center()'
+
+[dispatchers.bringactivetotop]
+lua = 'hl.dsp.window.bring_to_top()'
+
+[dispatchers.pin]
+lua = 'hl.dsp.window.pin()'
+
+[dispatchers.toggleswallow]
+lua = 'hl.dsp.window.toggle_swallow()'
+
+[dispatchers.layoutmsg]
+lua = 'hl.dsp.layout("{arg}")'
+arg = true
+
+[dispatchers.dpms]
+lua = 'hl.dsp.dpms()'
+
+[dispatchers.event]
+lua = 'hl.dsp.event("{arg}")'
+arg = true
+
+[dispatchers.global]
+lua = 'hl.dsp.global("{arg}")'
+arg = true
+
+[dispatchers.exit]
+lua = 'hl.dsp.exit()'
+
+[dispatchers.submap]
+lua = 'hl.dsp.submap("{arg}")'
+arg = true
+
+[dispatchers.renameworkspace]
+lua = 'hl.dsp.workspace.rename({{ workspace = "{arg}" }})'
+arg = true
+
+[dispatchers.moveworkspacetomonitor]
+lua = 'hl.dsp.workspace.move({{ workspace = "{arg}" }})'
+arg = true
+
+[dispatchers.movecurrentworkspacetomonitor]
+lua = 'hl.dsp.workspace.move({{ monitor = "{arg}" }})'
+arg = true
+
+[dispatchers.swapactiveworkspaces]
+lua = 'hl.dsp.workspace.swap_monitors({{ monitor1 = "{arg}", monitor2 = "{arg}" }})'
+arg = true
+
+[dispatchers.force_renderer_reload]
+lua = 'hl.dsp.force_renderer_reload()'
+
+[dispatchers.resizeactive]
+lua = 'hl.dsp.exec_cmd("hyprctl dispatch resizeactive {arg}")'
+arg = true
+
+[dispatchers.movewindow_mouse]
+lua = 'hl.dsp.window.drag()'
+
+[dispatchers.movewindow_resize]
+lua = 'hl.dsp.window.resize()'
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  BINDS FLAGS — Lua option mapping for hl.bind flags
+#  ═══════════════════════════════════════════════════════════════════════════
+
+[binds_flags.l]
+lua_option = "locked = true"
+
+[binds_flags.r]
+lua_option = "release = true"
+
+[binds_flags.e]
+lua_option = "[\"repeat\"] = true"
+
+[binds_flags.m]
+lua_option = "mouse = true"
+
+
+[opengl.nvidia_anti_flicker]
+description = "Reduces flickering on nvidia at cost of possible frame drops"
+type = "bool"
+default = "true"
+lua = "opengl.nvidia_anti_flicker"
+conf = "opengl:nvidia_anti_flicker"
+
+[render.direct_scanout]
+description = "Enables direct scanout. 0=off, 1=on, 2=auto (on with content type 'game')"
+type = "int"
+default = "0"
+lua = "render.direct_scanout"
+
+[render.expand_undersized_textures]
+description = "Whether to expand undersized textures along the edge rather than stretch"
+type = "bool"
+default = "true"
+lua = "render.expand_undersized_textures"
+
+[render.xp_mode]
+description = "Disables back buffer and bottom layer rendering"
+type = "bool"
+default = "false"
+lua = "render.xp_mode"
+
+[render.ctm_animation]
+description = "Whether to enable fade animation for CTM changes (hyprsunset). 2=auto (disabled on Nvidia)"
+type = "int"
+default = "2"
+lua = "render.ctm_animation"
+
+[render.cm_enabled]
+description = "Whether the color management pipeline should be enabled (requires restart)"
+type = "bool"
+default = "true"
+lua = "render.cm_enabled"
+
+[render.send_content_type]
+description = "Report content type to allow monitor profile autoswitch"
+type = "bool"
+default = "true"
+lua = "render.send_content_type"
+
+[render.cm_auto_hdr]
+description = "Auto-switch to HDR in fullscreen. 0=off, 1=switch to cm/hdr, 2=switch to cm/hdredid"
+type = "int"
+default = "1"
+lua = "render.cm_auto_hdr"
+
+[render.new_render_scheduling]
+description = "Automatically uses triple buffering when needed, improves FPS on underpowered devices"
+type = "bool"
+default = "false"
+lua = "render.new_render_scheduling"
+
+[render.non_shader_cm]
+description = "Enable CM without shader. 0=disable, 1=whenever possible, 2=DS and passthrough only, 3=disable and ignore CM issues"
+type = "int"
+default = "2"
+lua = "render.non_shader_cm"
+
+[render.non_shader_cm_interop]
+description = "External CTM behavior in fullscreen. 0=disabled, 1=enabled, 2=disabled for photo/video/game content"
+type = "int"
+default = "2"
+lua = "render.non_shader_cm_interop"
+
+[render.cm_sdr_eotf]
+description = "Default transfer function for displaying SDR apps. Options: default, gamma22, gamma22force, srgb"
+type = "str"
+default = '"default"'
+lua = "render.cm_sdr_eotf"
+
+[render.commit_timing_enabled]
+description = "Enable commit timing proto. Requires restart."
+type = "bool"
+default = "true"
+lua = "render.commit_timing_enabled"
+
+[render.use_fp16]
+description = "Use FP16 buffers internally. 0=disabled, 1=enabled, 2=enabled in hdr mode"
+type = "int"
+default = "2"
+lua = "render.use_fp16"
+
+[render.keep_unmodified_copy]
+description = "Keep unmodified SDR frame copy for screensharing. 0=disabled, 1=on, 2=auto (enabled in HDR with SDR modifiers)"
+type = "int"
+default = "2"
+lua = "render.keep_unmodified_copy"
+
+[render.use_shader_blur_blend]
+description = "Use experimental blurred bg blending (glitched on rotated screens). Set true if blur is missing with fp16."
+type = "bool"
+default = "false"
+lua = "render.use_shader_blur_blend"
+
+[cursor.invisible]
+description = "Don't render cursors"
+type = "bool"
+default = "false"
+lua = "cursor.invisible"
+
+[cursor.sync_gsettings_theme]
+description = "Sync xcursor theme with gsettings on theme load"
+type = "bool"
+default = "true"
+lua = "cursor.sync_gsettings_theme"
+
+[cursor.no_hardware_cursors]
+description = "Disables hardware cursors. 0=use if possible, 1=don't use, 2=auto (disable when tearing)"
+type = "int"
+default = "2"
+lua = "cursor.no_hardware_cursors"
+conf = "cursor:no_hardware_cursors"
+
+[cursor.no_break_fs_vrr]
+description = "Disables scheduling new frames on cursor movement for fullscreen VRR apps. 0=off, 1=on, 2=auto (game content)"
+type = "int"
+default = "2"
+lua = "cursor.no_break_fs_vrr"
+
+[cursor.min_refresh_rate]
+description = "Minimum refresh rate for cursor movement when no_break_fs_vrr is active"
+type = "int"
+default = "24"
+lua = "cursor.min_refresh_rate"
+
+[cursor.hotspot_padding]
+description = "The padding, in logical px, between screen edges and the cursor"
+type = "int"
+default = "1"
+lua = "cursor.hotspot_padding"
+
+[cursor.inactive_timeout]
+description = "In seconds, after how many seconds of cursor inactivity to hide it. Set 0 for never."
+type = "float"
+default = "0"
+lua = "cursor.inactive_timeout"
+conf = "cursor:inactive_timeout"
+nothingless_key = "cursorInactiveTimeout"
+
+[cursor.no_warps]
+description = "If true, will not warp the cursor in many cases (focusing, keybinds, etc)"
+type = "bool"
+default = "false"
+lua = "cursor.no_warps"
+conf = "cursor:no_warps"
+
+[cursor.persistent_warps]
+description = "When a window is refocused, cursor returns to its last position relative to that window"
+type = "bool"
+default = "false"
+lua = "cursor.persistent_warps"
+conf = "cursor:persistent_warps"
+
+[cursor.warp_on_change_workspace]
+description = "Move cursor to last focused window after changing workspace. 0=disabled, 1=enabled, 2=force"
+type = "int"
+default = "0"
+lua = "cursor.warp_on_change_workspace"
+conf = "cursor:warp_on_change_workspace"
+
+[cursor.warp_on_toggle_special]
+description = "Move cursor to last focused window when toggling special workspace. 0=disabled, 1=enabled, 2=force"
+type = "int"
+default = "0"
+lua = "cursor.warp_on_toggle_special"
+
+[cursor.default_monitor]
+description = "The name of a default monitor for the cursor to be set to on startup"
+type = "str"
+default = '""'
+lua = "cursor.default_monitor"
+
+[cursor.zoom_factor]
+description = "The factor to zoom by around the cursor. Minimum 1.0 (no zoom)"
+type = "float"
+default = "1.0"
+lua = "cursor.zoom_factor"
+conf = "cursor:zoom_factor"
+nothingless_key = "cursorZoomFactor"
+
+[cursor.zoom_rigid]
+description = "Whether the zoom should follow the cursor rigidly (always centered) or loosely"
+type = "bool"
+default = "false"
+lua = "cursor.zoom_rigid"
+
+[cursor.zoom_detached_camera]
+description = "Detach camera from mouse when zoomed, only moving camera to keep mouse in view at screen edges"
+type = "bool"
+default = "true"
+lua = "cursor.zoom_detached_camera"
+
+[cursor.enable_hyprcursor]
+description = "Whether to enable hyprcursor support"
+type = "bool"
+default = "true"
+lua = "cursor.enable_hyprcursor"
+conf = "cursor:enable_hyprcursor"
+nothingless_key = "enableHyprcursor"
+
+[cursor.hide_on_key_press]
+description = "Hides the cursor when you press any key until the mouse is moved"
+type = "bool"
+default = "false"
+lua = "cursor.hide_on_key_press"
+conf = "cursor:hide_on_key_press"
+nothingless_key = "cursorHideOnKeyPress"
+
+[cursor.hide_on_touch]
+description = "Hides the cursor when the last input was a touch input until mouse input is done"
+type = "bool"
+default = "true"
+lua = "cursor.hide_on_touch"
+conf = "cursor:hide_on_touch"
+nothingless_key = "cursorHideOnTouch"
+
+[cursor.hide_on_tablet]
+description = "Hides the cursor when the last input was a tablet input until mouse input is done"
+type = "bool"
+default = "true"
+lua = "cursor.hide_on_tablet"
+conf = "cursor:hide_on_tablet"
+nothingless_key = "cursorHideOnTablet"
+
+[cursor.use_cpu_buffer]
+description = "Makes HW cursors use a CPU buffer. Required on Nvidia for HW cursors. 0=off, 1=on, 2=auto (nvidia only)"
+type = "int"
+default = "2"
+lua = "cursor.use_cpu_buffer"
+
+[cursor.warp_back_after_non_mouse_input]
+description = "Warp cursor back to where it was after using non-mouse input to move it"
+type = "bool"
+default = "false"
+lua = "cursor.warp_back_after_non_mouse_input"
+
+[cursor.zoom_disable_aa]
+description = "Disable antialiasing when zooming (pixelated instead of blurry)"
+type = "bool"
+default = "false"
+lua = "cursor.zoom_disable_aa"
+
+[ecosystem.no_update_news]
+description = "Disable the popup that shows up when you update hyprland to a new version"
+type = "bool"
+default = "false"
+lua = "ecosystem.no_update_news"
+
+[ecosystem.no_donation_nag]
+description = "Disable the popup that shows up twice a year encouraging to donate"
+type = "bool"
+default = "false"
+lua = "ecosystem.no_donation_nag"
+
+[ecosystem.enforce_permissions]
+description = "Whether to enable permission control"
+type = "bool"
+default = "false"
+lua = "ecosystem.enforce_permissions"
+
+[quirks.prefer_hdr]
+description = "Report HDR mode as preferred. 0=off, 1=always, 2=gamescope only"
+type = "int"
+default = "0"
+lua = "quirks.prefer_hdr"
+
+[debug.overlay]
+description = "Print the debug performance overlay. Disable VFR for accurate results."
+type = "bool"
+default = "false"
+lua = "debug.overlay"
+conf = "debug:overlay"
+
+[debug.damage_blink]
+description = "(Epilepsy warning!) Flash areas updated with damage tracking"
+type = "bool"
+default = "false"
+lua = "debug.damage_blink"
+conf = "debug:damage_blink"
+
+[debug.vfr]
+description = "Controls the VFR status of Hyprland. Heavily recommended to leave enabled."
+type = "bool"
+default = "true"
+lua = "debug.vfr"
+conf = "debug:vfr"
+
+[debug.disable_logs]
+description = "Disable logging to a file"
+type = "bool"
+default = "true"
+lua = "debug.disable_logs"
+conf = "debug:disable_logs"
+
+[debug.disable_time]
+description = "Disables time logging"
+type = "bool"
+default = "true"
+lua = "debug.disable_time"
+conf = "debug:disable_time"
+
+[debug.damage_tracking]
+description = "Redraw only needed bits. 2=full, 1=monitor, 0=none. Do not change."
+type = "int"
+default = "2"
+lua = "debug.damage_tracking"
+conf = "debug:damage_tracking"
+
+[debug.enable_stdout_logs]
+description = "Enables logging to stdout"
+type = "bool"
+default = "false"
+lua = "debug.enable_stdout_logs"
+conf = "debug:enable_stdout_logs"
+
+[debug.manual_crash]
+description = "Set to 1 and then back to 0 to crash Hyprland"
+type = "int"
+default = "0"
+lua = "debug.manual_crash"
+conf = "debug:manual_crash"
+
+[debug.suppress_errors]
+description = "If true, do not display config file parsing errors"
+type = "bool"
+default = "false"
+lua = "debug.suppress_errors"
+conf = "debug:suppress_errors"
+
+[debug.watchdog_timeout]
+description = "Sets timeout in seconds for watchdog. Set to 0 to disable."
+type = "int"
+default = "5"
+lua = "debug.watchdog_timeout"
+conf = "debug:watchdog_timeout"
+
+[debug.disable_scale_checks]
+description = "Disables verification of scale factors. Will result in pixel alignment and rounding errors."
+type = "bool"
+default = "false"
+lua = "debug.disable_scale_checks"
+conf = "debug:disable_scale_checks"
+
+[debug.error_limit]
+description = "Limits the number of displayed config file parsing errors"
+type = "int"
+default = "5"
+lua = "debug.error_limit"
+
+[debug.error_position]
+description = "Sets the position of the error bar. 0=top, 1=bottom"
+type = "int"
+default = "0"
+lua = "debug.error_position"
+
+[debug.colored_stdout_logs]
+description = "Enables colors in the stdout logs"
+type = "bool"
+default = "true"
+lua = "debug.colored_stdout_logs"
+
+[debug.pass]
+description = "Enables render pass debugging"
+type = "bool"
+default = "false"
+lua = "debug.pass"
+conf = "debug:pass"
+
+[debug.full_cm_proto]
+description = "Claims support for all cm proto features (requires restart)"
+type = "bool"
+default = "false"
+lua = "debug.full_cm_proto"
+
+[debug.invalidate_fp16]
+description = "Allow fp16 buffer invalidation. 0=not allowed, 1=allowed, 2=not allowed on nvidia"
+type = "int"
+default = "2"
+lua = "debug.invalidate_fp16"
+
+[debug.gl_debugging]
+description = "Enables OpenGL debugging with glGetError and EGL_KHR_debug (requires restart)"
+type = "bool"
+default = "false"
+lua = "debug.gl_debugging"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  ACTIONS — Keybind action definitions (maps binds.json "id" → dispatcher)
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Each entry:
+#    id         — Action identifier from binds.json / KeybindActions.js
+#    dispatcher — Hyprland dispatcher name (exec, killactive, movefocus, ...)
+#    argument   — Command or parameter (empty string if none)
+#    flags      — Bind flags: l=locked, r=release, e=repeat, m=mouse
+#    arg_type   — If argument is a template: direction, index, offset, delta, command, special
+#    prefix     — Optional prefix prepended to the resolved argument
+
+# ── NothingLess Core ──────────────────────────────────────────────────────────
+
+[actions.nothingless_launcher]
+id = "nothingless.launcher"
+dispatcher = "exec"
+argument = "nothingless run launcher"
+flags = "r"
+
+[actions.nothingless_dashboard]
+id = "nothingless.dashboard"
+dispatcher = "exec"
+argument = "nothingless run dashboard"
+flags = ""
+
+[actions.nothingless_assistant]
+id = "nothingless.assistant"
+dispatcher = "exec"
+argument = "nothingless run assistant"
+flags = ""
+
+[actions.nothingless_clipboard]
+id = "nothingless.clipboard"
+dispatcher = "exec"
+argument = "nothingless run clipboard"
+flags = ""
+
+[actions.nothingless_emoji]
+id = "nothingless.emoji"
+dispatcher = "exec"
+argument = "nothingless run emoji"
+flags = ""
+
+[actions.nothingless_notes]
+id = "nothingless.notes"
+dispatcher = "exec"
+argument = "nothingless run notes"
+flags = ""
+
+[actions.nothingless_tmux]
+id = "nothingless.tmux"
+dispatcher = "exec"
+argument = "nothingless run tmux"
+flags = ""
+
+[actions.nothingless_wallpapers]
+id = "nothingless.wallpapers"
+dispatcher = "exec"
+argument = "nothingless run wallpapers"
+flags = ""
+
+[actions.nothingless_config]
+id = "nothingless.config"
+dispatcher = "exec"
+argument = "nothingless run config"
+flags = ""
+
+[actions.nothingless_overview]
+id = "nothingless.overview"
+dispatcher = "exec"
+argument = "nothingless run overview"
+flags = ""
+
+[actions.nothingless_powermenu]
+id = "nothingless.powermenu"
+dispatcher = "exec"
+argument = "nothingless run powermenu"
+flags = ""
+
+[actions.nothingless_tools]
+id = "nothingless.tools"
+dispatcher = "exec"
+argument = "nothingless run tools"
+flags = ""
+
+[actions.nothingless_screenshot]
+id = "nothingless.screenshot"
+dispatcher = "exec"
+argument = "nothingless run screenshot"
+flags = ""
+
+[actions.nothingless_screenrecord]
+id = "nothingless.screenrecord"
+dispatcher = "exec"
+argument = "nothingless run screenrecord"
+flags = ""
+
+[actions.nothingless_lens]
+id = "nothingless.lens"
+dispatcher = "exec"
+argument = "nothingless run lens"
+flags = ""
+
+[actions.nothingless_reload]
+id = "nothingless.reload"
+dispatcher = "exec"
+argument = "nothingless reload"
+flags = ""
+
+[actions.nothingless_quit]
+id = "nothingless.quit"
+dispatcher = "exec"
+argument = "nothingless quit"
+flags = ""
+
+[actions.nothingless_toggle_metrics]
+id = "nothingless.toggle-metrics"
+dispatcher = "exec"
+argument = "nothingless run toggle-metrics"
+flags = ""
+
+[actions.nothingless_lock]
+id = "nothingless.lock"
+dispatcher = "exec"
+argument = "nothingless run lockscreen"
+flags = ""
+
+# ── Window ────────────────────────────────────────────────────────────────────
+
+[actions.window_close]
+id = "window.close"
+dispatcher = "killactive"
+argument = ""
+flags = ""
+
+[actions.window_focus]
+id = "window.focus"
+dispatcher = "movefocus"
+argument = ""
+flags = ""
+arg_type = "direction"
+
+[actions.window_move]
+id = "window.move"
+dispatcher = "movewindow"
+argument = ""
+flags = ""
+arg_type = "direction"
+
+[actions.window_drag]
+id = "window.drag"
+dispatcher = "movewindow_mouse"
+argument = ""
+flags = "m"
+
+[actions.window_resize_drag]
+id = "window.resize-drag"
+dispatcher = "movewindow_resize"
+argument = ""
+flags = "m"
+note = "SUPER + right-click to resize windows"
+
+[actions.window_resize]
+id = "window.resize"
+dispatcher = "resizeactive"
+argument = ""
+flags = ""
+arg_type = "delta"
+
+[actions.window_resize_expand]
+id = "window.resize-expand"
+dispatcher = "resizeactive"
+argument = "50 50"
+flags = ""
+
+[actions.window_resize_shrink]
+id = "window.resize-shrink"
+dispatcher = "resizeactive"
+argument = "-50 -50"
+flags = ""
+
+# ── Workspace ─────────────────────────────────────────────────────────────────
+
+[actions.workspace_switch]
+id = "workspace.switch"
+dispatcher = "workspace"
+argument = ""
+flags = ""
+arg_type = "index"
+
+[actions.workspace_switch_relative]
+id = "workspace.switch-relative"
+dispatcher = "workspace"
+argument = ""
+flags = ""
+arg_type = "offset"
+
+[actions.workspace_switch_occupied]
+id = "workspace.switch-occupied"
+dispatcher = "workspace"
+argument = ""
+flags = "e"
+arg_type = "offset"
+
+[actions.workspace_move_window]
+id = "workspace.move-window"
+dispatcher = "movetoworkspace"
+argument = ""
+flags = ""
+arg_type = "index"
+
+[actions.workspace_move_window_silent]
+id = "workspace.move-window-silent"
+dispatcher = "movetoworkspacesilent"
+argument = ""
+flags = ""
+arg_type = "index"
+
+[actions.workspace_toggle_special]
+id = "workspace.toggle-special"
+dispatcher = "togglespecialworkspace"
+argument = ""
+flags = ""
+
+[actions.workspace_move_window_special]
+id = "workspace.move-window-special"
+dispatcher = "movetoworkspace"
+argument = "special"
+flags = ""
+
+[actions.workspace_move_window_special_silent]
+id = "workspace.move-window-special-silent"
+dispatcher = "movetoworkspacesilent"
+argument = "special"
+flags = ""
+
+# ── Scrolling Layout ──────────────────────────────────────────────────────────
+
+[actions.scrolling_focus]
+id = "scrolling.focus"
+dispatcher = "movefocus"
+argument = ""
+flags = ""
+arg_type = "direction"
+
+[actions.scrolling_move_window]
+id = "scrolling.move-window"
+dispatcher = "movewindow"
+argument = ""
+flags = ""
+arg_type = "direction"
+
+[actions.scrolling_resize_column]
+id = "scrolling.resize-column"
+dispatcher = "layoutmsg"
+argument = ""
+flags = ""
+arg_type = "delta"
+prefix = "colresize "
+
+[actions.scrolling_promote]
+id = "scrolling.promote"
+dispatcher = "layoutmsg"
+argument = "promote"
+flags = ""
+
+[actions.scrolling_toggle_fit]
+id = "scrolling.toggle-fit"
+dispatcher = "layoutmsg"
+argument = "togglefit"
+flags = ""
+
+[actions.scrolling_toggle_full_column]
+id = "scrolling.toggle-full-column"
+dispatcher = "layoutmsg"
+argument = "colresize +conf"
+flags = ""
+
+[actions.scrolling_swap_column]
+id = "scrolling.swap-column"
+dispatcher = "layoutmsg"
+argument = ""
+flags = ""
+arg_type = "direction"
+prefix = "swapcol "
+
+[actions.scrolling_move_column_workspace]
+id = "scrolling.move-column-workspace"
+dispatcher = "layoutmsg"
+argument = ""
+flags = ""
+arg_type = "index"
+prefix = "movecoltoworkspace "
+
+# ── Free Layout ───────────────────────────────────────────────────────────────
+
+[actions.free_snap_left]
+id = "free.snap-left"
+dispatcher = "exec"
+argument = "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive -50% 0"
+flags = ""
+
+[actions.free_snap_right]
+id = "free.snap-right"
+dispatcher = "exec"
+argument = "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive 50% 0"
+flags = ""
+
+[actions.free_snap_top]
+id = "free.snap-top"
+dispatcher = "exec"
+argument = "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive 0 -50%"
+flags = ""
+
+[actions.free_snap_bottom]
+id = "free.snap-bottom"
+dispatcher = "exec"
+argument = "hyprctl dispatch centerwindow && hyprctl dispatch resizeactive 0 50%"
+flags = ""
+
+[actions.free_snap_center]
+id = "free.snap-center"
+dispatcher = "exec"
+argument = "hyprctl dispatch centerwindow"
+flags = ""
+
+[actions.free_snap_maximize]
+id = "free.snap-maximize"
+dispatcher = "fullscreen"
+argument = "1"
+flags = ""
+
+[actions.free_snap_restore]
+id = "free.snap-restore"
+dispatcher = "fullscreen"
+argument = "0"
+flags = ""
+
+[actions.free_snap_top_left]
+id = "free.snap-top-left"
+dispatcher = "exec"
+argument = "hyprctl dispatch movewindow pixel exact 0 0,active && hyprctl dispatch resizeactive 50% 50%"
+flags = ""
+
+[actions.free_snap_top_right]
+id = "free.snap-top-right"
+dispatcher = "exec"
+argument = "hyprctl dispatch movewindow pixel exact 50% 0,active && hyprctl dispatch resizeactive 50% 50%"
+flags = ""
+
+[actions.free_snap_bottom_left]
+id = "free.snap-bottom-left"
+dispatcher = "exec"
+argument = "hyprctl dispatch movewindow pixel exact 0 50%,active && hyprctl dispatch resizeactive 50% 50%"
+flags = ""
+
+[actions.free_snap_bottom_right]
+id = "free.snap-bottom-right"
+dispatcher = "exec"
+argument = "hyprctl dispatch movewindow pixel exact 50% 50%,active && hyprctl dispatch resizeactive 50% 50%"
+flags = ""
+
+[actions.free_toggle_tile]
+id = "free.toggle-tile"
+dispatcher = "togglefloating"
+argument = ""
+flags = ""
+
+[actions.free_show_desktop]
+id = "free.show-desktop"
+dispatcher = "exec"
+argument = "hyprctl dispatch workspaceopt allfloat"
+flags = ""
+
+[actions.free_workspace_left]
+id = "free.workspace-left"
+dispatcher = "exec"
+argument = "hyprctl dispatch movewindow m:-1"
+flags = ""
+
+[actions.free_workspace_right]
+id = "free.workspace-right"
+dispatcher = "exec"
+argument = "hyprctl dispatch movewindow m:+1"
+flags = ""
+
+# ── Media ─────────────────────────────────────────────────────────────────────
+
+[actions.media_play_pause]
+id = "media.play-pause"
+dispatcher = "exec"
+argument = "playerctl play-pause"
+flags = ""
+
+[actions.media_play_pause_locked]
+id = "media.play-pause-locked"
+dispatcher = "exec"
+argument = "playerctl play-pause"
+flags = "l"
+
+[actions.media_prev]
+id = "media.prev"
+dispatcher = "exec"
+argument = "playerctl previous"
+flags = ""
+
+[actions.media_next]
+id = "media.next"
+dispatcher = "exec"
+argument = "playerctl next"
+flags = ""
+
+[actions.media_stop_locked]
+id = "media.stop-locked"
+dispatcher = "exec"
+argument = "playerctl stop"
+flags = "l"
+
+# ── Audio ─────────────────────────────────────────────────────────────────────
+
+[actions.audio_volume_up]
+id = "audio.volume-up"
+dispatcher = "exec"
+argument = "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 10%+"
+flags = "le"
+
+[actions.audio_volume_down]
+id = "audio.volume-down"
+dispatcher = "exec"
+argument = "wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 10%-"
+flags = "le"
+
+[actions.audio_mute_toggle]
+id = "audio.mute-toggle"
+dispatcher = "exec"
+argument = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
+flags = "le"
+
+# ── Brightness ────────────────────────────────────────────────────────────────
+
+[actions.brightness_up]
+id = "brightness.up"
+dispatcher = "exec"
+argument = "nothingless brightness +5"
+flags = "le"
+
+[actions.brightness_down]
+id = "brightness.down"
+dispatcher = "exec"
+argument = "nothingless brightness -5"
+flags = "le"
+
+# ── System ────────────────────────────────────────────────────────────────────
+
+[actions.system_calculator]
+id = "system.calculator"
+dispatcher = "exec"
+argument = 'notify-send "Soon"'
+flags = ""
+
+[actions.system_lock]
+id = "system.lock"
+dispatcher = "exec"
+argument = "loginctl lock-session"
+flags = ""
+
+[actions.system_lock_locked]
+id = "system.lock-locked"
+dispatcher = "exec"
+argument = "loginctl lock-session"
+flags = "l"
+
+[actions.system_dpms_off]
+id = "system.dpms-off"
+dispatcher = "exec"
+argument = "axctl monitor set-dpms 0 0"
+flags = "l"
+
+[actions.system_dpms_on]
+id = "system.dpms-on"
+dispatcher = "exec"
+argument = "axctl monitor set-dpms 0 1"
+flags = "l"
+
+# ── Custom ────────────────────────────────────────────────────────────────────
+
+[actions.command_run]
+id = "command.run"
+dispatcher = "exec"
+argument = "command"
+flags = ""
+arg_type = "command"
+note = "Placeholder — argument is replaced at runtime with user's custom command"

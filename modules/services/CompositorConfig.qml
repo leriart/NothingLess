@@ -10,8 +10,13 @@ import qs.modules.globals
 QtObject {
     id: root
 
-    property Process compositorProcess: Process {}
+    property Process evalProcess: Process {
+        id: evalProcess
+        running: false
+        stdout: SplitParser {}
+    }
     property string _lastBatchCmd: ""
+    property bool _savingCompositor: false
 
     property var currentAnimationConfig: null
     property Process readAnimationsProcess: Process {
@@ -72,291 +77,112 @@ QtObject {
     }
 
     function applyCompositorConfig() {
+        if (_savingCompositor) return;
         readAnimationsProcess.running = true;
         applyTimer.restart();
     }
 
     function applyCompositorConfigInternal(writeFile = true) {
-        // Ensure adapters are loaded before applying config.
         if (!Config.loader.loaded) {
             console.log("CompositorConfig: Esperando que se cargue Config...");
             return;
         }
-
-        // Wait for layout to be ready.
         if (!GlobalStates.compositorLayoutReady) {
             console.log("CompositorConfig: Esperando que se detecte el layout de AxctlService...");
             return;
         }
 
-        // Determine active colors.
-        let activeColorFormatted = "";
-        // Force compositorBorderColor if syncBorderColor is enabled, otherwise use configured list (supports gradients).
+        // ── Resolve QML-specific theme colors ──
         const borderColors = Config.compositor.syncBorderColor ? null : Config.compositor.activeBorderColor;
 
+        let activeColorHex = "";
         if (borderColors && borderColors.length > 1) {
-            // Multi-color gradient.
-            const formattedColors = borderColors.map(colorName => {
-                const color = getColorValue(colorName);
-                return formatColorForCompositor(color);
-            }).join(" ");
-            activeColorFormatted = `${formattedColors} ${Config.compositor.borderAngle}deg`;
+            // Gradient: multiple colors, handled by sync-hyprland.py via config file
+            activeColorHex = "0xff" + formatColorForCompositor(getColorValue(borderColors[0])).replace("rgb(", "").replace(")", "");
         } else {
-            // Single color: if sync enabled or empty, use compositorBorderColor; otherwise use first element.
-            const singleColorName = (borderColors && borderColors.length === 1) ? borderColors[0] : Config.compositorBorderColor;
-            const activeColor = getColorValue(singleColorName);
-            activeColorFormatted = formatColorForCompositor(activeColor);
+            const name = (borderColors && borderColors.length === 1) ? borderColors[0] : Config.compositorBorderColor;
+            const c = getColorValue(name);
+            activeColorHex = "0x" + (Math.round(c.a * 255).toString(16).padStart(2, '0')) +
+                Math.round(c.r * 255).toString(16).padStart(2, '0') +
+                Math.round(c.g * 255).toString(16).padStart(2, '0') +
+                Math.round(c.b * 255).toString(16).padStart(2, '0');
         }
 
-        // Determine inactive colors.
-        let inactiveColorFormatted = "";
+        let inactiveColorHex = "";
         const inactiveBorderColors = Config.compositor.inactiveBorderColor;
-
         if (inactiveBorderColors && inactiveBorderColors.length > 1) {
-            // Multi-color gradient.
-            const formattedColors = inactiveBorderColors.map(colorName => {
-                const color = getColorValue(colorName);
-                const colorWithFullOpacity = Qt.rgba(color.r, color.g, color.b, 1.0);
-                return formatColorForCompositor(colorWithFullOpacity);
-            }).join(" ");
-            inactiveColorFormatted = `${formattedColors} ${Config.compositor.inactiveBorderAngle}deg`;
+            inactiveColorHex = "0xff" + formatColorForCompositor(getColorValue(inactiveBorderColors[0])).replace("rgb(", "").replace(")", "");
         } else {
-            // Single color.
-            const singleColorName = (inactiveBorderColors && inactiveBorderColors.length === 1) ? inactiveBorderColors[0] : "surface";
-            const inactiveColor = getColorValue(singleColorName);
-            const inactiveColorWithFullOpacity = Qt.rgba(inactiveColor.r, inactiveColor.g, inactiveColor.b, 1.0);
-            inactiveColorFormatted = formatColorForCompositor(inactiveColorWithFullOpacity);
+            const name = (inactiveBorderColors && inactiveBorderColors.length === 1) ? inactiveBorderColors[0] : "surface";
+            const c = getColorValue(name);
+            inactiveColorHex = "0x" + (Math.round(c.a * 255).toString(16).padStart(2, '0')) +
+                Math.round(c.r * 255).toString(16).padStart(2, '0') +
+                Math.round(c.g * 255).toString(16).padStart(2, '0') +
+                Math.round(c.b * 255).toString(16).padStart(2, '0');
         }
 
-        // Shadow colors.
-        const shadowColor = getColorValue(Config.compositorShadowColor);
-        const shadowColorInactive = getColorValue(Config.compositor.shadowColorInactive);
-        const shadowColorWithOpacity = Qt.rgba(shadowColor.r, shadowColor.g, shadowColor.b, shadowColor.a * Config.compositorShadowOpacity);
-        const shadowColorInactiveWithOpacity = Qt.rgba(shadowColorInactive.r, shadowColorInactive.g, shadowColorInactive.b, shadowColorInactive.a * Config.compositorShadowOpacity);
-        const shadowColorFormatted = formatColorForCompositor(shadowColorWithOpacity);
-        const shadowColorInactiveFormatted = formatColorForCompositor(shadowColorInactiveWithOpacity);
-
-        const barOrientation = getBarOrientation();
-        let speed = 2.5;
-        let bezier = "default";
-        
-        if (currentAnimationConfig && currentAnimationConfig[0]) {
-            const workspaceAnim = currentAnimationConfig[0].find(anim => anim.name === "workspaces");
-            if (workspaceAnim) {
-                speed = workspaceAnim.speed || speed;
-                bezier = workspaceAnim.bezier || bezier;
-            }
-        }
-
-        const workspacesAnimation = barOrientation === "vertical" ? `slidefadevert 20%` : `slidefade 20%`;
-        const workspaceCommand = `keyword animation workspaces,1,${speed},${bezier},${workspacesAnimation}`;
-
-        // Calculate ignorealpha.
+        // Dynamic ignorealpha (calced from bar/bg opacity)
         let ignoreAlphaValue = 0.0;
-
         if (Config.compositor.blurExplicitIgnoreAlpha) {
             ignoreAlphaValue = Config.compositor.blurIgnoreAlphaValue.toFixed(2);
         } else {
-            // Dynamic ignorealpha based on StyledRect opacity.
-            // Use min(barbg, bg) opacity if barbg > 0, else use bg.
             const barBgOpacity = (Config.theme.srBarBg && Config.theme.srBarBg.opacity !== undefined) ? Config.theme.srBarBg.opacity : 0;
             const bgOpacity = (Config.theme.srBg && Config.theme.srBg.opacity !== undefined) ? Config.theme.srBg.opacity : 1.0;
             ignoreAlphaValue = (barBgOpacity > 0 ? Math.min(barBgOpacity, bgOpacity) : bgOpacity).toFixed(2);
-            console.log(`CompositorConfig: Auto ignorealpha calculated: ${ignoreAlphaValue} (bg: ${bgOpacity}, bar: ${barBgOpacity})`);
         }
-
-        let batchCommand = "";
-        batchCommand += `keyword general:border_size ${Config.compositorBorderSize}`;
-        batchCommand += ` ; keyword general:gaps_in ${Config.compositor.gapsIn}`;
-        batchCommand += ` ; keyword general:gaps_out ${Config.compositor.gapsOut}`;
-        batchCommand += ` ; keyword general:col.active_border ${activeColorFormatted}`;
-        batchCommand += ` ; keyword general:col.inactive_border ${inactiveColorFormatted}`;
-        if (GlobalStates.compositorLayout) {
-            if (GlobalStates.compositorLayout === "free") {
-                // Free layout: NOT a real hyprland layout
-                // Apply windowrule for new windows
-                batchCommand += ` ; keyword windowrule match:class .*, float on`;
-                // Float all existing windows via external command
-                floatAllProcess.running = true;
-            } else {
-                // Leaving Free layout: re-tile all floating windows
-                tileAllProcess.running = true;
-                // Regular tiling layouts
-                batchCommand += ` ; keyword general:layout ${GlobalStates.compositorLayout}`;
-            }
-        }
-        batchCommand += ` ; keyword decoration:rounding ${Config.compositorRounding}`;
-        batchCommand += ` ; keyword decoration:shadow:enabled ${Config.compositor.shadowEnabled}`;
-        batchCommand += ` ; keyword decoration:shadow:range ${Config.compositor.shadowRange}`;
-        batchCommand += ` ; keyword decoration:shadow:render_power ${Config.compositor.shadowRenderPower}`;
-        batchCommand += ` ; keyword decoration:shadow:color ${shadowColorFormatted}`;
-        batchCommand += ` ; keyword decoration:shadow:color_inactive ${shadowColorInactiveFormatted}`;
-        batchCommand += ` ; keyword decoration:shadow:offset ${Config.compositor.shadowOffset}`;
-        batchCommand += ` ; keyword decoration:shadow:scale ${Config.compositor.shadowScale}`;
-        batchCommand += ` ; keyword decoration:blur:enabled ${Config.compositor.blurEnabled}`;
-        batchCommand += ` ; keyword decoration:blur:size ${Config.compositor.blurSize}`;
-        batchCommand += ` ; keyword decoration:blur:passes ${Config.compositor.blurPasses}`;
-        batchCommand += ` ; keyword decoration:blur:ignore_opacity ${Config.compositor.blurIgnoreOpacity}`;
-        batchCommand += ` ; keyword decoration:blur:new_optimizations ${Config.compositor.blurNewOptimizations}`;
-        batchCommand += ` ; keyword decoration:blur:xray ${Config.compositor.blurXray}`;
-        batchCommand += ` ; keyword decoration:blur:noise ${Config.compositor.blurNoise}`;
-        batchCommand += ` ; keyword decoration:blur:contrast ${Config.compositor.blurContrast}`;
-        batchCommand += ` ; keyword decoration:blur:brightness ${Config.compositor.blurBrightness}`;
-        batchCommand += ` ; keyword decoration:blur:vibrancy ${Config.compositor.blurVibrancy}`;
-        batchCommand += ` ; keyword decoration:blur:vibrancy_darkness ${Config.compositor.blurVibrancyDarkness}`;
-        batchCommand += ` ; keyword decoration:blur:special ${Config.compositor.blurSpecial}`;
-        batchCommand += ` ; keyword decoration:blur:popups ${Config.compositor.blurPopups}`;
-        batchCommand += ` ; keyword decoration:blur:popups_ignorealpha ${Config.compositor.blurPopupsIgnorealpha}`;
-        batchCommand += ` ; keyword decoration:blur:input_methods ${Config.compositor.blurInputMethods}`;
-        batchCommand += ` ; keyword decoration:blur:input_methods_ignorealpha ${Config.compositor.blurInputMethodsIgnorealpha}`;
-
-        // Opacity
-        batchCommand += ` ; keyword decoration:active_opacity ${Config.compositor.activeOpacity.toFixed(2)}`;
-        batchCommand += ` ; keyword decoration:inactive_opacity ${Config.compositor.inactiveOpacity.toFixed(2)}`;
-        batchCommand += ` ; keyword decoration:fullscreen_opacity ${Config.compositor.fullscreenOpacity.toFixed(2)}`;
-
-        // Dim
-        batchCommand += ` ; keyword decoration:dim_inactive ${Config.compositor.dimInactive}`;
-        batchCommand += ` ; keyword decoration:dim_strength ${Config.compositor.dimStrength.toFixed(2)}`;
-        batchCommand += ` ; keyword decoration:dim_around ${Config.compositor.dimAround.toFixed(2)}`;
-        batchCommand += ` ; keyword decoration:dim_special ${Config.compositor.dimSpecial.toFixed(2)}`;
-
-        // Rounding power
-        batchCommand += ` ; keyword decoration:rounding_power ${Config.compositor.roundingPower.toFixed(1)}`;
-
-        // General extras
-        batchCommand += ` ; keyword general:allow_tearing ${Config.compositor.allowTearing}`;
-        batchCommand += ` ; keyword general:resize_on_border ${Config.compositor.resizeOnBorder}`;
-        batchCommand += ` ; keyword general:extend_border_grab_area ${Config.compositor.extendBorderGrabArea}`;
-        batchCommand += ` ; keyword general:hover_icon_on_border ${Config.compositor.hoverIconOnBorder}`;
-
-        // Snap
-        batchCommand += ` ; keyword general:snap:enabled ${Config.compositor.snapEnabled}`;
-        batchCommand += ` ; keyword general:snap:window_gap ${Config.compositor.snapWindowGap}`;
-        batchCommand += ` ; keyword general:snap:monitor_gap ${Config.compositor.snapMonitorGap}`;
-        batchCommand += ` ; keyword general:snap:border_overlap ${Config.compositor.snapBorderOverlap}`;
-        batchCommand += ` ; keyword general:snap:respect_gaps ${Config.compositor.snapRespectGaps}`;
 
         // Animations
-        batchCommand += ` ; keyword animations:enabled ${Config.compositor.animationsEnabled}`;
-
-        // Input: Keyboard
-        batchCommand += ` ; keyword input:kb_layout ${Config.compositor.kbLayout}`;
-        if (Config.compositor.kbVariant) batchCommand += ` ; keyword input:kb_variant ${Config.compositor.kbVariant}`;
-        if (Config.compositor.kbOptions) batchCommand += ` ; keyword input:kb_options ${Config.compositor.kbOptions}`;
-        batchCommand += ` ; keyword input:numlock_by_default ${Config.compositor.numlockByDefault}`;
-        batchCommand += ` ; keyword input:repeat_rate ${Config.compositor.repeatRate}`;
-        batchCommand += ` ; keyword input:repeat_delay ${Config.compositor.repeatDelay}`;
-
-        // Input: Mouse
-        batchCommand += ` ; keyword input:sensitivity ${Config.compositor.mouseSensitivity.toFixed(2)}`;
-        if (Config.compositor.mouseAccelProfile) batchCommand += ` ; keyword input:accel_profile ${Config.compositor.mouseAccelProfile}`;
-        batchCommand += ` ; keyword input:follow_mouse ${Config.compositor.followMouse}`;
-        batchCommand += ` ; keyword input:natural_scroll ${Config.compositor.mouseNaturalScroll}`;
-        batchCommand += ` ; keyword input:scroll_factor ${Config.compositor.mouseScrollFactor.toFixed(1)}`;
-        batchCommand += ` ; keyword input:left_handed ${Config.compositor.mouseLeftHanded}`;
-        batchCommand += ` ; keyword input:mouse_refocus ${Config.compositor.mouseRefocus}`;
-        batchCommand += ` ; keyword input:float_switch_override_focus ${Config.compositor.floatSwitchOverrideFocus}`;
-
-        // Input: Touchpad
-        batchCommand += ` ; keyword input:touchpad:disable_while_typing ${Config.compositor.touchpadDisableWhileTyping}`;
-        batchCommand += ` ; keyword input:touchpad:natural_scroll ${Config.compositor.touchpadNaturalScroll}`;
-        batchCommand += ` ; keyword input:touchpad:clickfinger_behavior ${Config.compositor.touchpadClickfingerBehavior}`;
-        if (Config.compositor.touchpadTapButtonMap) batchCommand += ` ; keyword input:touchpad:tap_button_map ${Config.compositor.touchpadTapButtonMap}`;
-        batchCommand += ` ; keyword input:touchpad:middle_button_emulation ${Config.compositor.touchpadMiddleButtonEmulation}`;
-        batchCommand += ` ; keyword input:touchpad:drag_lock ${Config.compositor.touchpadDragLock}`;
-        batchCommand += ` ; keyword input:touchpad:scroll_factor ${Config.compositor.touchpadScrollFactor.toFixed(1)}`;
-
-        // Cursor
-        batchCommand += ` ; keyword cursor:no_hardware_cursors ${Config.compositor.noHardwareCursors}`;
-        batchCommand += ` ; keyword cursor:enable_hyprcursor ${Config.compositor.enableHyprcursor}`;
-        batchCommand += ` ; keyword cursor:no_warps ${Config.compositor.noWarps}`;
-        batchCommand += ` ; keyword cursor:persistent_warps ${Config.compositor.persistentWarps}`;
-        batchCommand += ` ; keyword cursor:warp_on_change_workspace ${Config.compositor.warpOnChangeWorkspace}`;
-        batchCommand += ` ; keyword cursor:zoom_factor ${Config.compositor.cursorZoomFactor.toFixed(1)}`;
-        batchCommand += ` ; keyword cursor:inactive_timeout ${Config.compositor.cursorInactiveTimeout}`;
-        batchCommand += ` ; keyword cursor:hide_on_key_press ${Config.compositor.cursorHideOnKeyPress}`;
-        batchCommand += ` ; keyword cursor:hide_on_touch ${Config.compositor.cursorHideOnTouch}`;
-        batchCommand += ` ; keyword cursor:hide_on_tablet ${Config.compositor.cursorHideOnTablet}`;
-
-        // Gestures
-        batchCommand += ` ; keyword gestures:workspace_swipe_create_new ${Config.compositor.workspaceSwipeCreateNew}`;
-        batchCommand += ` ; keyword gestures:workspace_swipe_forever ${Config.compositor.workspaceSwipeForever}`;
-        batchCommand += ` ; keyword gestures:workspace_swipe_cancel_ratio ${Config.compositor.workspaceSwipeCancelRatio.toFixed(2)}`;
-        batchCommand += ` ; keyword gestures:workspace_swipe_min_speed_to_force ${Config.compositor.workspaceSwipeMinSpeedToForce}`;
-        batchCommand += ` ; keyword gestures:workspace_swipe_direction_lock ${Config.compositor.workspaceSwipeDirectionLock}`;
-        batchCommand += ` ; keyword gestures:workspace_swipe_use_r ${Config.compositor.workspaceSwipeUseR}`;
-        batchCommand += ` ; keyword gestures:workspace_swipe_distance ${Config.compositor.workspaceSwipeDistance}`;
-        batchCommand += ` ; keyword gestures:workspace_swipe_invert ${Config.compositor.workspaceSwipeInvert}`;
-        batchCommand += ` ; keyword gestures:workspace_swipe_touch ${Config.compositor.workspaceSwipeTouch}`;
-        batchCommand += ` ; keyword gestures:workspace_swipe_touch_invert ${Config.compositor.workspaceSwipeTouchInvert}`;
-
-        // Dwindle
-        batchCommand += ` ; keyword dwindle:preserve_split ${Config.compositor.dwindlePreserveSplit}`;
-        batchCommand += ` ; keyword dwindle:pseudotile ${Config.compositor.dwindlePseudotile}`;
-        batchCommand += ` ; keyword dwindle:force_split ${Config.compositor.dwindleForceSplit}`;
-        batchCommand += ` ; keyword dwindle:smart_split ${Config.compositor.dwindleSmartSplit}`;
-        batchCommand += ` ; keyword dwindle:default_split_ratio ${Config.compositor.dwindleDefaultSplitRatio.toFixed(2)}`;
-        batchCommand += ` ; keyword dwindle:split_width_multiplier ${Config.compositor.dwindleSplitWidthMultiplier.toFixed(1)}`;
-        batchCommand += ` ; keyword dwindle:permanent_direction_override ${Config.compositor.dwindlePermanentDirectionOverride}`;
-        batchCommand += ` ; keyword dwindle:use_active_for_splits ${Config.compositor.dwindleUseActiveForSplits}`;
-        batchCommand += ` ; keyword dwindle:smart_resizing ${Config.compositor.dwindleSmartResizing}`;
-        batchCommand += ` ; keyword dwindle:special_scale_factor ${Config.compositor.dwindleSpecialScaleFactor.toFixed(2)}`;
-
-        // Master
-        batchCommand += ` ; keyword master:orientation ${Config.compositor.masterOrientation}`;
-        batchCommand += ` ; keyword master:mfact ${Config.compositor.masterMfact.toFixed(2)}`;
-        batchCommand += ` ; keyword master:new_status ${Config.compositor.masterNewStatus}`;
-        batchCommand += ` ; keyword master:new_on_top ${Config.compositor.masterNewOnTop}`;
-        batchCommand += ` ; keyword master:new_on_active ${Config.compositor.masterNewOnActive}`;
-        batchCommand += ` ; keyword master:smart_resizing ${Config.compositor.masterSmartResizing}`;
-        batchCommand += ` ; keyword master:special_scale_factor ${Config.compositor.masterSpecialScaleFactor.toFixed(2)}`;
-        batchCommand += ` ; keyword master:allow_small_split ${Config.compositor.masterAllowSmallSplit}`;
-
-        // Scrolling
-        batchCommand += ` ; keyword scrolling:column_width ${Config.compositor.scrollingColumnWidth.toFixed(2)}`;
-        if (Config.compositor.scrollingExplicitColumnWidths) batchCommand += ` ; keyword scrolling:explicit_column_widths ${Config.compositor.scrollingExplicitColumnWidths}`;
-        batchCommand += ` ; keyword scrolling:direction ${Config.compositor.scrollingDirection}`;
-        batchCommand += ` ; keyword scrolling:fullscreen_on_one_column ${Config.compositor.scrollingFullscreenOnOneColumn}`;
-        batchCommand += ` ; keyword scrolling:focus_fit_method ${Config.compositor.scrollingFocusFitMethod}`;
-        batchCommand += ` ; keyword scrolling:follow_focus ${Config.compositor.scrollingFollowFocus}`;
-        batchCommand += ` ; keyword scrolling:follow_min_visible ${Config.compositor.scrollingFollowMinVisible.toFixed(2)}`;
-
-        // XWayland
-        batchCommand += ` ; keyword xwayland:enabled ${Config.compositor.xwaylandEnabled}`;
-        batchCommand += ` ; keyword xwayland:force_zero_scaling ${Config.compositor.xwaylandForceZeroScaling}`;
-        batchCommand += ` ; keyword xwayland:use_nearest_neighbor ${Config.compositor.xwaylandUseNearestNeighbor}`;
-
-        // Misc
-        batchCommand += ` ; keyword misc:vrr ${Config.compositor.vrr}`;
-        batchCommand += ` ; keyword misc:mouse_move_enables_dpms ${Config.compositor.mouseMoveEnablesDpms}`;
-        batchCommand += ` ; keyword misc:key_press_enables_dpms ${Config.compositor.keyPressEnablesDpms}`;
-        batchCommand += ` ; keyword misc:disable_autoreload ${Config.compositor.disableAutoreload}`;
-        batchCommand += ` ; keyword misc:focus_on_activate ${Config.compositor.focusOnActivate}`;
-        batchCommand += ` ; keyword misc:animate_manual_resizes ${Config.compositor.animateManualResizes}`;
-        batchCommand += ` ; keyword misc:animate_mouse_windowdragging ${Config.compositor.animateMouseWindowdragging}`;
-        batchCommand += ` ; keyword misc:disable_hyprland_logo ${Config.compositor.disableHyprlandLogo}`;
-        batchCommand += ` ; keyword misc:disable_splash_rendering ${Config.compositor.disableSplashRendering}`;
-        batchCommand += ` ; keyword misc:force_default_wallpaper ${Config.compositor.forceDefaultWallpaper}`;
-
-        // Animations and layer rules
-        batchCommand += ` ; keyword animation windows,1,2.5,myBezier,popin 80%`;
-        batchCommand += ` ; keyword animation border,1,2.5,myBezier`;
-        batchCommand += ` ; keyword animation fade,1,2.5,myBezier`;
-        batchCommand += ` ; ${workspaceCommand}`;
-        // Note: workspaceCommand is dynamically calculated based on current animations and orientation.
-
-        console.log(`CompositorConfig: Applying ignorealpha: ${ignoreAlphaValue}, explicit: ${Config.compositor.blurExplicitIgnoreAlpha}`);
-        batchCommand += ` ; keyword layerrule noanim,quickshell ; keyword layerrule blur,quickshell ; keyword layerrule blurpopups,quickshell ; keyword layerrule ignorealpha ${ignoreAlphaValue},quickshell`;
-        console.log("CompositorConfig: Applying compositor batch command:", batchCommand);
-        root._lastBatchCmd = batchCommand;
-        compositorProcess.command = ["axctl", "config", "raw-batch", batchCommand];
-        compositorProcess.running = true;
-
-        // Also write to hyprland.conf for persistence
-        if (writeFile) {
-            root.writeConfigToFile(batchCommand);
+        const barOrientation = getBarOrientation();
+        let speed = 2.5, bezier = "default";
+        if (currentAnimationConfig && currentAnimationConfig[0]) {
+            const wa = currentAnimationConfig[0].find(a => a.name === "workspaces");
+            if (wa) { speed = wa.speed || speed; bezier = wa.bezier || bezier; }
         }
+        const wsAnim = barOrientation === "vertical" ? "slidefadevert 20%" : "slidefade 20%";
+
+        // ── Build Lua hl.config() call with resolved theme colors ──
+        // (Animations are handled by sync-hyprland.py via config file)
+        let luaConfig = `hl.config({ general = { col = { active_border = ${activeColorHex}, inactive_border = ${inactiveColorHex} } } })`;
+
+        console.log("CompositorConfig: Lua eval:", luaConfig);
+
+        // ── Apply via hyprctl eval (hyprctl keyword / axctl raw-batch is broken in Hyprland 0.55+) ──
+        evalProcess.command = ["hyprctl", "eval", luaConfig];
+        evalProcess.running = true;
+
+        // ── Save and apply ALL settings via TOML (only on user-initiated changes) ──
+        if (writeFile) {
+            _savingCompositor = true;
+            Config.saveCompositor();
+            Qt.callLater(() => { _savingCompositor = false; });
+            applyConfigTimer.restart();
+        }
+
+        // ── Handle Free Layout ──
+        if (GlobalStates.compositorLayout === "free") {
+            floatAllProcess.running = true;
+        } else if (GlobalStates.compositorLayout) {
+            tileAllProcess.running = true;
+        }
+    }
+
+    // Apply all non-color settings via TOML dictionary (data-driven)
+    // Uses a timer delay to ensure compositor.json is flushed to disk first
+    property Timer applyConfigTimer: Timer {
+        interval: 200
+        repeat: false
+        onTriggered: {
+            const scriptPath = Qt.resolvedUrl("../../scripts/apply-config.sh").toString().replace("file://", "");
+            console.log("CompositorConfig: Running apply-config.sh:", scriptPath);
+            applyConfigProcess.command = ["bash", scriptPath];
+            applyConfigProcess.running = true;
+        }
+    }
+
+    property Process applyConfigProcess: Process {
+        id: applyConfigProcess
+        running: false
+        stdout: SplitParser {}
     }
 
     property Connections configConnections: Connections {
@@ -674,7 +500,7 @@ QtObject {
         // Call the Python sync script which reads compositor.json directly
         // Use Qt.resolvedUrl to find the script relative to this QML file,
         // so it works regardless of where NothingLess is installed.
-        const scriptPath = Qt.resolvedUrl("../../scripts/sync-hyprland-conf.py").toString().replace("file://", "");
+        const scriptPath = Qt.resolvedUrl("../../scripts/sync-hyprland.py").toString().replace("file://", "");
         syncProcess.command = ["python3", scriptPath];
         syncProcess.running = true;
     }
@@ -689,7 +515,7 @@ QtObject {
                 reloadProcess.command = ["axctl", "config", "reload"];
                 reloadProcess.running = true;
             } else {
-                console.error("sync-hyprland-conf.py failed, code:", code);
+                console.error("sync-hyprland.py failed, code:", code);
             }
         }
     }
