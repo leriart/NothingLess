@@ -90,7 +90,7 @@ EOF
 }
 
 NOTHINGLESS_HYPR_CONF_SOURCE="source = ~/.local/share/nothingless/hyprland.conf"
-NOTHINGLESS_HYPR_LUA_SOURCE="source = ~/.local/share/nothingless/hyprland.conf"
+NOTHINGLESS_HYPR_LUA_SOURCE='loadfile(os.getenv("HOME") .. "/.local/share/nothingless/hyprland.lua")()'
 NOTHINGLESS_HYPR_CONF_BLOCK=$(
 	cat <<'EOF'
 # NothingLess
@@ -102,11 +102,11 @@ EOF
 )
 NOTHINGLESS_HYPR_LUA_BLOCK=$(
 	cat <<'EOF'
-# NothingLess
-source = ~/.local/share/nothingless/hyprland.conf
+-- NothingLess
+loadfile(os.getenv("HOME") .. "/.local/share/nothingless/hyprland.lua")()
 
-# OVERRIDES
-# Down here you can write or source anything that you want to override from NothingLess's settings.
+-- OVERRIDES
+-- Down here you can write or source anything that you want to override from NothingLess's settings.
 EOF
 )
 
@@ -669,13 +669,13 @@ ENDCONF
 	fi
 
 	# ---- Generate config files ----
-	# Both .conf and .lua modes write the same hyprland.conf file.
-	# Hyprland's Lua parser supports 'source =' directives natively,
-	# so hyprland.lua just sources the same generated .conf file.
+	# Always write BASE_CONF to hyprland.conf first — sync-hyprland.py
+	# will inject compositor and keybind blocks into it.
 	printf "%s\n" "$BASE_CONF" > "$SHARE_DIR/hyprland.conf"
 	echo "Created compositor config at $SHARE_DIR/hyprland.conf"
 
 	if [ "$MODE" = "lua" ]; then
+		# Main config: inject loadfile() line into hyprland.lua
 		append_nothingless_hyprland_block "$HYPR_LUA" "$NOTHINGLESS_HYPR_LUA_SOURCE" "$NOTHINGLESS_HYPR_LUA_BLOCK"
 		remove_nothingless_hyprland_block "$HYPR_CONF" "$NOTHINGLESS_HYPR_CONF_SOURCE" 2>/dev/null || true
 	else
@@ -693,6 +693,18 @@ ENDCONF
 		# Legacy fallback
 		echo "Generating full config with sync-hyprland-conf.py..."
 		python3 "${SCRIPT_DIR}/scripts/sync-hyprland-conf.py" 2>&1 || echo "Warning: sync-hyprland-conf.py failed"
+	fi
+
+	# For lua mode: wrap the now-populated hyprland.conf as a Lua return
+	# string so loadfile()() can load it. exec-once, compositor, and
+	# keybinds all come from JSON configs via sync-hyprland.py — zero hardcoding.
+	if [ "$MODE" = "lua" ]; then
+		{
+			printf "return [[\n"
+			cat "$SHARE_DIR/hyprland.conf"
+			printf "]]\n"
+		} > "$SHARE_DIR/hyprland.lua"
+		echo "Wrapped hyprland.conf → hyprland.lua for loadfile()"
 	fi
 
 	# Clean up stale binds.json (Ambxs migration artifacts)
