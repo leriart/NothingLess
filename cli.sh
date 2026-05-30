@@ -693,18 +693,25 @@ ENDCONF
 		# Legacy fallback
 		echo "Generating full config with sync-hyprland-conf.py..."
 		python3 "${SCRIPT_DIR}/scripts/sync-hyprland-conf.py" 2>&1 || echo "Warning: sync-hyprland-conf.py failed"
+	else
+		echo "Warning: sync-hyprland.py not found at $SYNC_SCRIPT" >&2
 	fi
 
 	# For lua mode: wrap the now-populated hyprland.conf as a Lua return
 	# string so loadfile()() can load it. exec-once, compositor, and
 	# keybinds all come from JSON configs via sync-hyprland.py — zero hardcoding.
 	if [ "$MODE" = "lua" ]; then
-		{
-			printf "return [[\n"
-			cat "$SHARE_DIR/hyprland.conf"
-			printf "]]\n"
-		} > "$SHARE_DIR/hyprland.lua"
-		echo "Wrapped hyprland.conf → hyprland.lua for loadfile()"
+		if [ -f "$SHARE_DIR/hyprland.conf" ] && [ -s "$SHARE_DIR/hyprland.conf" ]; then
+			{
+				printf "return [[\n"
+				cat "$SHARE_DIR/hyprland.conf"
+				printf "]]\n"
+			} > "$SHARE_DIR/hyprland.lua"
+			echo "Wrapped hyprland.conf ($(wc -l < "$SHARE_DIR/hyprland.conf") lines) → hyprland.lua"
+		else
+			echo "Error: hyprland.conf is empty or missing — cannot generate hyprland.lua" >&2
+			exit 1
+		fi
 	fi
 
 	# Clean up stale binds.json (Ambxs migration artifacts)
