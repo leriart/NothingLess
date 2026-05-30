@@ -2029,9 +2029,9 @@ lua = 'hl.dsp.exec_cmd("hyprctl dispatch resizeactive {arg}")'
 arg = true
 
 [dispatchers.resizewindow]
-lua = 'hl.dsp.exec_cmd("hyprctl dispatch resizeactive {arg}")'
-arg = true
-note = "Legacy alias for resizeactive (binds.json legacy.dispatcher)"
+lua = 'hl.dsp.window.resize()'
+arg = false
+note = "Legacy alias for movewindow_resize (binds.json legacy.dispatcher, mouse-driven)"
 
 [dispatchers.movewindow_mouse]
 lua = 'hl.dsp.window.drag()'
