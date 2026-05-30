@@ -55,7 +55,7 @@ description = "Border color for inactive windows"
 type = "gradient"
 default = "0xff444444"
 lua = "general.col.inactive_border"
-conf = "general:col:inactive_border"
+conf = "general:col.inactive_border"
 nothingless_key = "inactiveBorderColor"
 
 [general.col_active_border]
@@ -63,7 +63,7 @@ description = "Border color for the active window"
 type = "gradient"
 default = "0xffffffff"
 lua = "general.col.active_border"
-conf = "general:col:active_border"
+conf = "general:col.active_border"
 nothingless_key = "activeBorderColor"
 
 [general.col_nogroup_border]
@@ -71,14 +71,14 @@ description = "Inactive border color for window that cannot be added to a group"
 type = "gradient"
 default = "0xffffaaff"
 lua = "general.col.nogroup_border"
-conf = "general:col:nogroup_border"
+conf = "general:col.nogroup_border"
 
 [general.col_nogroup_border_active]
 description = "Active border color for window that cannot be added to a group"
 type = "gradient"
 default = "0xffff00ff"
 lua = "general.col.nogroup_border_active"
-conf = "general:col:nogroup_border_active"
+conf = "general:col.nogroup_border_active"
 
 [general.layout]
 description = "Which layout to use. Options: dwindle, master, scrolling, monocle"
@@ -564,6 +564,7 @@ type = "str"
 default = '""'
 lua = "input.accel_profile"
 conf = "input:accel_profile"
+conf_skip = true
 nothingless_key = "mouseAccelProfile"
 
 [input.force_no_accel]
@@ -584,6 +585,7 @@ type = "bool"
 default = "false"
 lua = "input.left_handed"
 conf = "input:left_handed"
+conf_skip = true
 nothingless_key = "mouseLeftHanded"
 
 [input.scroll_points]
@@ -617,6 +619,7 @@ type = "float"
 default = "1.0"
 lua = "input.scroll_factor"
 conf = "input:scroll_factor"
+conf_skip = true
 nothingless_key = "mouseScrollFactor"
 
 [input.natural_scroll]
@@ -625,6 +628,7 @@ type = "bool"
 default = "false"
 lua = "input.natural_scroll"
 conf = "input:natural_scroll"
+conf_skip = true
 nothingless_key = "mouseNaturalScroll"
 
 [input.follow_mouse]
@@ -690,6 +694,7 @@ type = "bool"
 default = "true"
 lua = "input.touchpad.disable_while_typing"
 conf = "input:touchpad:disable_while_typing"
+conf_skip = true
 
 [input.touchpad_natural_scroll]
 description = "Inverts scrolling direction on touchpad"
@@ -697,6 +702,7 @@ type = "bool"
 default = "false"
 lua = "input.touchpad.natural_scroll"
 conf = "input:touchpad:natural_scroll"
+conf_skip = true
 
 [input.touchpad_scroll_factor]
 description = "Multiplier applied to the amount of scroll movement on touchpad"
@@ -704,6 +710,7 @@ type = "float"
 default = "1.0"
 lua = "input.touchpad.scroll_factor"
 conf = "input:touchpad:scroll_factor"
+conf_skip = true
 
 [input.touchpad_middle_button_emulation]
 description = "Sending LMB and RMB simultaneously interpreted as middle click"
@@ -711,6 +718,7 @@ type = "bool"
 default = "false"
 lua = "input.touchpad.middle_button_emulation"
 conf = "input:touchpad:middle_button_emulation"
+conf_skip = true
 
 [input.touchpad_tap_button_map]
 description = "Sets the tap button mapping. Options: lrm (default), lmr"
@@ -718,6 +726,7 @@ type = "str"
 default = '""'
 lua = "input.touchpad.tap_button_map"
 conf = "input:touchpad:tap_button_map"
+conf_skip = true
 
 [input.touchpad_clickfinger_behavior]
 description = "1/2/3 finger button presses mapped to LMB/RMB/MMB respectively"
@@ -725,6 +734,7 @@ type = "bool"
 default = "false"
 lua = "input.touchpad.clickfinger_behavior"
 conf = "input:touchpad:clickfinger_behavior"
+conf_skip = true
 
 [input.touchpad_tap_to_click]
 description = "Tapping on touchpad with 1/2/3 fingers sends LMB/RMB/MMB"
@@ -732,6 +742,7 @@ type = "bool"
 default = "true"
 lua = "input.touchpad.tap_to_click"
 conf = "input:touchpad:tap_to_click"
+conf_skip = true
 
 [input.touchpad_drag_lock]
 description = "When enabled, lifting finger while dragging won't drop item. 0=disabled, 1=timeout, 2=sticky"
@@ -739,6 +750,7 @@ type = "int"
 default = "0"
 lua = "input.touchpad.drag_lock"
 conf = "input:touchpad:drag_lock"
+conf_skip = true
 
 [input.touchpad_tap_and_drag]
 description = "Sets the tap and drag mode for the touchpad"
@@ -746,6 +758,7 @@ type = "bool"
 default = "true"
 lua = "input.touchpad.tap_and_drag"
 conf = "input:touchpad:tap_and_drag"
+conf_skip = true
 
 [input.touchpad_flip_x]
 description = "Inverts the horizontal movement of the touchpad"
@@ -753,6 +766,7 @@ type = "bool"
 default = "false"
 lua = "input.touchpad.flip_x"
 conf = "input:touchpad:flip_x"
+conf_skip = true
 
 [input.touchpad_flip_y]
 description = "Inverts the vertical movement of the touchpad"
@@ -760,6 +774,7 @@ type = "bool"
 default = "false"
 lua = "input.touchpad.flip_y"
 conf = "input:touchpad:flip_y"
+conf_skip = true
 
 [input.touchpad_drag_3fg]
 description = "Enables three finger drag. 0=disabled, 1=3 fingers, 2=4 fingers"
@@ -767,6 +782,7 @@ type = "int"
 default = "0"
 lua = "input.touchpad.drag_3fg"
 conf = "input:touchpad:drag_3fg"
+conf_skip = true
 
 [input.touchdevice_transform]
 description = "Transform touch device input. Same transformations as monitors. -1 means unset."
@@ -1555,6 +1571,7 @@ type = "bool"
 default = "false"
 lua = "dwindle.pseudotile"
 conf = "dwindle:pseudotile"
+conf_skip = true
 nothingless_key = "dwindlePseudotile"
 
 [dwindle.smart_resizing]
@@ -1708,6 +1725,7 @@ default = '"center"'
 lua = "scrolling.focus_fit_method"
 conf = "scrolling:focus_fit_method"
 nothingless_key = "scrollingFocusFitMethod"
+conf_map = { center = 0, left = 1, right = 2 }
 
 [scrolling.follow_focus]
 description = "Whether to scroll to follow the focused window"
@@ -2010,6 +2028,11 @@ lua = 'hl.dsp.force_renderer_reload()'
 lua = 'hl.dsp.exec_cmd("hyprctl dispatch resizeactive {arg}")'
 arg = true
 
+[dispatchers.resizewindow]
+lua = 'hl.dsp.exec_cmd("hyprctl dispatch resizeactive {arg}")'
+arg = true
+note = "Legacy alias for resizeactive (binds.json legacy.dispatcher)"
+
 [dispatchers.movewindow_mouse]
 lua = 'hl.dsp.window.drag()'
 
@@ -2285,18 +2308,21 @@ type = "bool"
 default = "false"
 lua = "ecosystem.no_update_news"
 
+conf_skip = true
 [ecosystem.no_donation_nag]
 description = "Disable the popup that shows up twice a year encouraging to donate"
 type = "bool"
 default = "false"
 lua = "ecosystem.no_donation_nag"
 
+conf_skip = true
 [ecosystem.enforce_permissions]
 description = "Whether to enable permission control"
 type = "bool"
 default = "false"
 lua = "ecosystem.enforce_permissions"
 
+conf_skip = true
 [quirks.prefer_hdr]
 description = "Report HDR mode as preferred. 0=off, 1=always, 2=gamescope only"
 type = "int"
@@ -2323,6 +2349,7 @@ type = "bool"
 default = "true"
 lua = "debug.vfr"
 conf = "debug:vfr"
+conf_skip = true
 
 [debug.disable_logs]
 description = "Disable logging to a file"
@@ -2575,15 +2602,25 @@ arg_type = "direction"
 [actions.window_drag]
 id = "window.drag"
 dispatcher = "movewindow_mouse"
+conf_dispatcher = "movewindow"  # 0.55+: bind instead of bindm (hyprlang removed bindm)
 argument = ""
 flags = "m"
 
 [actions.window_resize_drag]
 id = "window.resize-drag"
 dispatcher = "movewindow_resize"
+conf_dispatcher = "resizeactive"  # 0.55+: bind with resizeactive dispatcher
 argument = ""
 flags = "m"
 note = "SUPER + right-click to resize windows"
+
+[actions.legacy_dispatcher]
+id = "legacy.dispatcher"
+dispatcher = "resizewindow"
+conf_dispatcher = "resizeactive"  # .conf: bind mouse:273 to resizeactive
+flags = "m"
+arg_type = "command"
+note = "Fallback for binds.json entries with legacy raw dispatchers"
 
 [actions.window_resize]
 id = "window.resize"
@@ -2916,3 +2953,104 @@ argument = "command"
 flags = ""
 arg_type = "command"
 note = "Placeholder — argument is replaced at runtime with user's custom command"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CONFIG ORDER — Controls the output order of sections in conf/lua files
+# ═══════════════════════════════════════════════════════════════════════════
+#  These lists define the order sections appear in the generated config files.
+#  Sections not listed will still be rendered but at the end.
+# ═══════════════════════════════════════════════════════════════════════════
+
+[config_order]
+# Section order for hyprland.conf (all sections)
+conf = ["general", "decoration", "input", "cursor", "gestures", "misc",
+        "xwayland", "dwindle", "master", "scrolling", "animations", "group",
+        "binds", "opengl", "render", "ecosystem", "quirks", "debug"]
+# Section order for hyprland.lua (layout-only sections excluded — not in hl.config API)
+lua = ["general", "decoration", "input", "cursor", "gestures", "misc",
+       "xwayland", "animations", "group", "binds", "opengl", "render",
+       "ecosystem", "quirks", "debug"]
+lua_exclude = ["dwindle", "master", "scrolling", "binds", "free"]
+
+
+# ── Misc missing settings ────────────────────────────────────────────────
+
+# ── Free layout ───────────────────────────────────────────────────────
+
+[free.grid_size]
+description = "Grid size for free layout snapping"
+type = "int"
+default = "20"
+lua = "free.grid_size"
+conf = "free:grid_size"
+conf_skip = true
+nothingless_key = "freeGridSize"
+
+[free.maximized_by_default]
+description = "If true, new windows are maximized by default in free layout"
+type = "bool"
+default = "false"
+lua = "free.maximized_by_default"
+conf = "free:maximized_by_default"
+conf_skip = true
+nothingless_key = "freeMaximizedByDefault"
+
+[free.tile_by_default]
+description = "If true, new windows are tiled by default in free layout"
+type = "bool"
+default = "false"
+lua = "free.tile_by_default"
+conf = "free:tile_by_default"
+conf_skip = true
+nothingless_key = "freeTileByDefault"
+
+[free.snap_center]
+description = "Enable snapping to center in free layout"
+type = "bool"
+default = "true"
+lua = "free.snap_center"
+conf = "free:snap_center"
+conf_skip = true
+nothingless_key = "freeSnapCenter"
+
+[free.snap_edges]
+description = "Enable snapping to screen edges in free layout"
+type = "bool"
+default = "true"
+lua = "free.snap_edges"
+conf = "free:snap_edges"
+conf_skip = true
+nothingless_key = "freeSnapEdges"
+
+[free.snap_gaps]
+description = "Gap size for snap zones in free layout"
+type = "int"
+default = "4"
+lua = "free.snap_gaps"
+conf = "free:snap_gaps"
+conf_skip = true
+nothingless_key = "freeSnapGaps"
+
+[free.snap_sensitivity]
+description = "Snap sensitivity in free layout"
+type = "int"
+default = "10"
+lua = "free.snap_sensitivity"
+conf = "free:snap_sensitivity"
+conf_skip = true
+nothingless_key = "freeSnapSensitivity"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  CONFIG DERIVED — Computed settings derived from other compositor.json keys
+# ═══════════════════════════════════════════════════════════════════════════
+#  Each entry maps a compositor.json key to derived settings applied before
+#  generating conf/lua/toml output. No Python logic — pure data.
+# ═══════════════════════════════════════════════════════════════════════════
+
+[config_derived.smart_resize_anchors]
+description = "smartResizeAnchors: when true, resizeOnBorder=true + min grab area"
+key = "smartResizeAnchors"  # compositor.json key that triggers this rule
+when_true = { resizeOnBorder = true, extendBorderGrabArea = "max(10, current)" }
+when_false = { resizeOnBorder = false, extendBorderGrabArea = 0 }

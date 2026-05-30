@@ -63,6 +63,60 @@ try:
 except (FileNotFoundError, json.JSONDecodeError):
     binds_data = {}
 
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  APPLY THEME SYNC OVERRIDES (mirrors Config.qml computed properties)
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _apply_theme_sync(local_cfg):
+    """Apply NothingLess theme sync overrides to compositor config.
+    When syncRoundness/syncBorderWidth/syncBorderColor/syncShadowOpacity/
+    syncShadowColor are true, replace the compositor values with theme-derived
+    ones — exactly what Config.qml does at runtime.
+    """
+    THEME_PATH = os.path.expanduser("~/.config/nothingless/config/theme.json")
+    try:
+        with open(THEME_PATH) as f:
+            theme = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return local_cfg
+
+    # syncRoundness → use theme.roundness for decoration.rounding
+    if local_cfg.get("syncRoundness"):
+        local_cfg["rounding"] = theme.get("roundness", local_cfg.get("rounding", 16))
+
+    # syncBorderWidth → use theme.srBg.border[1] for general.border_size
+    if local_cfg.get("syncBorderWidth"):
+        sr_bg = theme.get("srBg", {})
+        border_arr = sr_bg.get("border", ["surfaceVariant", 0])
+        if isinstance(border_arr, list) and len(border_arr) >= 2:
+            try:
+                local_cfg["borderSize"] = int(border_arr[1])
+            except (ValueError, TypeError):
+                pass
+
+    # syncBorderColor → use theme.srBg.border[0] for general.col.active_border
+    if local_cfg.get("syncBorderColor"):
+        sr_bg = theme.get("srBg", {})
+        border_arr = sr_bg.get("border", ["surfaceVariant", 0])
+        if isinstance(border_arr, list) and len(border_arr) >= 1:
+            local_cfg["activeBorderColor"] = [border_arr[0]]
+
+    # syncShadowOpacity → use theme.shadowOpacity for decoration.shadow.opacity
+    if local_cfg.get("syncShadowOpacity"):
+        local_cfg["shadowOpacity"] = theme.get("shadowOpacity", local_cfg.get("shadowOpacity", 0.5))
+
+    # syncShadowColor → use theme.shadowColor for decoration.shadow.color
+    if local_cfg.get("syncShadowColor"):
+        local_cfg["shadowColor"] = theme.get("shadowColor", local_cfg.get("shadowColor", "shadow"))
+
+    return local_cfg
+
+
+# Apply sync overrides to the global cfg so all builders see them
+cfg = _apply_theme_sync(cfg)
+
+
 # ═══════════════════════════════════════════════════════════════════════════
 #  UTILITY FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════
@@ -72,11 +126,16 @@ def fmt_conf(val):
     if isinstance(val, bool):
         return "true" if val else "false"
     if isinstance(val, list):
+        if not val:
+            return ""
         return " ".join(str(v) for v in val)
     if isinstance(val, float):
         s = f"{val:.2f}".rstrip("0").rstrip(".")
         return s if "." in s else s + ".0"
-    return str(val)
+    s = str(val)
+    # Sanitize any control characters / null bytes
+    s = s.replace("\x00", "0")
+    return s
 
 
 def fmt_lua(val):
@@ -135,14 +194,15 @@ def resolve_action(action):
     binds.json format: { "id": "window.close", "args": {...} }
     or legacy: { "dispatcher": "killactive", "argument": "", "flags": "" }
 
-    Returns (dispatcher, argument, flags) or None.
+    Returns (dispatcher, argument, flags, action_entry) or None.
+    action_entry is the TOML action entry dict (for conf-specific overrides).
     """
     if not action:
         return None
 
     # Already resolved form
     if action.get("dispatcher"):
-        return (action["dispatcher"], action.get("argument", ""), action.get("flags", ""))
+        return (action["dispatcher"], action.get("argument", ""), action.get("flags", ""), None)
 
     # Modern form: { "id": "...", "args": {...} }
     action_id = action.get("id", "")
@@ -189,11 +249,14 @@ def resolve_action(action):
     if prefix and argument:
         argument = prefix + argument
 
-    return (dispatcher, argument, flags)
+    return (dispatcher, argument, flags, entry)
 
 
-def build_conf_bind(modifiers, key, dispatcher, argument, flags):
-    """Build a hyprland.conf bind line using the dictionary's dispatcher names."""
+def build_conf_bind(modifiers, key, dispatcher, argument, flags, action_entry=None):
+    """Build a hyprland.conf bind line using the dictionary's dispatcher names.
+
+    action_entry is the TOML action entry dict (for conf-specific overrides).
+    """
     if not key or not dispatcher:
         return None
 
@@ -203,12 +266,21 @@ def build_conf_bind(modifiers, key, dispatcher, argument, flags):
 
     mods_str = " ".join(modifiers) if modifiers else ""
 
-    # Mouse binds → bindm keyword
+    # Mouse binds with "m" flag
     if "m" in flags:
-        arg_part = f", {argument}" if argument else ""
+        # If action has a conf_dispatcher override (e.g. resizeactive), use bind
+        conf_disp = ""
+        if action_entry:
+            conf_disp = action_entry.get("conf_dispatcher", "")
+        if conf_disp:
+            # Mouse resize: use bind + the conf dispatcher (e.g. resizeactive)
+            if not mods_str:
+                return f"bind = , {key}, {conf_disp}"
+            return f"bind = {mods_str}, {key}, {conf_disp}"
+        # Mouse move: use bindm (no dispatcher, it's native hyprland)
         if not mods_str:
-            return f"bindm = , {key}, {dispatcher}{arg_part}"
-        return f"bindm = {mods_str}, {key}, {dispatcher}{arg_part}"
+            return f"bindm = , {key}"
+        return f"bindm = {mods_str}, {key}"
 
     # Flags → bind type string (alphabetical order: e, l, r)
     bind_type = "bind"
@@ -317,9 +389,9 @@ def process_binds(bind_section, seen_conf, seen_lua, seen_toml):
                 resolved = resolve_action(action)
                 if not resolved:
                     continue
-                disp, arg, flg = resolved
+                disp, arg, flg, entry = resolved
 
-                cl = build_conf_bind(key_obj.get("modifiers", []), key_obj["key"], disp, arg, flg)
+                cl = build_conf_bind(key_obj.get("modifiers", []), key_obj["key"], disp, arg, flg, entry)
                 ll = build_lua_bind(key_obj.get("modifiers", []), key_obj["key"], disp, arg, flg)
                 tl = build_toml_bind(key_obj.get("modifiers", []), key_obj["key"], disp, arg, flg)
 
@@ -368,12 +440,9 @@ def build_all_binds():
         if key_name == "lockscreen" and action.get("id") == "system.lock":
             action = {"id": "nothingless.lock", "args": {}}
             b["action"] = action
-            try:
-                with open(BINDS_PATH, "w") as f:
-                    json.dump(binds_data, f, indent=2)
-                print(f"Repaired lockscreen bind in {BINDS_PATH}: system.lock → nothingless.lock")
-            except Exception as e:
-                print(f"Warning: could not repair binds.json: {e}")
+            # Update the in-memory data (don't mutate the file — too fragile)
+            print(f"Warning: lockscreen bind references 'system.lock' instead of 'nothingless.lock'")
+            print(f"  → Please update binds.json manually or add [actions.system_lock] to the dictionary")
         cl, ll, tl = process_binds([b], seen_conf, seen_lua, seen_toml)
         all_conf += cl; all_lua += ll; all_toml += tl
 
@@ -460,7 +529,7 @@ def _walk_dict_sections():
     Skips non-dict sections (dispatchers, binds_flags, actions).
     """
     SKIP_SECTIONS = {"dispatchers", "binds_flags", "actions", "global_rules",
-                     "layer_rules", "binds_free_layout"}
+                     "layer_rules", "binds_free_layout", "config_order", "config_derived"}
     tree = {}
     for section_name, section_data in DICT.items():
         if section_name in SKIP_SECTIONS or not isinstance(section_data, dict):
@@ -482,15 +551,76 @@ def _walk_dict_sections():
     return tree
 
 
+def _build_color_map():
+    """Build a comprehensive color map from TOML color_defaults + all theme files.
+    
+    Merges TOML color_defaults with ALL theme JSON color definitions (Material 3 tokens).
+    Theme tokens take priority for hyprland border colors (primary, surfaceContainer, etc.).
+    """
+    color_map = {}
+    # 1. TOML color_defaults (highest priority for explicitly defined colors)
+    toml_defaults = DICT.get("color_defaults", {})
+    for name, entry in toml_defaults.items():
+        if isinstance(entry, dict) and "hex" in entry:
+            color_map[name] = entry["hex"]
+    # 2. Generated colors cache (active theme — highest priority after TOML defaults)
+    cache_colors_path = os.path.expanduser("~/.cache/nothingless/colors.json")
+    if os.path.isfile(cache_colors_path):
+        try:
+            with open(cache_colors_path) as f:
+                cache_colors = json.load(f)
+            for token, hex_val in cache_colors.items():
+                if isinstance(hex_val, str) and (hex_val.startswith("#") or hex_val.startswith("0x")):
+                    if token not in color_map:
+                        color_map[token] = hex_val
+        except (json.JSONDecodeError, OSError):
+            pass
+    # 3. Theme JSON files — walk all theme directories (fallback for missing tokens)
+    colors_dir = os.path.expanduser("~/.config/nothingless/colors")
+    if os.path.isdir(colors_dir):
+        for theme_name in os.listdir(colors_dir):
+            theme_dir = os.path.join(colors_dir, theme_name)
+            if not os.path.isdir(theme_dir):
+                continue
+            for mode_file in ["light.json", "dark.json"]:
+                path = os.path.join(theme_dir, mode_file)
+                if not os.path.isfile(path):
+                    continue
+                try:
+                    with open(path) as f:
+                        theme = json.load(f)
+                    for token, hex_val in theme.items():
+                        if isinstance(hex_val, str) and (hex_val.startswith("#") or hex_val.startswith("0x")):
+                            # Don't override TOML defaults or cache with theme values
+                            if token not in color_map:
+                                color_map[token] = hex_val
+                except (json.JSONDecodeError, OSError):
+                    continue
+    return color_map
+
+
+_COLOR_MAP_CACHE = None
+
+
 def _resolve_color(value):
-    """Resolve symbolic color names to hex using TOML color_defaults.
-    Returns the original value if no mapping exists."""
+    """Resolve symbolic color names to hex using ALL available color definitions.
+    Checks TOML color_defaults first, then theme JSON files.
+    Returns the original value if no mapping exists.
+    Converts #RRGGBB → 0xffRRGGBB (hyprland expects 0x prefix, not #).
+    """
     if not isinstance(value, str):
         return value
-    color_map = DICT.get("color_defaults", {})
-    if value in color_map:
-        return color_map[value].get("hex", value)
-    return value
+    global _COLOR_MAP_CACHE
+    if _COLOR_MAP_CACHE is None:
+        _COLOR_MAP_CACHE = _build_color_map()
+    resolved = _COLOR_MAP_CACHE.get(value, value)
+    # Convert #RRGGBB to 0xffRRGGBB (hyprland color format with alpha)
+    if resolved.startswith("#") and len(resolved) == 7:
+        resolved = "0xff" + resolved[1:]
+    elif resolved.startswith("#") and len(resolved) == 9:
+        # #AARRGGBB → 0xAARRGGBB (just replace prefix)
+        resolved = "0x" + resolved[1:]
+    return resolved
 
 
 def _is_hex_color(val):
@@ -503,10 +633,10 @@ def _is_hex_color(val):
 
 
 def _is_sync_disabled(compositor_json, nothingless_key):
-    """Check if a setting should be skipped based on sync flags.
+    """Check if a setting should be excluded from config output.
     
-    compositor.json has flags like syncBorderWidth, syncRoundness, etc.
-    When these are False, the corresponding settings are excluded.
+    When sync flag is True: composite.json value IS synced → include in output.
+    When sync flag is False: composite.json value is NOT synced → exclude.
     """
     SYNC_FLAGS = {
         "syncBorderWidth": {"borderSize"},
@@ -516,11 +646,12 @@ def _is_sync_disabled(compositor_json, nothingless_key):
     }
     for flag, blocked_keys in SYNC_FLAGS.items():
         if nothingless_key in blocked_keys:
+            # False = sync disabled = theme doesn't provide it = exclude from output
             return not compositor_json.get(flag, True)
     return False
 
 
-def _build_config_tree(compositor_json):
+def _build_config_tree(compositor_json, output="conf"):
     """Build a nested dict from TOML entries that match compositor.json.
 
     Uses conf paths (colon-separated) for structure.
@@ -530,28 +661,65 @@ def _build_config_tree(compositor_json):
     Skips color/gradient values that are symbolic theme names
     (e.g. "primary", "surfaceContainer") — those are resolved at
     runtime by the NothingLess shell, not written to config files.
+
+    When output="conf", entries with conf_skip=true are excluded.
     """
     tree = {}
     for section_name, entries in _walk_dict_sections().items():
         for _dict_key, entry in entries:
+            # Skip entries marked as conf-only incompatible
+            if output == "conf" and entry.get("conf_skip", False):
+                continue
             nk = entry.get("nothingless_key")
             if not nk or nk not in compositor_json:
                 continue
             val = compositor_json[nk]
             etype = entry.get("type", "")
             # Resolve known symbolic color names (e.g. "shadow" -> "0xee1a1a1a")
-            if etype == "color" and isinstance(val, str):
-                val = _resolve_color(val)
-            # Skip symbolic theme colors: "primary", "surfaceContainer", etc.
-            # These are NothingLess theme references resolved at runtime by the shell
+            if etype == "color":
+                if isinstance(val, str):
+                    val = _resolve_color(val)
+                elif isinstance(val, list):
+                    val = [_resolve_color(v) for v in val]
+            # Resolve symbolic names inside gradient lists
+            if etype == "gradient" and isinstance(val, list):
+                val = [_resolve_color(v) if isinstance(v, str) else v for v in val]
+            # Skip symbolic theme colors that COULDN'T be resolved to hex
             if etype in ("color", "gradient") and not _is_hex_color(val):
                 continue
+            # Apply conf value maps (e.g. string → int for .conf-specific types)
+            # Only for .conf output; Lua keeps the original string values
+            conf_map = entry.get("conf_map", {})
+            if output == "conf" and conf_map and val in conf_map:
+                val = conf_map[val]
+                # Update etype to match the mapped value type (int→int, etc.)
+                if isinstance(val, bool):
+                    etype = "bool"
+                elif isinstance(val, int):
+                    etype = "int"
+                elif isinstance(val, float):
+                    etype = "float"
             # Skip empty values (e.g. empty string for optional fields)
+            # Fix vec2 values stored as corrupt strings (e.g. "\x00\x04" → [0, 4])
+            if etype == "vec2" and isinstance(val, str):
+                # Try to parse the string as space-separated numbers
+                cleaned = val.replace("\x00", " ").replace("\x04", " ")
+                cleaned = " ".join(cleaned.split())  # normalize whitespace
+                if cleaned:
+                    try:
+                        nums = [int(x) for x in cleaned.split()]
+                        val = nums if nums else [0, 0]
+                    except ValueError:
+                        val = [0, 0]
+                else:
+                    # Interpret control byte values directly (e.g. \x00=0, \x04=4)
+                    nums = [ord(c) for c in val if ord(c) < 0x20]
+                    val = nums if nums else [0, 0]
             if val == "" or val is None:
                 continue
-            # Honor sync flags: if syncBorderWidth=false, skip borderSize, etc.
-            if _is_sync_disabled(compositor_json, nk):
-                continue
+            # Sync flags control NothingLess runtime behavior, NOT config output.
+            # All compositor.json values are always written to generated files.
+            # (Sync flags removed from filtering — they're for the NothingLess shell)
             conf_path = entry.get("conf", "")
             if not conf_path:
                 # Fallback: use lua path for Lua-only settings
@@ -567,57 +735,151 @@ def _build_config_tree(compositor_json):
             node = tree.setdefault(parts[0], {})
             for p in parts[1:-1]:
                 node = node.setdefault(p, {})
-            node[parts[-1]] = {"value": val, "type": entry.get("type", "")}
+            meta = {"type": entry.get("type", "")}
+            # Pass angle key so gradient formatters can use active/inactive angles
+            if nk == "activeBorderColor":
+                meta["angle_key"] = "borderAngle"
+            elif nk == "inactiveBorderColor":
+                meta["angle_key"] = "inactiveBorderAngle"
+            node[parts[-1]] = {"value": val, **meta}
     return tree
 
 
 def _fmt_conf_val(val, meta=None):
     """Format a Python value as a hyprland.conf literal.
     If meta contains 'type': gradient lists get angle from compositor.json.
+    vec2 lists are formatted as space-separated values (no angle).
     """
     if isinstance(val, bool):
         return "true" if val else "false"
     if isinstance(val, list):
         if len(val) == 1:
             return str(val[0])
-        # Gradient: use angle from config
-        angle = cfg.get("borderAngle", 45)
+        # Check type from meta (leaf dict carried from _build_config_tree)
+        etype = (meta or {}).get("type", "") if isinstance(meta, dict) else ""
+        if etype in ("vec2", "int", "float"):
+            # vec2/coordinates: space-separated values, NO angle
+            return " ".join(str(x) for x in val)
+        # Gradient: use angle from config (respect active vs inactive)
+        angle_key = (meta or {}).get("angle_key") if isinstance(meta, dict) else None
+        angle = cfg.get(angle_key, 45) if angle_key else cfg.get("borderAngle", 45)
         return " ".join(str(x) for x in val) + f" {angle}deg"
     if isinstance(val, float):
         s = f"{val:.2f}".rstrip("0").rstrip(".")
         return s if "." in s else s + ".0"
-    return str(val)
+    s = str(val)
+    # Sanitize control characters (null → 0, others → space)
+    sanitized = []
+    for ch in s:
+        if ch == "\x00":
+            sanitized.append("0")
+        elif ord(ch) < 0x20 and ch not in ("\t", "\n", "\r"):
+            sanitized.append(" ")
+        else:
+            sanitized.append(ch)
+    return "".join(sanitized).strip()
 
 
 def _fmt_lua_val(val, meta=None):
     """Format a Python value as a Lua literal.
     If meta contains 'type': gradient lists produce {colors, angle} table.
+    vec2 lists are formatted as { number, number } without angle.
     """
     if isinstance(val, bool):
         return "true" if val else "false"
     if isinstance(val, list):
         if len(val) == 1:
             return '"' + str(val[0]).replace("\\", "\\\\").replace('"', '\\"') + '"'
+        # Check type from meta (leaf dict carried from _build_config_tree)
+        etype = (meta or {}).get("type", "") if isinstance(meta, dict) else ""
+        if etype in ("vec2", "int", "float"):
+            # vec2/coordinates: plain table { x, y }, NO gradient angle
+            return '{ ' + ', '.join(str(x) for x in val) + ' }'
         # Gradient: { colors = {...}, angle = N }
         colors = '{ "' + '", "'.join(str(x) for x in val) + '" }'
-        angle = cfg.get("borderAngle", 45)
+        angle_key = (meta or {}).get("angle_key") if isinstance(meta, dict) else None
+        angle = cfg.get(angle_key, 45) if angle_key else cfg.get("borderAngle", 45)
         return f'{{ colors = {colors}, angle = {angle} }}'
     if isinstance(val, float):
         s = f"{val:.2f}".rstrip("0").rstrip(".")
         return s if "." in s else s + ".0"
     if isinstance(val, str):
+        # Sanitize control characters before escaping
+        clean = []
+        for ch in val:
+            if ch == "\x00":
+                clean.append("0")
+            elif ord(ch) < 0x20 and ch not in ("\t", "\n", "\r"):
+                clean.append(" ")
+            else:
+                clean.append(ch)
+        val = "".join(clean)
         return '"' + val.replace("\\", "\\\\").replace('"', '\\"') + '"'
-    return str(val)
+    s = str(val)
+    # Sanitize control characters
+    sanitized = []
+    for ch in s:
+        if ch == "\x00":
+            sanitized.append("0")
+        elif ord(ch) < 0x20 and ch not in ("\t", "\n", "\r"):
+            sanitized.append(" ")
+        else:
+            sanitized.append(ch)
+    return "".join(sanitized).strip()
 
 
-def _render_conf_tree(tree):
-    """Render a nested config tree as hyprland.conf block syntax."""
+def _get_order(target):
+    """Read section order for a given target ('conf' or 'lua') from TOML [config_order]."""
+    order_cfg = DICT.get("config_order", {})
+    sections = order_cfg.get(target, [])
+    if not sections:
+        # Fallback: use all tree keys in arbitrary dict order
+        return list(tree.keys()) if 'tree' in dir() else []
+    # Apply target-specific exclusions (e.g. layout-only keys for lua)
+    exclude = order_cfg.get(target + "_exclude", [])
+    return [s for s in sections if s not in exclude]
+
+
+def _apply_derived_config(local_cfg):
+    """Apply derived/computed config rules from TOML [config_derived].
+    
+    Reads the TOML [config_derived] section and applies rules to local_cfg.
+    Each rule maps a compositor.json key to derived settings.
+    Currently handles: smartResizeAnchors rule.
+    """
+    derived = DICT.get("config_derived", {})
+    for rule_name, rule in derived.items():
+        if not isinstance(rule, dict):
+            continue
+        trigger_key = rule.get("key")
+        if not trigger_key or trigger_key not in local_cfg:
+            continue
+        trigger_val = local_cfg[trigger_key]
+        target = rule.get("when_true", {}) if trigger_val else rule.get("when_false", {})
+        for derived_key, derived_val in target.items():
+            # Handle "max(N, current)" pattern
+            if isinstance(derived_val, str) and derived_val.startswith("max("):
+                import re as _re
+                m = _re.match(r'max\((\d+),\s*current\)', derived_val)
+                if m:
+                    min_val = int(m.group(1))
+                    current = local_cfg.get(derived_key, 0)
+                    if isinstance(current, (int, float)):
+                        local_cfg[derived_key] = max(current, min_val)
+                    else:
+                        local_cfg[derived_key] = min_val
+                    continue
+            local_cfg[derived_key] = derived_val
+    return local_cfg
+
+
+def _render_conf_tree(tree, target="conf"):
+    """Render a nested config tree as hyprland.conf block syntax.
+    
+    Section order is read from TOML [config_order.conf] — no hardcoded order.
+    """
     lines = ["# === NOTHINGLESS COMPOSITOR ===", "# Applied by NothingLess", ""]
-
-    SECTION_ORDER = [
-        "general", "decoration", "input", "cursor", "gestures",
-        "misc", "xwayland", "dwindle", "master", "scrolling", "animations", "group", "binds",
-    ]
+    order = _get_order(target)
 
     def _write_section(name, data, indent=0):
         prefix = "  " * indent
@@ -634,8 +896,15 @@ def _render_conf_tree(tree):
                 lines.append(f"{prefix}  {key} = {_fmt_conf_val(val)}")
         lines.append(f"{prefix}}}")
 
-    for section in SECTION_ORDER:
+    # Render sections in order, then append any remaining sections not in the list
+    rendered = set()
+    for section in order:
         if section in tree:
+            _write_section(section, tree[section])
+            lines.append("")
+            rendered.add(section)
+    for section in tree:
+        if section not in rendered:
             _write_section(section, tree[section])
             lines.append("")
 
@@ -643,20 +912,19 @@ def _render_conf_tree(tree):
     return "\n".join(lines) + "\n"
 
 
-def _render_lua_tree(tree):
-    """Render a nested config tree as hyprland.lua hl.config() block."""
+def _render_lua_tree(tree, target="lua"):
+    """Render a nested config tree as hyprland.lua hl.config() block.
+    
+    Section order is read from TOML [config_order.lua] — no hardcoded order.
+    Layout-only sections (dwindle, master, scrolling) are excluded since
+    they are not valid in hl.config() Lua API.
+    """
     lines = [
         "-- === NOTHINGLESS COMPOSITOR ===",
         "-- NothingLess compositor settings",
         "hl.config({",
     ]
-
-    # Layout sections (dwindle, master, scrolling) are conf-only:
-    # they are not valid in hl.config() Lua API
-    SECTION_ORDER = [
-        "general", "decoration", "input", "cursor", "gestures",
-        "misc", "xwayland", "animations", "group", "binds",
-    ]
+    order = _get_order(target)
 
     def _write_table(name, data, indent=4):
         prefix = " " * indent
@@ -673,8 +941,17 @@ def _render_lua_tree(tree):
                 lines.append(f"{prefix}    {key} = {_fmt_lua_val(val)},")
         lines.append(f"{prefix}}},")
 
-    for section in SECTION_ORDER:
-        if section in tree:
+    # Get exclusion list (layout-only sections not valid in hl.config)
+    order_cfg = DICT.get("config_order", {})
+    exclude = set(order_cfg.get(target + "_exclude", []))
+
+    rendered = set()
+    for section in order:
+        if section in tree and section not in exclude:
+            _write_table(section, tree[section])
+            rendered.add(section)
+    for section in tree:
+        if section not in rendered and section not in exclude:
             _write_table(section, tree[section])
 
     lines.append("})")
@@ -683,29 +960,19 @@ def _render_lua_tree(tree):
 
 
 def build_conf_compositor():
-    """Build hyprland.conf compositor block from TOML dictionary."""
-    _is_free = cfg.get("layout") == "free"
-    _smart = cfg.get("smartResizeAnchors", True)
-    if _smart:
-        grab = max(cfg.get("extendBorderGrabArea", 10), 10)
-        cfg.update({"resizeOnBorder": True, "extendBorderGrabArea": grab})
-    else:
-        cfg.update({"resizeOnBorder": False, "extendBorderGrabArea": 0})
-    tree = _build_config_tree(cfg)
-    return _render_conf_tree(tree)
+    """Build hyprland.conf compositor block — fully data-driven via TOML."""
+    local_cfg = dict(cfg)
+    _apply_derived_config(local_cfg)
+    tree = _build_config_tree(local_cfg)
+    return _render_conf_tree(tree, target="conf")
 
 
 def build_lua_compositor():
-    """Build hyprland.lua compositor block from TOML dictionary."""
-    _is_free = cfg.get("layout") == "free"
-    _smart = cfg.get("smartResizeAnchors", True)
-    if _smart:
-        grab = max(cfg.get("extendBorderGrabArea", 10), 10)
-        cfg.update({"resizeOnBorder": True, "extendBorderGrabArea": grab})
-    else:
-        cfg.update({"resizeOnBorder": False, "extendBorderGrabArea": 0})
-    tree = _build_config_tree(cfg)
-    return _render_lua_tree(tree)
+    """Build hyprland.lua compositor block — fully data-driven via TOML."""
+    local_cfg = dict(cfg)
+    _apply_derived_config(local_cfg)
+    tree = _build_config_tree(local_cfg, output="lua")
+    return _render_lua_tree(tree, target="lua")
 
 def build_toml_compositor():
     """Build a minimal axctl.toml compositor block."""
@@ -790,11 +1057,81 @@ def _inject_block(content, marker, end_marker, new_block):
         "", content, flags=re.DOTALL
     ).strip()
     if new_block:
-        content += "\n" + new_block
+        if content:
+            content += "\n" + new_block
+        else:
+            content = new_block
     return content
 
 
+def live_apply():
+    """Apply compositor settings live via axctl (no file writes).
+    
+    Uses the same TOML mapping as Sync-hyprland.py — NO duplicated logic.
+    """
+    kw_map = []
+    for section_name, entries in _walk_dict_sections().items():
+        for _dict_key, entry in entries:
+            nk = entry.get("nothingless_key")
+            if not nk or nk not in cfg:
+                continue
+            val = cfg[nk]
+            etype = entry.get("type", "")
+            # Resolve known symbolic color names
+            if etype == "color":
+                if isinstance(val, str):
+                    val = _resolve_color(val)
+                elif isinstance(val, list):
+                    val = [_resolve_color(v) for v in val]
+            if etype == "gradient" and isinstance(val, list):
+                val = [_resolve_color(v) if isinstance(v, str) else v for v in val]
+            # Skip symbolic theme colors (non-hex strings that couldn't be resolved)
+            if etype in ("color", "gradient") and not _is_hex_color(val):
+                continue
+            if val == "" or val is None:
+                continue
+            conf_path = entry.get("conf", "")
+            if not conf_path:
+                lua_path = entry.get("lua", "")
+                if lua_path:
+                    conf_path = lua_path.replace(".", ":")
+                else:
+                    continue
+            kw_map.append((conf_path, val, etype))
+    
+    if not kw_map:
+        print("axctl: no settings to apply")
+        return
+    
+    kv_pairs = {}
+    for kw, val, etype in kw_map:
+        # Pass etype as meta so _fmt_conf_val can distinguish vec2 from gradient
+        val_str = _fmt_conf_val(val, {"type": etype})
+        kv_pairs[kw] = val_str
+    
+    json_input = json.dumps(kv_pairs, indent=2)
+    try:
+        import subprocess
+        r = subprocess.run(["axctl", "config", "batch", "-"],
+                          input=json_input,
+                          capture_output=True, text=True)
+        if r.returncode == 0:
+            print(f"axctl: {len(kv_pairs)} settings applied")
+        else:
+            err_detail = r.stderr.strip() if r.stderr else "no stderr"
+            print(f"axctl: batch failed (exit {r.returncode}): {err_detail}", file=sys.stderr)
+            first_keys = list(kv_pairs.keys())[:5]
+            print(f"  First 5 keys sent: {first_keys}", file=sys.stderr)
+            print(f"  Full JSON: {json_input[:500]}...", file=sys.stderr)
+    except FileNotFoundError:
+        print("axctl: not found — live apply skipped", file=sys.stderr)
+    except Exception as e:
+        print(f"axctl: error — {e}", file=sys.stderr)
+
+
 def main():
+    do_apply = "--apply" in sys.argv
+
     os.makedirs(DATA_DIR, exist_ok=True)
 
     # ── Generate all blocks ──
@@ -884,7 +1221,11 @@ def main():
                 f.write("\n\n" + binds_toml.strip() + "\n")
         print(f"axctl.toml: CREATED ({len(toml_compositor)}c compositor)")
 
-    print("Done — hyprctl reload & axctl config reload recommended")
+    if do_apply:
+        live_apply()
+        print("Done — hyprctl reload recommended if you use the .conf")
+    else:
+        print("Done — hyprctl reload & axctl config reload recommended")
 
 
 if __name__ == "__main__":
