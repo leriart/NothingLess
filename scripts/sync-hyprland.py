@@ -919,6 +919,15 @@ def _render_lua_tree(tree, target="lua"):
     Layout-only sections (dwindle, master, scrolling) are excluded since
     they are not valid in hl.config() Lua API.
     """
+    import re as _re
+    _LUA_ID = _re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+    def _lua_key(k):
+        """Quote key with [\"...\"] if not a valid Lua identifier."""
+        if _LUA_ID.match(k):
+            return k
+        return f'["{k}"]'
+
     lines = [
         "-- === NOTHINGLESS COMPOSITOR ===",
         "-- NothingLess compositor settings",
@@ -930,15 +939,16 @@ def _render_lua_tree(tree, target="lua"):
         prefix = " " * indent
         if not isinstance(data, dict):
             return
-        lines.append(f"{prefix}{name} = {{")
+        lines.append(f"{prefix}{_lua_key(name)} = {{")
         for key, val in data.items():
+            lk = _lua_key(key)
             if isinstance(val, dict) and "value" in val:
                 # Leaf with metadata
-                lines.append(f"{prefix}    {key} = {_fmt_lua_val(val['value'], val)},")
+                lines.append(f"{prefix}    {lk} = {_fmt_lua_val(val['value'], val)},")
             elif isinstance(val, dict):
                 _write_table(key, val, indent + 4)
             else:
-                lines.append(f"{prefix}    {key} = {_fmt_lua_val(val)},")
+                lines.append(f"{prefix}    {lk} = {_fmt_lua_val(val)},")
         lines.append(f"{prefix}}},")
 
     # Get exclusion list (layout-only sections not valid in hl.config)
