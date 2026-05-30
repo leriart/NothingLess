@@ -729,11 +729,6 @@ remove)
 
 		remove_nothingless_hyprland_block "$HYPR_LUA" "$NOTHINGLESS_HYPR_LUA_SOURCE"
 		remove_nothingless_hyprland_block "$HYPR_CONF" "$NOTHINGLESS_HYPR_CONF_SOURCE"
-
-		# Clean up stale .lua if user switched from lua to conf mode
-		if [ ! -f "$HYPR_CONF" ] && [ -f "$HYPR_LUA" ] && [ ! -s "$HYPR_LUA" ] || grep -q "NothingLess" "$HYPR_LUA" 2>/dev/null; then
-			rm -f "$HYPR_LUA" 2>/dev/null || true
-		fi
 	else
 		echo "Error: Unknown target '$TARGET'. Supported: hyprland"
 		exit 1
