@@ -1150,7 +1150,8 @@ def build_gesture_binds():
         # ── .conf format (hyprlang single-line) ────────────────────
         # Syntax: gesture = <fingers>, <direction>, <action>[, <opts>]
         # Built-in:  gesture = 3, swipe, move
-        # Dispatcher: gesture = 4, up, dispatcher: exec, nothingless run overview
+        # Dispatcher: gesture = 4, up, dispatcher, exec, nothingless run overview
+        #             (keyword "dispatcher" — NO colon — per ConfigManager.cpp)
         conf_action     = gb.get("conf_action", "")
         conf_dispatcher = gb.get("conf_dispatcher", "")
         conf_argument   = gb.get("conf_argument", "")
@@ -1159,11 +1160,11 @@ def build_gesture_binds():
             if conf_argument:
                 arg_processed = nothingless_path(conf_argument) if conf_dispatcher == "exec" else conf_argument
                 conf_lines.append(
-                    f"gesture = {fingers}, {direction}, dispatcher: {conf_dispatcher}, {arg_processed}"
+                    f"gesture = {fingers}, {direction}, dispatcher, {conf_dispatcher}, {arg_processed}"
                 )
             else:
                 conf_lines.append(
-                    f"gesture = {fingers}, {direction}, dispatcher: {conf_dispatcher}"
+                    f"gesture = {fingers}, {direction}, dispatcher, {conf_dispatcher}"
                 )
         elif conf_action:
             conf_lines.append(
