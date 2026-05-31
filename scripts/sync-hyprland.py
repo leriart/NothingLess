@@ -1112,7 +1112,8 @@ def build_toml_compositor():
 #
 #  Reads [gesture_bindings] from hyprlang-dict.toml.
 #  Each entry maps a compositor.json boolean toggle to hl.gesture() blocks.
-#  Supports conf_action (built-in), conf_dispatcher/conf_argument (custom),
+#  Supports conf_action (built-in), conf_dispatcher/conf_argument (custom,
+#  keyword "dispatcher" without colon per ConfigManager.cpp),
 #  lua_action/lua_dispatcher, and toml_action/toml_dispatcher.
 #  Nothing is hardcoded — the dictionary defines fingers, direction, and actions.
 # ═══════════════════════════════════════════════════════════════════════════

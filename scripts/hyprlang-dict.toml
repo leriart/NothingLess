@@ -3087,7 +3087,7 @@ lua = 'hl.window_rule({ match = { class = ".*" }, float = true })'
 #  fingers:         number of fingers for this gesture
 #  direction:       swipe | pinch | left | right | up | down
 #  conf_action:     (optional) built-in action for .conf single-line: gesture = N, dir, action
-#  conf_dispatcher: (optional) dispatcher for .conf: gesture = N, dir, dispatcher: name[, arg]
+#  conf_dispatcher: (optional) dispatcher for .conf: gesture = N, dir, dispatcher, name[, arg]
 #  conf_argument:   (optional) argument for conf_dispatcher
 #  lua_action:      (optional) built-in action string for hl.gesture() in .lua
 #  lua_dispatcher:  (optional) custom dispatcher for .lua inline function body
