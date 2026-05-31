@@ -1457,12 +1457,13 @@ PanelWindow {
                 }
             }
 
-            // Fallback in case Binding doesn't trigger
+            // Fallback in case Binding doesn't trigger — only used when item is replaced
+            // NOTE: Binding above already handles sourceFile sync; this catches
+            // the edge case where the Loader re-creates the item before Binding activates.
             Connections {
                 target: wallImageContainer
                 function onSourceChanged() {
-                    if (wallImageLoader.item) {
-                        console.log("Connections: updating sourceFile to", wallImageContainer.source);
+                    if (wallImageLoader.item && wallImageLoader.item.sourceFile !== wallImageContainer.source) {
                         wallImageLoader.item.sourceFile = wallImageContainer.source;
                     }
                 }

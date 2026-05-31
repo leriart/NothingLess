@@ -39,6 +39,18 @@ class ThumbnailGenerator:
         self.total_files = 0
         self.processed_count = 0
         self.lock = threading.Lock()
+        self._imagemagick_v7: Optional[bool] = None  # cached detection
+
+    @staticmethod
+    def _is_imagemagick_v7() -> bool:
+        """Detect ImageMagick v7 (magick) vs v6 (convert)."""
+        try:
+            result = subprocess.run(
+                ["magick", "--version"], capture_output=True, text=True, timeout=5
+            )
+            return result.returncode == 0
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
 
     def load_config(self) -> bool:
         """Load wallpaper configuration."""
@@ -156,20 +168,21 @@ class ThumbnailGenerator:
             # Ensure parent directory exists
             thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # FFmpeg command for high-quality thumbnail
+            # FFmpeg command for thumbnail — seek to 10% of first second to avoid
+            # black frames without overshooting short videos (<1s)
             cmd = [
                 "ffmpeg",
                 "-y",
+                "-ss", "00:00:00.100",  # seek before -i for fast input seeking
                 "-i",
                 str(video_path),
-                "-ss",
-                "00:00:01",  # Skip first second to avoid black frames
                 "-vframes",
                 "1",  # Extract only 1 frame
                 "-vf",
                 f"scale=140:140:force_original_aspect_ratio=increase,crop=140:140",
                 "-q:v",
                 "2",  # High quality
+                "-strict", "unofficial",
                 "-f",
                 "image2",  # Force image format
                 str(thumbnail_path),
@@ -202,9 +215,10 @@ class ThumbnailGenerator:
             # Ensure parent directory exists
             thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # ImageMagick command for high-quality thumbnail
+            # ImageMagick command — use 'magick' on v7, 'convert' on v6
+            im_cmd = "magick" if self._is_imagemagick_v7() else "convert"
             cmd = [
-                "convert",
+                im_cmd,
                 str(image_path),
                 "-resize",
                 "140x140^",  # Force resize to exact dimensions
@@ -228,7 +242,9 @@ class ThumbnailGenerator:
             if result.returncode == 0 and thumbnail_path.exists():
                 return True, "Success"
             else:
-                error_msg = result.stderr.strip() if result.stderr else "Unknown error"
+                stderr_msg = result.stderr.strip() if result.stderr else ""
+                stdout_msg = result.stdout.strip() if result.stdout else ""
+                error_msg = (stderr_msg + "\n" + stdout_msg).strip() or f"IM exit code {result.returncode}"
                 return False, error_msg
 
         except subprocess.TimeoutExpired:

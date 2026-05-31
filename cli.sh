@@ -815,6 +815,8 @@ help | --help | -h)
 	export QSG_RENDER_LOOP="threaded"
 	export QML_XHR_ALLOW_FILE_READ=1
 
+
+	# Fallback: Use system quickshell (may be software rendering)
 	# Cache this script's PID before exec (for fast PID lookups in future CLI calls)
 	echo $$ >/tmp/nothingless.pid
 

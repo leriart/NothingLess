@@ -48,9 +48,16 @@ Item {
     }
     
     // Internal countdown state
-    property int timeLeft: Config.system.pomodoro.workTime
-    property int totalTime: Config.system.pomodoro.workTime
+    property int timeLeft: (Config.system.pomodoro && Config.system.pomodoro.workTime) ? Config.system.pomodoro.workTime : 1500
+    property int totalTime: (Config.system.pomodoro && Config.system.pomodoro.workTime) ? Config.system.pomodoro.workTime : 1500
     property real visualProgress: 1.0
+
+    function _safeWorkTime() {
+        return (Config.system.pomodoro && Config.system.pomodoro.workTime) ? Config.system.pomodoro.workTime : 1500;
+    }
+    function _safeRestTime() {
+        return (Config.system.pomodoro && Config.system.pomodoro.restTime) ? Config.system.pomodoro.restTime : 300;
+    }
 
     readonly property var spotifyPlayer: {
         for (let player of MprisController.filteredPlayers) {
@@ -347,9 +354,9 @@ Item {
                 opacity: root.isRunning || root.alarmActive || root.visualProgress < 1.0 ? 1.0 : 0.3
                 
                 Rectangle {
-                    height: parent.height
-                    width: parent ? (root.visualProgress || 0) * parent.width : 0
-                    radius: parent.radius
+                    height: parent ? (parent.height || 0) : 0
+                    width: parent ? (root.visualProgress || 0) * (parent.width || 0) : 0
+                    radius: parent ? (parent.radius || 2) : 2
                     color: Styling.srItem("overprimary")
                 }
             }

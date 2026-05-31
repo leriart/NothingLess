@@ -211,7 +211,15 @@ Singleton {
             }
         }
         onExited: (code) => {
-            console.log("axctl daemon started (exit:", code + ")")
+            if (code === 0) {
+                console.log("axctl daemon started successfully")
+            } else if (code === 1) {
+                // Exit code 1 typically means daemon already running (socket exists).
+                // This is not fatal — subscribe will connect to the existing daemon.
+                console.log("axctl daemon already running or socket exists (exit:", code + ")")
+            } else {
+                console.warn("axctl daemon exited with unexpected code:", code)
+            }
         }
     }
 

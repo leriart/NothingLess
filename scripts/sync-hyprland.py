@@ -17,6 +17,7 @@ No hardcoded keyword strings or dispatcher mappings remain in this file.
 import json
 import os
 import re
+import subprocess
 import sys
 
 # ── TOML support: Python 3.11+ has tomllib, fallback to tomli ──────────
@@ -1427,6 +1428,12 @@ def main():
             if gestures_toml:
                 f.write("\n\n" + gestures_toml.strip() + "\n")
         print(f"axctl.toml: CREATED ({len(toml_compositor)}c compositor)")
+
+    # ── Re-inject monitors after compositor sync (they get overwritten) ──
+    monitors_writer = os.path.join(SCRIPT_DIR, "monitors_writer.py")
+    if os.path.isfile(monitors_writer):
+        subprocess.run(["python3", monitors_writer, "sync", "--no-apply"],
+                       capture_output=True, timeout=10)
 
     if do_apply:
         live_apply()

@@ -66,7 +66,7 @@ Item {
     // Screen-specific visibility properties passed from parent
     property var visibilities
     readonly property bool screenNotchOpen: visibilities ? (visibilities.launcher || visibilities.dashboard || visibilities.powermenu || visibilities.tools) : false
-    readonly property bool hasActiveNotifications: Notifications.popupList.length > 0
+    readonly property bool hasActiveNotifications: (typeof Notifications !== "undefined" && Notifications && Notifications.popupList) ? Notifications.popupList.length > 0 : false
 
     property int defaultHeight: Config.showBackground ? (screenNotchOpen || hasActiveNotifications ? Math.max(stackContainer.height, 44) : 44) : (screenNotchOpen || hasActiveNotifications ? Math.max(stackContainer.height, 40) : 40)
     property int compactHeight: 36
@@ -105,7 +105,7 @@ Item {
     // Match bar size when merged
     readonly property int maxIslandWidth: root.mergeWithBar ? (parent ? Math.min(parent.width, 400) : 400) : (parent ? Math.min(parent.width * 0.85, 600) : 600)
     // When merged, make the background transparent so bar bg shows through
-    readonly property bool sectionInvisible: root.mergeWithBar && !root.screenNotchOpen && !root.hasActiveNotifications
+    readonly property bool sectionInvisible: (root.mergeWithBar === true) && !root.screenNotchOpen && !root.hasActiveNotifications
 
     Behavior on implicitWidth {
         enabled: Anim.animationsEnabled

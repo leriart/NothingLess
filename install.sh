@@ -399,12 +399,47 @@ setup_repo() {
 
 # === Quickshell Build ===
 install_quickshell() {
-  [[ "$DISTRO" == "nixos" || "$DISTRO" == "fedora" || "$DISTRO" == "arch" ]] && return
-  has_cmd qs && {
-    log_info "Quickshell already installed"
-    return
-  }
+  [[ "$DISTRO" == "nixos" || "$DISTRO" == "fedora" ]] && return
 
+  if has_cmd qs; then
+    # Check version compatibility: quickshell must be built against same Qt as system
+    local QS_QT
+    QS_QT=$(ldd "$(which qs)" 2>/dev/null | grep -oP 'libQt6Core\.so\.\K[\d.]+' | head -1 || echo "")
+    local SYS_QT
+    SYS_QT=$(pacman -Q qt6-base 2>/dev/null | grep -oP '[\d.]+' | head -1 || echo "")
+    
+    if [ -n "$QS_QT" ] && [ -n "$SYS_QT" ] && [ "$QS_QT" = "$SYS_QT" ]; then
+      log_info "Quickshell already installed (Qt $QS_QT, compatible with system)"
+      return
+    elif [ "$DISTRO" = "arch" ]; then
+      log_warn "Quickshell Qt ($QS_QT) differs from system Qt ($SYS_QT) — rebuilding"
+      log_info "Reinstalling quickshell from AUR..."
+      yay -S --noconfirm quickshell 2>/dev/null || \
+        paru -S --noconfirm quickshell 2>/dev/null || \
+        log_warn "Could not auto-rebuild quickshell; continuing anyway"
+      return
+    fi
+  fi
+
+  # On Arch, install from AUR rather than building from source
+  if [ "$DISTRO" = "arch" ]; then
+    log_info "Installing quickshell from AUR..."
+    if has_cmd yay; then
+      yay -S --noconfirm quickshell
+    elif has_cmd paru; then
+      paru -S --noconfirm quickshell
+    else
+      log_warn "No AUR helper found, building from source..."
+      build_quickshell_from_source
+    fi
+    return
+  fi
+
+  build_quickshell_from_source
+}
+
+build_quickshell_from_source() {
+  has_cmd qs && { log_info "Quickshell already installed"; return; }
   log_info "Building Quickshell from source..."
   local BUILD_DIR
   BUILD_DIR="$(mktemp -d)"

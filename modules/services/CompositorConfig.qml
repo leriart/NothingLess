@@ -550,9 +550,9 @@ QtObject {
     // Float all EXISTING windows + enable catch-all rule for NEW windows
     property Process floatAllProcess: Process {
         command: ["bash", "-c",
-            // Create/enable catch-all float rule for new windows
+            // Create/enable catch-all float rule for new windows (safe: rule may not exist yet)
             "hyprctl eval \"nl_free_rule = hl.window_rule({ name = 'nl-free-float', match = { class = '.*' }, float = true })\" 2>/dev/null; " +
-            "hyprctl eval 'nl_free_rule:set_enabled(true)' 2>/dev/null; " +
+            "hyprctl eval 'if nl_free_rule then nl_free_rule:set_enabled(true) end' 2>/dev/null; " +
             // Float all existing non-floating windows
             "count=0; " +
             "while IFS= read -r addr; do " +
@@ -571,8 +571,8 @@ QtObject {
     // Tile all windows + disable catch-all rule
     property Process tileAllProcess: Process {
         command: ["bash", "-c",
-            // Disable the catch-all float rule
-            "hyprctl eval 'nl_free_rule:set_enabled(false)' 2>/dev/null; " +
+            // Disable the catch-all float rule (safe: rule may not exist)
+            "hyprctl eval 'if nl_free_rule then nl_free_rule:set_enabled(false) end' 2>/dev/null; " +
             // Unfloat all existing floating windows
             "count=0; " +
             "while IFS= read -r addr; do " +
