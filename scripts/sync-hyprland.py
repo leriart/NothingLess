@@ -1112,6 +1112,8 @@ def build_toml_compositor():
 #
 #  Reads [gesture_bindings] from hyprlang-dict.toml.
 #  Each entry maps a compositor.json boolean toggle to hl.gesture() blocks.
+#  Supports conf_action (built-in), conf_dispatcher/conf_argument (custom),
+#  lua_action/lua_dispatcher, and toml_action/toml_dispatcher.
 #  Nothing is hardcoded — the dictionary defines fingers, direction, and actions.
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -1145,16 +1147,27 @@ def build_gesture_binds():
         if not fingers or not direction:
             continue
         
-        # ── .conf format ──────────────────────────────────────────
-        conf_action = gb.get("conf_action", "")
-        if conf_action:
-            # Built-in action for .conf: gesture { fingers=N, direction=D, action=A }
+        # ── .conf format (hyprlang single-line) ────────────────────
+        # Syntax: gesture = <fingers>, <direction>, <action>[, <opts>]
+        # Built-in:  gesture = 3, swipe, move
+        # Dispatcher: gesture = 4, up, dispatcher: exec, nothingless run overview
+        conf_action     = gb.get("conf_action", "")
+        conf_dispatcher = gb.get("conf_dispatcher", "")
+        conf_argument   = gb.get("conf_argument", "")
+
+        if conf_dispatcher:
+            if conf_argument:
+                arg_processed = nothingless_path(conf_argument) if conf_dispatcher == "exec" else conf_argument
+                conf_lines.append(
+                    f"gesture = {fingers}, {direction}, dispatcher: {conf_dispatcher}, {arg_processed}"
+                )
+            else:
+                conf_lines.append(
+                    f"gesture = {fingers}, {direction}, dispatcher: {conf_dispatcher}"
+                )
+        elif conf_action:
             conf_lines.append(
-                f"gesture {{\n"
-                f"    fingers = {fingers}\n"
-                f"    direction = {direction}\n"
-                f"    action = {conf_action}\n"
-                f"}}"
+                f"gesture = {fingers}, {direction}, {conf_action}"
             )
         
         # ── .lua format ──────────────────────────────────────────

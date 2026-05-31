@@ -3085,8 +3085,10 @@ lua = 'hl.window_rule({ match = { class = ".*" }, float = true })'
 #
 #  nothingless_key: compositor.json key (bool) — enables/disables the gesture
 #  fingers:         number of fingers for this gesture
-#  direction:       swipe | pinch | horizontal | up | down
-#  conf_action:     (optional) built-in action string for .conf format
+#  direction:       swipe | pinch | left | right | up | down
+#  conf_action:     (optional) built-in action for .conf single-line: gesture = N, dir, action
+#  conf_dispatcher: (optional) dispatcher for .conf: gesture = N, dir, dispatcher: name[, arg]
+#  conf_argument:   (optional) argument for conf_dispatcher
 #  lua_action:      (optional) built-in action string for hl.gesture() in .lua
 #  lua_dispatcher:  (optional) custom dispatcher for .lua inline function body
 #  lua_argument:    (optional) argument for custom .lua dispatcher
@@ -3140,6 +3142,8 @@ description = "4-finger swipe up to toggle overview (Mission Control)"
 nothingless_key = "gesture4FingerOverview"
 fingers = 4
 direction = "up"
+conf_dispatcher = "exec"
+conf_argument = "nothingless run overview"
 lua_dispatcher = "exec"
 lua_argument = "nothingless run overview"
 toml_dispatcher = "exec"
@@ -3150,6 +3154,8 @@ description = "4-finger swipe down to toggle overview (Mission Control)"
 nothingless_key = "gesture4FingerOverview"
 fingers = 4
 direction = "down"
+conf_dispatcher = "exec"
+conf_argument = "nothingless run overview"
 lua_dispatcher = "exec"
 lua_argument = "nothingless run overview"
 toml_dispatcher = "exec"
@@ -3169,6 +3175,6 @@ description = "3-finger swipe down to toggle scratchpad (special workspace)"
 nothingless_key = "gesture3FingerScratchpad"
 fingers = 3
 direction = "down"
-conf_action = "togglespecialworkspace"
+conf_dispatcher = "togglespecialworkspace"
 lua_action = "togglespecialworkspace"
 toml_action = "togglespecialworkspace"
