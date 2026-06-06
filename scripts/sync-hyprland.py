@@ -55,8 +55,11 @@ NOTHINGLESS_BIN = "/usr/local/bin/nothingless"
 with open(DICT_PATH, "rb") as f:
     DICT = tomllib.load(f)
 
-with open(COMPOSITOR_PATH) as f:
-    cfg = json.load(f)
+try:
+    with open(COMPOSITOR_PATH) as f:
+        cfg = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError):
+    cfg = {}
 
 try:
     with open(BINDS_PATH) as f:
