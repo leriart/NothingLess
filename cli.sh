@@ -656,15 +656,13 @@ ENDCONF
 	# ---- Detect mode if auto ----
 	if [ "$MODE" = "auto" ]; then
 		if [ -f "$HYPR_LUA" ]; then
-			# Si hay .lua, escribe ahi
 			MODE="lua"
 		elif [ -f "$HYPR_CONF" ]; then
-			# Si solo hay .conf, escribe ahi
 			MODE="conf"
 		else
-			# No hay ninguno — no crear archivos
-			echo "No hyprland config found. Create one first or use --lua/--conf." >&2
-			exit 1
+			# No existing config — create one in conf mode
+			echo "No hyprland config found. Creating one..." >&2
+			MODE="conf"
 		fi
 	fi
 

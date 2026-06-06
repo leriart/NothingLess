@@ -519,8 +519,15 @@ setup_launcher() {
   log_info "Creating launcher at $LAUNCHER..."
   sudo tee "$LAUNCHER" >/dev/null <<-EOF
 		#!/usr/bin/env bash
-		export PATH="$HOME/.local/bin:\$PATH"
-		export QML2_IMPORT_PATH="$HOME/.local/lib/qml:\$QML2_IMPORT_PATH"
+		# Prepend paths only if not already present (avoids ARG_MAX issues)
+		case ":\$PATH:" in
+		  *:"$HOME/.local/bin":*) ;;
+		  *) export PATH="$HOME/.local/bin:\$PATH" ;;
+		esac
+		case ":\$QML2_IMPORT_PATH:" in
+		  *:"$HOME/.local/lib/qml":*) ;;
+		  *) export QML2_IMPORT_PATH="$HOME/.local/lib/qml:\$QML2_IMPORT_PATH" ;;
+		esac
 		export QML_IMPORT_PATH="\$QML2_IMPORT_PATH"
 		exec "$INSTALL_PATH/cli.sh" "\$@"
 	EOF
