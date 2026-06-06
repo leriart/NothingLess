@@ -3,7 +3,16 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+# Resolve script dir with bash builtins only (no fork, avoids E2BIG on large envs)
+_script_src="${BASH_SOURCE[0]}"
+SCRIPT_DIR="${_script_src%/*}"
+if [[ "$SCRIPT_DIR" == "$_script_src" ]] && [[ ! -f "$_script_src" ]]; then
+    SCRIPT_DIR="$PWD"
+fi
+if [[ "$SCRIPT_DIR" != /* ]]; then
+    SCRIPT_DIR="$PWD/$SCRIPT_DIR"
+fi
+unset _script_src
 
 # Use environment variables if set by flake, otherwise fall back to PATH
 QS_BIN="${NOTHINGLESS_QS:-qs}"
