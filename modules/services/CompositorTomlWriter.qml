@@ -557,32 +557,41 @@ Singleton {
     function writeTomlFile() {
         const newContent = generateToml();
         const path = root.outputPath;
-        const escapedNew = newContent.replace(/'/g, "'\\''");
+
+        // Encode as base64 to avoid all shell/Python escaping issues.
+        // TOML content is ASCII, so btoa() is safe.
+        const b64 = btoa(newContent);
 
         // Must preserve [[monitors]] written by monitors_writer.py.
         // If we just overwrite the file, monitors get nuked.
+        // 
+        // Pass b64 + path as separate argv elements (NOT interpolated into
+        // the Python code string) to avoid injection/escaping bugs.
         writeProcess.command = ["python3", "-c", `
-import os, re
-path = "${root.outputPath}"
-template = '''${escapedNew}'''
-
-if os.path.isfile(path):
-    with open(path) as f:
+import base64, os, re, sys
+b64 = sys.argv[1]
+out = sys.argv[2]
+template = base64.b64decode(b64).decode("utf-8")
+monitors = []
+if os.path.isfile(out):
+    with open(out) as f:
         content = f.read()
-    # Extract [[monitors]] sections from existing file
-    monitors = re.findall(r'\\n?(\\[\\[monitors\\]\\].*?)(?=\\n\\[|\\Z)', content, re.DOTALL)
-else:
-    monitors = []
-
-# Append preserved monitors
+    # Extract [[monitors]] sections (start delimiter to next [section or EOF)
+    monitors = re.findall(
+        r"(?m)^\\[\\[monitors\\]\\].*?(?=^\\[|\\Z)",
+        content, re.DOTALL,
+    )
+    monitors = [m.strip() for m in monitors if m.strip()]
 if monitors:
-    template += '\\n' + '\\n'.join(monitors) + '\\n'
-
-os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
-with open(path, 'w') as f:
+    template += "\\n\\n" + "\\n\\n".join(monitors) + "\\n"
+os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+with open(out, "w") as f:
     f.write(template)
-print('Written TOML to', path)
-`];
+print("TOML written:", len(template), "bytes")
+`,
+            b64,
+            path
+        ];
         writeProcess.running = true;
     }
 

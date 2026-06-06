@@ -1392,21 +1392,30 @@ def main():
         with open(TOML_PATH) as f:
             toml_content = f.read()
 
+        # Remove ALL old NothingLess section markers and content
+        # This prevents accumulation from partial/aborted writes
+        for section_id in ["KEYBINDS", "COMPOSITOR", "GESTURES"]:
+            # Remove closed sections (with END marker)
+            toml_content = re.sub(
+                re.escape(f"# === NOTHINGLESS {section_id} ===")
+                + ".*?"
+                + re.escape(f"# === END {section_id} ==="),
+                '', toml_content, flags=re.DOTALL
+            ).strip()
+            # Remove any leftover unclosed section headers
+            # (stray markers without END that accumulate from partial writes)
+            toml_content = re.sub(
+                re.escape(f"# === NOTHINGLESS {section_id} ===")
+                + r".*?(?=\n|\Z)",
+                '', toml_content, flags=re.DOTALL
+            ).strip()
         # Remove old appearance blocks + keybinds
         toml_content = re.sub(
             r'\n?\[appearance\].*?(?=\n?\[\[keybinds\]\]|\n?# === NOTHINGLESS|\Z)',
             '', toml_content, flags=re.DOTALL
         ).strip()
         toml_content = re.sub(
-            re.escape("# === NOTHINGLESS COMPOSITOR ===") + ".*?" + re.escape("# === END COMPOSITOR ==="),
-            '', toml_content, flags=re.DOTALL
-        ).strip()
-        toml_content = re.sub(
             r'\n?(\[\[keybinds\]\].*?)(?=\n\[|\Z)',
-            '', toml_content, flags=re.DOTALL
-        ).strip()
-        toml_content = re.sub(
-            re.escape("# === NOTHINGLESS KEYBINDS ===") + ".*?" + re.escape("# === END KEYBINDS ==="),
             '', toml_content, flags=re.DOTALL
         ).strip()
 
