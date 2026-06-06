@@ -186,9 +186,9 @@ StyledRect {
         Behavior on angle {
             enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: 200
+                duration: Anim.standardSmall
                 easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
     }
@@ -214,18 +214,18 @@ StyledRect {
         Behavior on rotation {
             enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: 400
+                duration: Anim.standardNormal
                 easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 
         Behavior on scale {
             enabled: Anim.animationsEnabled
             NumberAnimation {
-                duration: 400
+                duration: Anim.standardNormal
                 easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
     }

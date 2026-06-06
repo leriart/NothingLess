@@ -65,11 +65,11 @@ StyledRect {
 
     Behavior on implicitWidth {
         enabled: Anim.animationsEnabled
-        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+        AnimatedBehavior { type: "standard"; size: "normal" }
     }
     Behavior on implicitHeight {
         enabled: Anim.animationsEnabled
-        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+        AnimatedBehavior { type: "standard"; size: "normal" }
     }
 
     // ── HORIZONTAL ──
@@ -97,7 +97,10 @@ StyledRect {
                 radius: Styling.radius(3)
                 visible: !root.isExpanded || toggleBtnRow.containsMouse
                 opacity: !root.isExpanded ? 1.0 : (toggleBtnRow.containsMouse ? 0.6 : 0)
-                Behavior on opacity { NumberAnimation { duration: 120 } }
+                Behavior on opacity {
+                    enabled: Anim.animationsEnabled
+                    AnimatedBehavior { type: "standard"; size: "small" }
+                }
             }
 
             IconImage {
@@ -153,7 +156,10 @@ StyledRect {
                 radius: Styling.radius(3)
                 visible: !root.isExpanded || toggleBtnCol.containsMouse
                 opacity: !root.isExpanded ? 1.0 : (toggleBtnCol.containsMouse ? 0.6 : 0)
-                Behavior on opacity { NumberAnimation { duration: 120 } }
+                Behavior on opacity {
+                    enabled: Anim.animationsEnabled
+                    AnimatedBehavior { type: "standard"; size: "small" }
+                }
             }
 
             IconImage {

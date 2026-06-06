@@ -47,13 +47,14 @@ WlSessionLockSurface {
         visible: true
 
         Behavior on opacity {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Anim.collapseEasing.type
-                    easing.bezierCurve: Anim.collapseEasing.bezierCurve || []
-            }
-        }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "standard"
+    size: "normal"
+    speedMultiplier: 2.0
+    variant: "collapse"
+}
+}
 
         // Efecto de Blur y Zoom mediante capa
         layer.enabled: true
@@ -73,14 +74,14 @@ WlSessionLockSurface {
         }
 
         Behavior on zoomScale {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-            }
-        }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "standard"
+    size: "normal"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
     }
 
     // Screen capture background (fondo absoluto con zoom sincronizado)
@@ -103,14 +104,14 @@ WlSessionLockSurface {
         }
 
         Behavior on zoomScale {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-            }
-        }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "standard"
+    size: "normal"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
     }
 
     // Overlay for dimming
@@ -131,23 +132,24 @@ WlSessionLockSurface {
         }
 
         Behavior on opacity {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Anim.collapseEasing.type
-                    easing.bezierCurve: Anim.collapseEasing.bezierCurve || []
-            }
-        }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "standard"
+    size: "normal"
+    speedMultiplier: 2.0
+    variant: "collapse"
+}
+}
 
         Behavior on zoomScale {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-            }
-        }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "standard"
+    size: "normal"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
     }
 
     // Clock (center)
@@ -184,24 +186,24 @@ WlSessionLockSurface {
                 layer.effect: BgShadow {}
 
                 Behavior on opacity {
-                    enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal * 2
-                        easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-                    }
-                }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "standard"
+    size: "normal"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
 
                 Behavior on slideOffset {
-                    enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal * 2
-                        easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-                    }
-                }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "spatial"
+    size: "default"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
             }
 
             Text {
@@ -226,24 +228,24 @@ WlSessionLockSurface {
                 layer.effect: BgShadow {}
 
                 Behavior on opacity {
-                    enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal * 2
-                        easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-                    }
-                }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "standard"
+    size: "normal"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
 
                 Behavior on slideOffset {
-                    enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal * 2
-                        easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-                    }
-                }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "spatial"
+    size: "default"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
             }
 
             Text {
@@ -268,24 +270,24 @@ WlSessionLockSurface {
                 layer.effect: BgShadow {}
 
                 Behavior on opacity {
-                    enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal * 2
-                        easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-                    }
-                }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "standard"
+    size: "normal"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
 
                 Behavior on slideOffset {
-                    enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal * 2
-                        easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-                    }
-                }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "spatial"
+    size: "default"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
             }
         }
 
@@ -318,20 +320,21 @@ WlSessionLockSurface {
         opacity: startAnim ? 1 : 0
 
         Behavior on anchors.leftMargin {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-            }
-        }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "spatial"
+    size: "default"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
 
         Behavior on opacity {
             enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Easing.OutQuad
+            AnimatedBehavior {
+                type: "standard"
+                size: "normal"
+                speedMultiplier: 2.0
             }
         }
 
@@ -362,39 +365,40 @@ WlSessionLockSurface {
         scale: startAnim ? 1 : 0.92
 
         Behavior on anchors.topMargin {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-            }
-        }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "spatial"
+    size: "default"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
 
         Behavior on anchors.bottomMargin {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Anim.expandEasing.type
-                    easing.bezierCurve: Anim.expandEasing.bezierCurve || []
-                    easing.overshoot: Anim.expandEasing.overshoot || 0
-            }
-        }
+enabled: Anim.animationsEnabled
+AnimatedBehavior {
+    type: "spatial"
+    size: "default"
+    speedMultiplier: 2.0
+    variant: "expand"
+}
+}
 
         Behavior on opacity {
             enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Easing.OutQuad
+            AnimatedBehavior {
+                type: "standard"
+                size: "normal"
+                speedMultiplier: 2.0
             }
         }
 
         Behavior on scale {
             enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal * 2
-                easing.type: Anim.easing("emphasized").type
-                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+            AnimatedBehavior {
+                type: "emphasized"
+                size: "normal"
+                speedMultiplier: 2.0
             }
         }
 
@@ -547,7 +551,7 @@ WlSessionLockSurface {
                                 enabled: Anim.animationsEnabled
                                 ColorAnimation {
                                     duration: Anim.standardNormal
-                                    easing.type: Easing.OutQuad
+                                    easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve || []
                                 }
                             }
 
@@ -579,29 +583,33 @@ WlSessionLockSurface {
                     target: passwordInputBox
                     property: "shakeOffset"
                     to: 10
-                    duration: 50
-                    easing.type: Easing.InOutQuad
+                    duration: Anim.spatialFast
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve || []
                 }
                 NumberAnimation {
                     target: passwordInputBox
                     property: "shakeOffset"
                     to: -10
-                    duration: 100
-                    easing.type: Easing.InOutQuad
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve || []
                 }
                 NumberAnimation {
                     target: passwordInputBox
                     property: "shakeOffset"
                     to: 10
-                    duration: 100
-                    easing.type: Easing.InOutQuad
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve || []
                 }
                 NumberAnimation {
                     target: passwordInputBox
                     property: "shakeOffset"
                     to: 0
-                    duration: 50
-                    easing.type: Easing.InOutQuad
+                    duration: Anim.spatialFast
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve || []
                 }
                 ScriptAction {
                     script: {

@@ -319,12 +319,11 @@ Item {
             opacity: islandModeActive ? 0 : (root.reveal ? 1 : 0)
             enabled: !islandModeActive
             Behavior on opacity {
-                enabled: Anim.animationsEnabled
-                NumberAnimation {
-                    duration: Anim.standardSmall
-                    easing.type: Anim.springSnappy().type
-                    easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+                AnimatedBehavior {
+                    type: "standard"
+                    size: "small"
+                    useSpring: true
+                    springName: "snappy"
                 }
             }
             // Slide animation

@@ -1242,24 +1242,26 @@ FocusScope {
                                             loops: Animation.Infinite
 
                                             PauseAnimation {
-                                                duration: 1000
+                                                duration: Anim.standardNormal
                                             }
                                             NumberAnimation {
                                                 target: labelText
                                                 property: "x"
                                                 to: labelText.parent.width - labelText.contentWidth - 4
-                                                duration: 2000
-                                                easing.type: Easing.InOutQuad
+                                                duration: Anim.spatialSlow
+                                                easing.type: Anim.easing("spatial").type
+                                                easing.bezierCurve: Anim.easing("spatial").bezierCurve
                                             }
                                             PauseAnimation {
-                                                duration: 1000
+                                                duration: Anim.standardNormal
                                             }
                                             NumberAnimation {
                                                 target: labelText
                                                 property: "x"
                                                 to: 4
-                                                duration: 2000
-                                                easing.type: Easing.InOutQuad
+                                                duration: Anim.spatialSlow
+                                                easing.type: Anim.easing("spatial").type
+                                                easing.bezierCurve: Anim.easing("spatial").bezierCurve
                                             }
                                         }
                                     }
@@ -1355,7 +1357,7 @@ FocusScope {
                                         NumberAnimation on rotation {
                                             from: 0
                                             to: 360
-                                            duration: 1000
+                                            duration: Anim.standardNormal
                                             loops: Animation.Infinite
                                             running: parent.visible
                                         }

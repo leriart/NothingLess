@@ -153,11 +153,12 @@ Item {
         visible: root.active || slideAnimation.running
 
         Behavior on x {
-            NumberAnimation {
+            AnimatedBehavior {
                 id: slideAnimation
-                duration: Anim.standardNormal
-                easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                type: "spatial"
+                size: "default"
+                useSpring: true
+                springName: "snappy"
             }
         }
 
@@ -201,8 +202,9 @@ Item {
                                 radius: Styling.radius(4)
                                 opacity: parent.hovered ? 1 : 0
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: Anim.standardSmall
+                                    AnimatedBehavior {
+                                        type: "standard"
+                                        size: "small"
                                     }
                                 }
                             }
@@ -227,8 +229,9 @@ Item {
                                 radius: Styling.radius(4)
                                 opacity: parent.hovered ? 1 : 0
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: Anim.standardSmall
+                                    AnimatedBehavior {
+                                        type: "standard"
+                                        size: "small"
                                     }
                                 }
                             }
@@ -259,8 +262,9 @@ Item {
                                 opacity: parent.hovered ? 1 : 0
 
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: Anim.standardSmall
+                                    AnimatedBehavior {
+                                        type: "standard"
+                                        size: "small"
                                     }
                                 }
                             }
@@ -273,6 +277,28 @@ Item {
 
                         Item {
                             Layout.fillWidth: true
+                        }
+
+                        
+                        // Agent connection indicator
+                        Item {
+                            Layout.preferredWidth: 32
+                            Layout.preferredHeight: 32
+                            visible: Ai.agentManager && Ai.agentManager.connections.length > 0
+
+                            StyledRect {
+                                anchors.fill: parent
+                                radius: Styling.radius(16)
+                                variant: Ai.agentToolRegistry && Ai.agentToolRegistry.tools.length > 0 ? "success" : "surface"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: Icons.robot
+                                    font.family: Icons.font
+                                    font.pixelSize: 14
+                                    color: Ai.agentToolRegistry && Ai.agentToolRegistry.tools.length > 0 ? Colors.overPrimary : Colors.outline
+                                }
+                            }
                         }
 
                         Button {
@@ -296,8 +322,9 @@ Item {
                                 opacity: parent.hovered ? 1 : 0
 
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: Anim.standardSmall
+                                    AnimatedBehavior {
+                                        type: "standard"
+                                        size: "small"
                                     }
                                 }
                             }
@@ -403,8 +430,9 @@ Item {
                             z: 10
 
                             Behavior on opacity {
-                                NumberAnimation {
-                                    duration: Anim.standardNormal
+                                AnimatedBehavior {
+                                    type: "standard"
+                                    size: "normal"
                                 }
                             }
 
@@ -981,6 +1009,44 @@ Item {
                                                         visible: messageDelegate.isEditing
                                                     }
 
+
+                                                    ColumnLayout {
+                                                        visible: !!modelData.reasoningContent
+                                                        Layout.fillWidth: true
+                                                        spacing: 4
+
+                                                        Rectangle {
+                                                            Layout.fillWidth: true
+                                                            height: 1
+                                                            color: Colors.outline
+                                                            opacity: 0.2
+                                                        }
+
+                                                        Text {
+                                                            text: "Chain of Thought"
+                                                            color: Colors.outline
+                                                            font.family: Config.theme.font
+                                                            font.weight: Font.Bold
+                                                            font.pixelSize: 11
+                                                        }
+
+                                                        StyledRect {
+                                                            Layout.fillWidth: true
+                                                            variant: "internalbg"
+                                                            radius: Styling.radius(4)
+
+                                                            TextEdit {
+                                                                padding: 8
+                                                                width: parent.width
+                                                                text: modelData.reasoningContent || ""
+                                                                font.family: "Monospace"
+                                                                color: Colors.outline
+                                                                readOnly: true
+                                                                wrapMode: Text.Wrap
+                                                                font.pixelSize: 12
+                                                            }
+                                                        }
+                                                    }
                                                     ColumnLayout {
                                                         visible: modelData.functionCall !== undefined
                                                         Layout.fillWidth: true
@@ -1147,21 +1213,25 @@ Item {
                                                     running: Ai.isLoading
 
                                                     PauseAnimation {
-                                                        duration: index * 200
+                                                        duration: index * Anim.standardSmall
                                                     }
 
                                                     PropertyAnimation {
                                                         to: 1
-                                                        duration: 400
+                                                        duration: Anim.standardNormal
+                                                        easing.type: Anim.easing("standard").type
+                                                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                     }
 
                                                     PropertyAnimation {
                                                         to: 0.5
-                                                        duration: 400
+                                                        duration: Anim.standardNormal
+                                                        easing.type: Anim.easing("standard").type
+                                                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                                                     }
 
                                                     PauseAnimation {
-                                                        duration: 400 - (index * 200)
+                                                        duration: Math.max(Anim.standardSmall, Anim.standardNormal - (index * 80))
                                                     }
                                                 }
                                             }
@@ -1204,10 +1274,11 @@ Item {
                             width: Math.min(600, parent.width - 40)
 
                             Behavior on anchors.bottomMargin {
-                                NumberAnimation {
-                                    duration: Anim.standardNormal
-                                    easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                                AnimatedBehavior {
+                                    type: "spatial"
+                                    size: "default"
+                                    useSpring: true
+                                    springName: "snappy"
                                 }
                             }
 
@@ -1559,8 +1630,10 @@ Item {
                             visible: mainChatArea.isWelcome
 
                             Behavior on opacity {
-                                NumberAnimation {
-                                    duration: 200
+                                enabled: Anim.animationsEnabled
+                                AnimatedBehavior {
+                                    type: "standard"
+                                    size: "small"
                                 }
                             }
 

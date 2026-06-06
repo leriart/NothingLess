@@ -57,14 +57,16 @@ Item {
                     NumberAnimation {
                         from: 1.0
                         to: 0.5
-                        duration: 800
-                        easing.type: Easing.InOutSine
+                        duration: Anim.emphasizedNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                     NumberAnimation {
                         from: 0.5
                         to: 1.0
-                        duration: 800
-                        easing.type: Easing.InOutSine
+                        duration: Anim.emphasizedNormal
+                        easing.type: Anim.easing("standard").type
+                        easing.bezierCurve: Anim.easing("standard").bezierCurve
                     }
                 }
             }

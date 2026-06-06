@@ -26,6 +26,7 @@ import qs.modules.lockscreen
 import qs.modules.dock
 import qs.modules.globals
 import qs.modules.shell
+import qs.modules.theme
 import qs.config
 import qs.modules.shell.osd
 import "modules/tools"
@@ -355,10 +356,15 @@ ShellRoot {
                             currentFrame: 0
                         }
 
-                        // Fade out (simple easing, Anim not available at splash context)
+                        // Fade out using the active animation profile
                         opacity: splashVisible ? 1.0 : 0.0
                         Behavior on opacity {
-                            NumberAnimation { duration: 800; easing.type: Easing.InOutQuad }
+                            enabled: Anim.animationsEnabled
+                            NumberAnimation {
+                                duration: Anim.standardExtraLarge
+                                easing.type: Anim.easing("standard").type
+                                easing.bezierCurve: Anim.easing("standard").bezierCurve || []
+                            }
                         }
 
                         property bool splashVisible: true

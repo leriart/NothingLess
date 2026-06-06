@@ -176,6 +176,9 @@ Item {
     // Island mode auto-hide: pinned (always show) or auto (hide when idle)
     readonly property bool islandAutoHide: !root.notchPinned && root.islandMergedWithBar
 
+    // Metrics overlay mode
+    readonly property bool metricsModeActive: Config.notch && Config.notch.showMetrics === true
+
     // Reveal logic:
     readonly property bool reveal: {
         // If fullscreen and bar is NOT available on fullscreen, hard-hide
@@ -291,7 +294,9 @@ Item {
             left: parent.left
             right: parent.right
         }
-        height: Math.max(islandLeftButtons.height, notchRegionContainer.height, islandRightButtons.height) + root.frameOffset + 8
+        height: root.metricsModeActive
+            ? notchRegionContainer.height + root.frameOffset + 8
+            : Math.max(islandLeftButtons.height, notchRegionContainer.height, islandRightButtons.height) + root.frameOffset + 8
     }
 
     // Default view component - user@host text
@@ -377,10 +382,12 @@ Item {
         anchors.rightMargin: notchContainer.width / 2 + 12
         spacing: 0
         visible: root.islandMergedWithBar
+        enabled: root.islandMergedWithBar && !root.metricsModeActive
 
         // Smooth show/hide — uses opacity+scale, NOT visible, so hide animates
-        opacity: root.reveal ? 1 : 0
-        scale: root.reveal ? 1 : 0.9
+        // Hidden in metrics mode so only the metrics pill is visible
+        opacity: (root.reveal && !root.metricsModeActive) ? 1 : 0
+        scale: (root.reveal && !root.metricsModeActive) ? 1 : 0.9
         transformOrigin: Item.Right
         Behavior on opacity {
             enabled: Anim.animationsEnabled
@@ -391,7 +398,7 @@ Item {
             NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.easing("emphasized").type; easing.bezierCurve: Anim.easing("emphasized").bezierCurve }
         }
 
-        HoverHandler { enabled: root.reveal; onHoveredChanged: root.islandButtonsHovered = hovered }
+        HoverHandler { enabled: root.reveal && !root.metricsModeActive; onHoveredChanged: root.islandButtonsHovered = hovered }
 
         LauncherButton {
             visible: !Config.bar.hiddenIcons.includes("launcher")
@@ -425,7 +432,7 @@ Item {
                     opacity: root.notchPinned ? 0.15 : 0
                     Behavior on opacity {
                         enabled: Anim.animationsEnabled
-                        NumberAnimation { duration: Anim.standardSmall; easing.type: Easing.OutCubic }
+                        NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve || [] }
                     }
                 }
                 // Hover overlay
@@ -436,7 +443,7 @@ Item {
                     radius: parent.radius ?? 0
                     Behavior on opacity {
                         enabled: Anim.animationsEnabled
-                        NumberAnimation { duration: Anim.standardSmall; easing.type: Easing.OutCubic }
+                        NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve || [] }
                     }
                 }
             }
@@ -448,7 +455,7 @@ Item {
                 rotation: root.notchPinned ? 0 : 45
                 Behavior on rotation {
                     enabled: Anim.animationsEnabled
-                    NumberAnimation { duration: Anim.standardSmall; easing.type: Easing.OutCubic }
+                    NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve || [] }
                 }
                 Behavior on color {
                     enabled: Anim.animationsEnabled
@@ -471,10 +478,12 @@ Item {
         anchors.leftMargin: notchContainer.width / 2 + 12
         spacing: 0
         visible: root.islandMergedWithBar
+        enabled: root.islandMergedWithBar && !root.metricsModeActive
 
         // Smooth show/hide — uses opacity+scale, NOT visible, so hide animates
-        opacity: root.reveal ? 1 : 0
-        scale: root.reveal ? 1 : 0.9
+        // Hidden in metrics mode so only the metrics pill is visible
+        opacity: (root.reveal && !root.metricsModeActive) ? 1 : 0
+        scale: (root.reveal && !root.metricsModeActive) ? 1 : 0.9
         transformOrigin: Item.Left
         Behavior on opacity {
             enabled: Anim.animationsEnabled
@@ -485,7 +494,7 @@ Item {
             NumberAnimation { duration: Anim.emphasizedNormal; easing.type: Anim.easing("emphasized").type; easing.bezierCurve: Anim.easing("emphasized").bezierCurve }
         }
 
-        HoverHandler { enabled: root.reveal; onHoveredChanged: root.islandButtonsHovered = hovered }
+        HoverHandler { enabled: root.reveal && !root.metricsModeActive; onHoveredChanged: root.islandButtonsHovered = hovered }
 
         // Dock apps with unified background — same size as other buttons
         Repeater {
@@ -503,7 +512,7 @@ Item {
                     opacity: dockAppBgMa.containsMouse ? 0.12 : 0
                     Behavior on opacity {
                         enabled: Anim.animationsEnabled
-                        NumberAnimation { duration: Anim.standardSmall; easing.type: Easing.OutCubic }
+                        NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve || [] }
                     }
                 }
                 

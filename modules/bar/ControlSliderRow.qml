@@ -46,19 +46,11 @@ Item {
     }
     Behavior on _animatedIconRotation {
         enabled: Anim.animationsEnabled
-        NumberAnimation {
-            duration: 400
-            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
-        }
+        AnimatedBehavior { type: "standard"; size: "normal" }
     }
     Behavior on _animatedIconScale {
         enabled: Anim.animationsEnabled
-        NumberAnimation {
-            duration: 400
-            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
-        }
+        AnimatedBehavior { type: "standard"; size: "normal" }
     }
 
     // Sync animated properties

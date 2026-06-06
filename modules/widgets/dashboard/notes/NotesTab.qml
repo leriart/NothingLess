@@ -1245,7 +1245,7 @@ Item {
             }
 
             // Results list
-            ListView {
+            AnimatedListView {
                 id: resultsList
                 width: parent.width
                 anchors.top: searchInput.bottom
@@ -2042,7 +2042,7 @@ Item {
                                 }
                             }
 
-                            ListView {
+                            AnimatedListView {
                                 id: optionsListView
                                 anchors.fill: parent
                                 clip: true
@@ -3486,7 +3486,7 @@ Item {
             RotationAnimator on rotation {
                 from: 0
                 to: 360
-                duration: 1000
+                duration: Anim.standardNormal
                 loops: Animation.Infinite
                 running: loadingNote
             }

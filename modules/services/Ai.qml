@@ -87,6 +87,7 @@ Singleton {
         if (models.length === 0)
             fetchAvailableModels();
 
+        loadExtraModels();
         reloadHistory();
         createNewChat();
     }
@@ -103,6 +104,11 @@ Singleton {
     property OllamaApiStrategy ollamaStrategy: OllamaApiStrategy {}
     property MiniMaxApiStrategy minimaxStrategy: MiniMaxApiStrategy {}
     property DeepSeekApiStrategy deepseekStrategy: DeepSeekApiStrategy {}
+
+    property AgentToolRegistry agentToolRegistry: AgentToolRegistry {}
+    property AgentManager agentManager: AgentManager {
+        toolRegistry: root.agentToolRegistry
+    }
 
     property ApiStrategy currentStrategy: openaiStrategy
 
@@ -181,22 +187,36 @@ Singleton {
         saveCurrentChat();
     }
 
-    property var systemTools: [
-        {
-            name: "run_shell_command",
-            description: "Execute a shell command on the user's system (Linux). Use this to list files, control the system, or run utilities. Output will be returned.",
-            parameters: {
-                type: "object",
-                properties: {
-                    command: {
-                        type: "string",
-                        description: "The shell command to run (e.g. 'ls -la', 'ip addr')"
-                    }
-                },
-                required: ["command"]
-            }
+    // Tool definitions
+    property var shellTool: ({
+        name: "run_shell_command",
+        description: "Execute a shell command on the user's system (Linux). Use this to list files, control the system, or run utilities. Output will be returned.",
+        parameters: {
+            type: "object",
+            properties: {
+                command: {
+                    type: "string",
+                    description: "The shell command to run (e.g. 'ls -la', 'ip addr')"
+                }
+            },
+            required: ["command"]
         }
-    ]
+    })
+
+    // Tools currently active = native enabled tools + agent-discovered tools
+    property var activeTools: (function() {
+        let t = [];
+        let enabled = Config.ai.enabledTools || [];
+        if (enabled.includes("shell") || Config.ai.tool === "shell") {
+            t.push(shellTool);
+        }
+        t = t.concat(root.agentToolRegistry.tools);
+        return t;
+    }())
+
+    // Streaming / reasoning / tool-call accumulators
+    property string reasoningBuffer: ""
+    property var toolCallBuffer: []
 
     // ============================================
     // CHAT MANAGEMENT
@@ -298,10 +318,23 @@ Singleton {
         saveCurrentChat();
 
         let args = msg.functionCall.args;
-        if (msg.functionCall.name === "run_shell_command") {
+        let toolName = msg.functionCall.name;
+
+        if (toolName === "run_shell_command") {
+            if (!_isShellCommandAllowed(args.command)) {
+                let err = "Command blocked by allowlist. Allowed commands: " + (Config.ai.toolAllowlist || []).join(", ");
+                _pushFunctionResult(toolName, msg.toolCallId || "", err, true);
+                return;
+            }
             commandExecutionProc.command = ["bash", "-c", args.command];
             commandExecutionProc.targetIndex = index;
             commandExecutionProc.running = true;
+        } else if (root.agentToolRegistry.hasTool(toolName)) {
+            root.agentToolRegistry.invoke(toolName, args, function(result) {
+                _pushFunctionResult(toolName, msg.toolCallId || "", result.error || result.content || "", !!result.error);
+            });
+        } else {
+            _pushFunctionResult(toolName, msg.toolCallId || "", "Unknown tool: " + toolName, true);
         }
     }
 
@@ -310,12 +343,39 @@ Singleton {
         newChat[index].functionPending = false;
         newChat[index].functionApproved = false;
 
-        newChat.push({
-            role: "function",
-            name: newChat[index].functionCall.name,
-            content: "User rejected the command execution."
-        });
+        let toolName = newChat[index].functionCall.name;
+        let toolCallId = newChat[index].toolCallId || "";
+        newChat.push(_makeFunctionResult(toolName, toolCallId, "User rejected the command execution."));
 
+        currentChat = newChat;
+        saveCurrentChat();
+        makeRequest();
+    }
+
+    function _isShellCommandAllowed(command) {
+        let allowlist = Config.ai.toolAllowlist || [];
+        if (allowlist.length === 0) return true; // empty = confirmation only
+        let base = String(command).trim().split(/\s+/)[0];
+        for (let i = 0; i < allowlist.length; i++) {
+            if (allowlist[i] === base) return true;
+        }
+        return false;
+    }
+
+    function _makeFunctionResult(name, toolCallId, content, isError) {
+        let msg = {
+            role: "function",
+            name: name,
+            content: content
+        };
+        if (toolCallId) msg.tool_call_id = toolCallId;
+        if (isError) msg.is_error = true;
+        return msg;
+    }
+
+    function _pushFunctionResult(name, toolCallId, content, isError) {
+        let newChat = Array.from(currentChat);
+        newChat.push(_makeFunctionResult(name, toolCallId, content, isError));
         currentChat = newChat;
         saveCurrentChat();
         makeRequest();
@@ -394,10 +454,12 @@ Singleton {
         }
 
         // Build body — always use streaming
-        let body = currentStrategy.getStreamBody(messages, currentModel, systemTools);
+        let body = currentStrategy.getStreamBody(messages, currentModel, activeTools);
 
-        // Reset streaming buffer
+        // Reset streaming buffers
         responseBuffer = "";
+        reasoningBuffer = "";
+        toolCallBuffer = [];
 
         // Add placeholder assistant message for streaming
         let streamChat = Array.from(currentChat);
@@ -505,14 +567,21 @@ Singleton {
                     return;
                 }
 
-                if (result.content) {
-                    root.responseBuffer += result.content;
+                if (result.content || result.reasoningContent) {
+                    if (result.content) root.responseBuffer += result.content;
+                    if (result.reasoningContent) root.reasoningBuffer += result.reasoningContent;
                     // Update the last message in currentChat with accumulated text
                     let newChat = Array.from(root.currentChat);
                     if (newChat.length > 0) {
                         newChat[newChat.length - 1].content = root.responseBuffer;
+                        if (root.reasoningBuffer)
+                            newChat[newChat.length - 1].reasoningContent = root.reasoningBuffer;
                         root.currentChat = newChat;
                     }
+                }
+
+                if (result.toolCallDelta && result.toolCallDelta.length > 0) {
+                    root._accumulateToolCallDelta(result.toolCallDelta);
                 }
 
                 // Note: done is handled in onExited
@@ -527,10 +596,21 @@ Singleton {
             root.isLoading = false;
 
             if (exitCode === 0) {
-                // Check if we got any content during streaming
-                if (root.responseBuffer === "" && root.currentChat.length > 0) {
-                    // No streaming data received — might be non-streaming response or error
-                    // The last message is our placeholder, leave as is
+                // If tool calls were accumulated, convert the assistant placeholder into a function call message
+                if (root.toolCallBuffer.length > 0 && root.currentChat.length > 0) {
+                    let firstTc = root._finalizeFirstToolCall();
+                    if (firstTc) {
+                        let newChat = Array.from(root.currentChat);
+                        let lastIdx = newChat.length - 1;
+                        newChat[lastIdx].content = root.responseBuffer || "";
+                        newChat[lastIdx].reasoningContent = root.reasoningBuffer || undefined;
+                        newChat[lastIdx].functionCall = firstTc.functionCall;
+                        newChat[lastIdx].toolCallId = firstTc.toolCallId;
+                        newChat[lastIdx].functionPending = true;
+                        newChat[lastIdx].functionApproved = false;
+                        root.currentChat = newChat;
+                    }
+                } else if (root.responseBuffer === "" && root.currentChat.length > 0) {
                     let lastMsg = root.currentChat[root.currentChat.length - 1];
                     if (!lastMsg.content) {
                         let newChat = Array.from(root.currentChat);
@@ -552,7 +632,46 @@ Singleton {
             }
 
             root.responseBuffer = "";
+            root.reasoningBuffer = "";
+            root.toolCallBuffer = [];
         }
+    }
+
+    function _accumulateToolCallDelta(deltaArray) {
+        for (let i = 0; i < deltaArray.length; i++) {
+            let d = deltaArray[i];
+            let idx = d.index !== undefined ? d.index : i;
+            if (!toolCallBuffer[idx]) {
+                toolCallBuffer[idx] = {
+                    id: d.id || "",
+                    type: d.type || "function",
+                    function: { name: "", arguments: "" }
+                };
+            }
+            if (d.id && !toolCallBuffer[idx].id) toolCallBuffer[idx].id = d.id;
+            if (d.function) {
+                if (d.function.name) toolCallBuffer[idx].function.name += d.function.name;
+                if (d.function.arguments) toolCallBuffer[idx].function.arguments += d.function.arguments;
+            }
+        }
+    }
+
+    function _finalizeFirstToolCall() {
+        if (toolCallBuffer.length === 0) return null;
+        let tc = toolCallBuffer[0];
+        let args = {};
+        try {
+            args = JSON.parse(tc.function.arguments || "{}");
+        } catch (e) {
+            args = { raw: tc.function.arguments };
+        }
+        return {
+            functionCall: {
+                name: tc.function.name,
+                args: args
+            },
+            toolCallId: tc.id || ""
+        };
     }
 
     Process {
@@ -572,17 +691,7 @@ Singleton {
                 output = "Command executed successfully (no output).";
 
             let msg = currentChat[targetIndex];
-            let newChat = Array.from(currentChat);
-
-            newChat.push({
-                role: "function",
-                name: msg.functionCall.name,
-                content: output
-            });
-
-            root.currentChat = newChat;
-            root.saveCurrentChat();
-            root.makeRequest();
+            root._pushFunctionResult(msg.functionCall.name, msg.toolCallId || "", output, exitCode !== 0);
         }
     }
 
@@ -779,10 +888,13 @@ for f in files:
             fetchProcessMiniMax.running = true;
         }
 
-        // DeepSeek — always show models, key can be added later
-        pendingFetches++;
-        fetchProcessDeepSeek.command = ["bash", "-c", "echo 'done'"];
-        fetchProcessDeepSeek.running = true;
+        // DeepSeek — only fetch when API key is configured (like other providers)
+        let deepseekKey = KeyStore.getKey("deepseek");
+        if (deepseekKey) {
+            pendingFetches++;
+            fetchProcessDeepSeek.command = ["bash", "-c", "curl -s https://api.deepseek.com/v1/models -H 'Authorization: Bearer " + deepseekKey + "'"];
+            fetchProcessDeepSeek.running = true;
+        }
 
         if (pendingFetches === 0) {
             fetchingModels = false;
@@ -1055,31 +1167,56 @@ for f in files:
 
     property Process fetchProcessDeepSeek: Process {
         running: false
-        stdout: SplitParser {}
+        stdout: StdioCollector { id: fetchDeepSeekOut }
         onExited: exitCode => {
             if (exitCode === 0) {
                 let newModels = [];
-                
-                let models = [
-                    { name: "DeepSeek-V3", model: "deepseek-chat", description: "Latest DeepSeek model, SOTA reasoning & coding", endpoint: "https://api.deepseek.com" },
-                    { name: "DeepSeek-R1", model: "deepseek-reasoner", description: "DeepSeek reasoning model with chain-of-thought", endpoint: "https://api.deepseek.com" }
-                ];
-                
-                for (let i = 0; i < models.length; i++) {
-                    let item = models[i];
-                    let m = aiModelFactory.createObject(root, {
-                        name: item.name,
-                        icon: Qt.resolvedUrl("../../../assets/aiproviders/deepseek.svg"),
-                        description: item.description,
-                        endpoint: item.endpoint,
-                        model: item.model,
-                        provider: "deepseek",
-                        requires_key: true,
-                        key_id: "DEEPSEEK_API_KEY"
-                    });
-                    if (m) newModels.push(m);
+                let hasApiData = false;
+                try {
+                    let data = JSON.parse(fetchDeepSeekOut.text);
+                    if (data.data && data.data.length > 0) {
+                        hasApiData = true;
+                        for (let i = 0; i < data.data.length; i++) {
+                            let item = data.data[i];
+                            let id = item.id;
+                            let m = aiModelFactory.createObject(root, {
+                                name: item.id,
+                                icon: Qt.resolvedUrl("../../../assets/aiproviders/deepseek.svg"),
+                                description: "DeepSeek model",
+                                endpoint: "https://api.deepseek.com",
+                                model: id,
+                                provider: "deepseek",
+                                requires_key: true,
+                                key_id: "DEEPSEEK_API_KEY"
+                            });
+                            if (m) newModels.push(m);
+                        }
+                    }
+                } catch (e) {
+                    // Fall back to static list
                 }
-                
+
+                if (!hasApiData) {
+                    let models = [
+                        { name: "DeepSeek-V3", model: "deepseek-chat", description: "Latest DeepSeek model, SOTA reasoning & coding", endpoint: "https://api.deepseek.com" },
+                        { name: "DeepSeek-R1", model: "deepseek-reasoner", description: "DeepSeek reasoning model with chain-of-thought", endpoint: "https://api.deepseek.com" }
+                    ];
+                    for (let i = 0; i < models.length; i++) {
+                        let item = models[i];
+                        let m = aiModelFactory.createObject(root, {
+                            name: item.name,
+                            icon: Qt.resolvedUrl("../../../assets/aiproviders/deepseek.svg"),
+                            description: item.description,
+                            endpoint: item.endpoint,
+                            model: item.model,
+                            provider: "deepseek",
+                            requires_key: true,
+                            key_id: "DEEPSEEK_API_KEY"
+                        });
+                        if (m) newModels.push(m);
+                    }
+                }
+
                 mergeModels(newModels);
             }
             checkFetchCompletion();
@@ -1126,6 +1263,28 @@ for f in files:
 
         if (!isRestored)
             tryRestore();
+    }
+
+
+    function loadExtraModels() {
+        let cfg = Config.ai.extraModels || [];
+        if (cfg.length === 0) return;
+        let newModels = [];
+        for (let i = 0; i < cfg.length; i++) {
+            let item = cfg[i];
+            let m = aiModelFactory.createObject(root, {
+                name: item.name || item.model,
+                icon: item.icon ? Qt.resolvedUrl(item.icon) : "",
+                description: item.description || "Custom model",
+                endpoint: item.endpoint || "",
+                model: item.model,
+                provider: item.provider || "openai",
+                requires_key: item.requires_key !== undefined ? item.requires_key : true,
+                key_id: item.key_id || ""
+            });
+            if (m) newModels.push(m);
+        }
+        mergeModels(newModels);
     }
 
     // Signals

@@ -23,7 +23,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
-    visible: state !== "idle"
+    visible: state !== "idle" || controlsPopup.visible
     exclusionMode: ExclusionMode.Ignore
 
     property string state: "idle" // idle, loading, active, processing
@@ -172,7 +172,15 @@ PanelWindow {
             anchors.fill: parent
             color: "black"
             opacity: screenrecordPopup.state === "active" ? 0.4 : 0
-            visible: screenrecordPopup.state === "active" && screenrecordPopup.currentMode !== "screen" && screenrecordPopup.currentMode !== "portal"
+            visible: opacity > 0
+
+            Behavior on opacity {
+                enabled: Anim.animationsEnabled
+                AnimatedBehavior {
+                    type: "standard"
+                    size: "normal"
+                }
+            }
         }
 
         Item {
@@ -299,8 +307,10 @@ PanelWindow {
             }
         }
 
-        Rectangle {
-            id: controlsBar
+        AnimatedPopup {
+            id: controlsPopup
+            isOpen: screenrecordPopup.state === "active"
+            transformOrigin: Item.Bottom
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottomMargin: 50
@@ -308,44 +318,48 @@ PanelWindow {
             width: modeGrid.width + 32
             height: modeGrid.height + 32
 
-            radius: Styling.radius(20)
-            color: Colors.background
-            border.color: Colors.surface
-            border.width: 1
-            visible: screenrecordPopup.state === "active"
-
-            MouseArea {
+            Rectangle {
+                id: controlsBar
                 anchors.fill: parent
-                hoverEnabled: true
-                preventStealing: true
-            }
 
-            ActionGrid {
-                id: modeGrid
-                anchors.centerIn: parent
-                actions: screenrecordPopup.getModes()
-                buttonSize: 48
-                iconSize: 24
-                spacing: 10
+                radius: Styling.radius(20)
+                color: Colors.background
+                border.color: Colors.surface
+                border.width: 1
 
-                onCurrentIndexChanged: {
-                    // Skip toggles and separator
-                    if (currentIndex > 2) {
-                        var captureIndex = currentIndex - 3;
-                        var captureOptions = ["region", "window", "screen", "portal"];
-                        if (captureIndex >= 0 && captureIndex < captureOptions.length) {
-                            screenrecordPopup.currentMode = captureOptions[captureIndex];
-                        }
-                    }
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    preventStealing: true
                 }
 
-                onActionTriggered: action => {
-                    if (action.tooltip === "Toggle Audio Output") {
-                        screenrecordPopup.recordAudioOutput = !screenrecordPopup.recordAudioOutput;
-                    } else if (action.tooltip === "Toggle Microphone") {
-                        screenrecordPopup.recordAudioInput = !screenrecordPopup.recordAudioInput;
-                    } else {
-                        screenrecordPopup.executeCapture();
+                ActionGrid {
+                    id: modeGrid
+                    anchors.centerIn: parent
+                    actions: screenrecordPopup.getModes()
+                    buttonSize: 48
+                    iconSize: 24
+                    spacing: 10
+
+                    onCurrentIndexChanged: {
+                        // Skip toggles and separator
+                        if (currentIndex > 2) {
+                            var captureIndex = currentIndex - 3;
+                            var captureOptions = ["region", "window", "screen", "portal"];
+                            if (captureIndex >= 0 && captureIndex < captureOptions.length) {
+                                screenrecordPopup.currentMode = captureOptions[captureIndex];
+                            }
+                        }
+                    }
+
+                    onActionTriggered: action => {
+                        if (action.tooltip === "Toggle Audio Output") {
+                            screenrecordPopup.recordAudioOutput = !screenrecordPopup.recordAudioOutput;
+                        } else if (action.tooltip === "Toggle Microphone") {
+                            screenrecordPopup.recordAudioInput = !screenrecordPopup.recordAudioInput;
+                        } else {
+                            screenrecordPopup.executeCapture();
+                        }
                     }
                 }
             }

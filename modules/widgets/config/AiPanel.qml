@@ -402,6 +402,445 @@ Item {
                     }
                 }
             }
+
+            // Tools Section
+            Text {
+                text: "Tools & Safety"
+                font.family: Config.theme.font
+                font.pixelSize: 20
+                font.weight: Font.Bold
+                color: Colors.overSurface
+                Layout.fillWidth: true
+                Layout.topMargin: 16
+                Layout.bottomMargin: 8
+            }
+            
+            StyledRect {
+                Layout.fillWidth: true
+                variant: "surface"
+                radius: Styling.radius(8)
+                implicitHeight: toolsCol.implicitHeight + 32
+                
+                ColumnLayout {
+                    id: toolsCol
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 12
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "Enable shell command tool"
+                            font.family: Config.theme.font
+                            font.pixelSize: 14
+                            color: Colors.overSurface
+                            Layout.fillWidth: true
+                        }
+                        Switch {
+                            checked: (Config.ai.enabledTools || []).includes("shell")
+                            onClicked: {
+                                let tools = Array.from(Config.ai.enabledTools || []);
+                                if (checked) {
+                                    if (!tools.includes("shell")) tools.push("shell");
+                                } else {
+                                    tools = tools.filter(t => t !== "shell");
+                                }
+                                Config.ai.enabledTools = tools;
+                            }
+                        }
+                    }
+                    
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "Auto-approve allowlisted commands"
+                            font.family: Config.theme.font
+                            font.pixelSize: 14
+                            color: Colors.overSurface
+                            Layout.fillWidth: true
+                        }
+                        Switch {
+                            checked: Config.ai.toolAutoApprove || false
+                            onClicked: Config.ai.toolAutoApprove = checked
+                        }
+                    }
+                    
+                    Text {
+                        text: "Allowed commands (comma separated). Empty = require confirmation for all."
+                        font.family: Config.theme.font
+                        font.pixelSize: 12
+                        color: Colors.outline
+                    }
+                    
+                    TextField {
+                        id: allowlistInput
+                        Layout.fillWidth: true
+                        text: (Config.ai.toolAllowlist || []).join(", ")
+                        placeholderText: "e.g. ls, cat, pwd, systemctl"
+                        font.family: Config.theme.font
+                        color: Colors.overSurface
+                        padding: 6
+                        
+                        onEditingFinished: {
+                            let parts = text.split(",").map(s => s.trim()).filter(s => s !== "");
+                            Config.ai.toolAllowlist = parts;
+                        }
+                        
+                        background: StyledRect {
+                            variant: "internalbg"
+                            radius: Styling.radius(4)
+                            border.width: allowlistInput.activeFocus ? 2 : 0
+                            Behavior on border.width {
+                                AnimatedBehavior { type: "standard"; size: "small" }
+                            }
+                            border.color: Styling.srItem("primary")
+                            anchors.fill: parent
+                            anchors.leftMargin: -parent.padding
+                            anchors.rightMargin: -parent.padding
+                            anchors.topMargin: -parent.padding
+                            anchors.bottomMargin: -parent.padding
+                        }
+                    }
+                }
+            }
+            
+            // Agent Connections Section
+            Text {
+                text: "Agent Connections"
+                font.family: Config.theme.font
+                font.pixelSize: 20
+                font.weight: Font.Bold
+                color: Colors.overSurface
+                Layout.fillWidth: true
+                Layout.topMargin: 16
+                Layout.bottomMargin: 8
+            }
+            
+            StyledRect {
+                Layout.fillWidth: true
+                variant: "surface"
+                radius: Styling.radius(8)
+                implicitHeight: agentsCol.implicitHeight + 32
+                
+                ColumnLayout {
+                    id: agentsCol
+                    anchors.fill: parent
+                    anchors.margins: 16
+                    spacing: 12
+                    
+                    Text {
+                        text: "Add external tools via HTTP bridge or CLI wrappers."
+                        font.family: Config.theme.font
+                        font.pixelSize: 12
+                        color: Colors.outline
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+                    
+                    Repeater {
+                        model: Ai.agentManager ? Ai.agentManager.connections : []
+                        delegate: StyledRect {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            variant: "internalbg"
+                            radius: Styling.radius(6)
+                            implicitHeight: agentItemCol.implicitHeight + 20
+                            
+                            ColumnLayout {
+                                id: agentItemCol
+                                anchors.fill: parent
+                                anchors.margins: 10
+                                spacing: 6
+                                
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Text {
+                                        text: modelData.name
+                                        font.family: Config.theme.font
+                                        font.pixelSize: 14
+                                        font.weight: Font.Bold
+                                        color: Colors.overSurface
+                                        Layout.fillWidth: true
+                                    }
+                                    Text {
+                                        text: modelData.status.toUpperCase()
+                                        font.family: Config.theme.font
+                                        font.pixelSize: 11
+                                        color: modelData.status === "connected" ? Colors.success : (modelData.status === "error" ? Colors.error : Colors.outline)
+                                    }
+                                }
+                                
+                                Text {
+                                    text: (modelData.type || "") + (modelData.endpoint ? " • " + modelData.endpoint : modelData.command ? " • " + modelData.command : "")
+                                    font.family: Config.theme.font
+                                    font.pixelSize: 11
+                                    color: Colors.outline
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+                                
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 8
+                                    
+                                    Button {
+                                        text: modelData.enabled ? "Disconnect" : "Connect"
+                                        onClicked: {
+                                            if (modelData.enabled) {
+                                                Ai.agentManager.disconnectAgent(modelData.id);
+                                            } else {
+                                                Ai.agentManager.reconnectAgent(modelData.id);
+                                            }
+                                        }
+                                        background: StyledRect {
+                                            variant: parent.down ? "overprimary" : (parent.hovered ? "primaryfocus" : "primary")
+                                            radius: Styling.radius(4)
+                                        }
+                                        contentItem: Text {
+                                            text: parent.text
+                                            color: Colors.overPrimary
+                                            font.family: Config.theme.font
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                        }
+                                    }
+                                    
+                                    Button {
+                                        text: "Remove"
+                                        onClicked: Ai.agentManager.removeConnection(modelData.id)
+                                        background: StyledRect {
+                                            variant: "error"
+                                            radius: Styling.radius(4)
+                                        }
+                                        contentItem: Text {
+                                            text: parent.text
+                                            color: Colors.overError
+                                            font.family: Config.theme.font
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Quick-preset buttons
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        
+                        Button {
+                            text: "+ Odysseus"
+                            onClicked: {
+                                Ai.agentManager.addConnection({
+                                    id: "agent_odysseus_" + Date.now(),
+                                    name: "Odysseus",
+                                    type: "http-bridge",
+                                    enabled: true,
+                                    endpoint: "http://localhost:7000",
+                                    headers: {},
+                                    toolsPath: "/api/codex/capabilities",
+                                    invokePath: "/api/codex/invoke"
+                                });
+                            }
+                            background: StyledRect {
+                                variant: parent.hovered ? "primaryfocus" : "primary"
+                                radius: Styling.radius(4)
+                            }
+                            contentItem: Text {
+                                text: parent.text
+                                color: Colors.overPrimary
+                                font.family: Config.theme.font
+                                font.pixelSize: 11
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                        
+                        Button {
+                            text: "+ OpenClaw"
+                            onClicked: {
+                                Ai.agentManager.addConnection({
+                                    id: "agent_openclaw_" + Date.now(),
+                                    name: "OpenClaw",
+                                    type: "http-bridge",
+                                    enabled: true,
+                                    endpoint: "http://localhost:8080",
+                                    headers: {},
+                                    toolsPath: "/tools",
+                                    invokePath: "/invoke"
+                                });
+                            }
+                            background: StyledRect {
+                                variant: parent.hovered ? "primaryfocus" : "primary"
+                                radius: Styling.radius(4)
+                            }
+                            contentItem: Text {
+                                text: parent.text
+                                color: Colors.overPrimary
+                                font.family: Config.theme.font
+                                font.pixelSize: 11
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                        
+                        Button {
+                            text: "+ MCP Bridge"
+                            onClicked: {
+                                Ai.agentManager.addConnection({
+                                    id: "agent_mcp_" + Date.now(),
+                                    name: "MCP Bridge",
+                                    type: "command",
+                                    enabled: true,
+                                    command: "python3",
+                                    args: [Quickshell.env("HOME") + "/.local/src/nothingless/scripts/mcp_stdio_bridge.py"]
+                                });
+                            }
+                            background: StyledRect {
+                                variant: parent.hovered ? "primaryfocus" : "primary"
+                                radius: Styling.radius(4)
+                            }
+                            contentItem: Text {
+                                text: parent.text
+                                color: Colors.overPrimary
+                                font.family: Config.theme.font
+                                font.pixelSize: 11
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                        
+                        Button {
+                            text: "+ Custom"
+                            onClicked: { newAgentName.focus = true; }
+                            background: StyledRect {
+                                variant: parent.hovered ? "secondaryfocus" : "secondary"
+                                radius: Styling.radius(4)
+                            }
+                            contentItem: Text {
+                                text: parent.text
+                                color: Colors.overSecondary
+                                font.family: Config.theme.font
+                                font.pixelSize: 11
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+                    }
+                    
+                    // Simple add-agent form
+                    Text {
+                        text: "Manual config"
+                        font.family: Config.theme.font
+                        font.pixelSize: 14
+                        font.weight: Font.Bold
+                        color: Colors.overSurface
+                        Layout.topMargin: 8
+                    }
+                    
+                    TextField {
+                        id: newAgentName
+                        Layout.fillWidth: true
+                        placeholderText: "Name (e.g. OpenClaw Local)"
+                        font.family: Config.theme.font
+                        color: Colors.overSurface
+                        padding: 6
+                        background: StyledRect {
+                            variant: "internalbg"
+                            radius: Styling.radius(4)
+                            border.width: newAgentName.activeFocus ? 2 : 0
+                            Behavior on border.width { AnimatedBehavior { type: "standard"; size: "small" } }
+                            border.color: Styling.srItem("primary")
+                            anchors.fill: parent
+                            anchors.leftMargin: -parent.padding
+                            anchors.rightMargin: -parent.padding
+                            anchors.topMargin: -parent.padding
+                            anchors.bottomMargin: -parent.padding
+                        }
+                    }
+                    
+                    TextField {
+                        id: newAgentType
+                        Layout.fillWidth: true
+                        text: "http-bridge"
+                        placeholderText: "Type: http-bridge | command"
+                        font.family: Config.theme.font
+                        color: Colors.overSurface
+                        padding: 6
+                        background: StyledRect {
+                            variant: "internalbg"
+                            radius: Styling.radius(4)
+                            border.width: newAgentType.activeFocus ? 2 : 0
+                            Behavior on border.width { AnimatedBehavior { type: "standard"; size: "small" } }
+                            border.color: Styling.srItem("primary")
+                            anchors.fill: parent
+                            anchors.leftMargin: -parent.padding
+                            anchors.rightMargin: -parent.padding
+                            anchors.topMargin: -parent.padding
+                            anchors.bottomMargin: -parent.padding
+                        }
+                    }
+                    
+                    TextField {
+                        id: newAgentEndpoint
+                        Layout.fillWidth: true
+                        placeholderText: "Endpoint or command (e.g. http://localhost:8080 or /usr/bin/my-agent)"
+                        font.family: Config.theme.font
+                        color: Colors.overSurface
+                        padding: 6
+                        background: StyledRect {
+                            variant: "internalbg"
+                            radius: Styling.radius(4)
+                            border.width: newAgentEndpoint.activeFocus ? 2 : 0
+                            Behavior on border.width { AnimatedBehavior { type: "standard"; size: "small" } }
+                            border.color: Styling.srItem("primary")
+                            anchors.fill: parent
+                            anchors.leftMargin: -parent.padding
+                            anchors.rightMargin: -parent.padding
+                            anchors.topMargin: -parent.padding
+                            anchors.bottomMargin: -parent.padding
+                        }
+                    }
+                    
+                    Button {
+                        text: "Add Agent"
+                        onClicked: {
+                            let type = newAgentType.text.trim() || "http-bridge";
+                            let config = {
+                                id: "agent_" + Date.now(),
+                                name: newAgentName.text.trim() || "New Agent",
+                                type: type,
+                                enabled: true
+                            };
+                            if (type === "command") {
+                                config.command = newAgentEndpoint.text.trim();
+                                config.args = [];
+                            } else {
+                                config.endpoint = newAgentEndpoint.text.trim();
+                                config.headers = {};
+                                config.toolsPath = "/tools";
+                                config.invokePath = "/invoke";
+                            }
+                            Ai.agentManager.addConnection(config);
+                            newAgentName.text = "";
+                            newAgentEndpoint.text = "";
+                        }
+                        background: StyledRect {
+                            variant: parent.down ? "overprimary" : (parent.hovered ? "primaryfocus" : "primary")
+                            radius: Styling.radius(4)
+                        }
+                        contentItem: Text {
+                            text: parent.text
+                            color: Colors.overPrimary
+                            font.family: Config.theme.font
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -228,20 +228,20 @@ Item {
         clip: true
 
         // Metrics mode content (replaces mainRow when showMetrics is active)
-        Row {
+        RowLayout {
             id: metricsModeRow
             visible: metricsActive
 
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             height: mainRowHeight
-            spacing: 14
-            leftPadding: 6
-            rightPadding: 6
+            width: metricsActive ? Math.min(parent.width - mainRowMargin * 2, parent.width) : implicitWidth
+            spacing: 8
             z: 3
 
-            MetricsGroup {
+            MetricsGroupWrapper {
                 visible: SystemResources.cpuUsageEnabled || SystemResources.cpuTempEnabled || SystemResources.cpuPowerEnabled
+                expanded: metricsActive
                 label: "CPU"
                 labelColor: SystemResources.metricColorCpu
                 valueText: (SystemResources.metricsAvailable && SystemResources.cpuTempEnabled && SystemResources.cpuTemp > 0) ? (SystemResources.cpuTemp.toString() + (SystemResources.metricsAvailable && SystemResources.cpuUsageEnabled ? "° " + Math.round(SystemResources.cpuUsage).toString() + "%" : "°C")) : (SystemResources.metricsAvailable && SystemResources.cpuUsageEnabled) ? Math.round(SystemResources.cpuUsage).toString() + "%" : "--"
@@ -250,8 +250,9 @@ Item {
                 subUnit: (SystemResources.metricsAvailable && SystemResources.cpuPowerEnabled && SystemResources.cpuPower > 0) ? "W" : ""
             }
 
-            MetricsGroup {
+            MetricsGroupWrapper {
                 visible: SystemResources.gpuUsageEnabled || SystemResources.gpuTempEnabled || SystemResources.gpuPowerEnabled
+                expanded: metricsActive
                 label: "GPU"
                 labelColor: SystemResources.metricColorGpu
                 valueText: (SystemResources.metricsAvailable && SystemResources.gpuTempEnabled && SystemResources.gpuTemp > 0) ? (SystemResources.gpuTemp.toString() + (SystemResources.metricsAvailable && SystemResources.gpuUsageEnabled && SystemResources.gpuUsages.length > 0 ? "° " + Math.round(SystemResources.gpuUsages[0]).toString() + "%" : "°C")) : (SystemResources.metricsAvailable && SystemResources.gpuUsageEnabled && SystemResources.gpuUsages.length > 0) ? Math.round(SystemResources.gpuUsages[0]).toString() + "%" : "--"
@@ -260,10 +261,9 @@ Item {
                 subUnit: (SystemResources.metricsAvailable && SystemResources.gpuPowerEnabled && SystemResources.gpuPower > 0) ? "W" : ""
             }
 
-
-
-            MetricsGroup {
+            MetricsGroupWrapper {
                 visible: SystemResources.ramEnabled
+                expanded: metricsActive
                 label: "RAM"
                 labelColor: SystemResources.metricColorRam
                 valueText: (SystemResources.metricsAvailable && SystemResources.ramEnabled && SystemResources.ramUsage > 0) ? Math.round(SystemResources.ramUsage).toString() + "%" : "--"
@@ -272,8 +272,9 @@ Item {
                 subUnit: ""
             }
 
-            MetricsGroup {
+            MetricsGroupWrapper {
                 visible: SystemResources.diskEnabled
+                expanded: metricsActive
                 label: "DSK"
                 labelColor: SystemResources.metricColorDisk
                 valueText: (SystemResources.metricsAvailable && SystemResources.diskEnabled && SystemResources.validDisks.length > 0 && SystemResources.diskUsage[SystemResources.validDisks[0]]) ? Math.round(SystemResources.diskUsage[SystemResources.validDisks[0]]).toString() + "%" : "--"
@@ -282,8 +283,9 @@ Item {
                 subUnit: ""
             }
 
-            MetricsGroup {
+            MetricsGroupWrapper {
                 visible: SystemResources.fpsEnabled
+                expanded: metricsActive
                 label: "FPS"
                 labelColor: SystemResources.metricColorFps
                 valueText: (SystemResources.metricsAvailable && SystemResources.fpsEnabled && SystemResources.fps > 0) ? Math.round(SystemResources.fps).toString() : "--"

@@ -3,41 +3,19 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Quickshell
 import qs.modules.services
+import qs.modules.components
 import "./NotificationDelegate.qml"
 
-ListView {
+AnimatedListView {
     id: root
     property bool popup: false
 
     spacing: 8
 
-    // Organic entry and displacement animations for notifications
-    add: Transition {
-        NumberAnimation {
-            property: "opacity"
-            from: 0; to: 1
-            duration: Anim.emphasizedNormal
-            easing.type: Anim.easing("decelerate").type
-            easing.bezierCurve: Anim.easing("decelerate").bezierCurve
-        }
-        NumberAnimation {
-            property: "scale"
-            from: 0.92; to: 1
-            duration: Anim.emphasizedNormal
-            easing.type: Anim.springSnappy().type
-            easing.bezierCurve: Anim.springSnappy().bezierCurve
-        }
-    }
-    displaced: Transition {
-        NumberAnimation {
-            properties: "y"
-            duration: Anim.standardNormal
-            easing.type: Anim.springSnappy().type
-            easing.bezierCurve: Anim.springSnappy().bezierCurve
-        }
-    }
+    // Unified list transitions are provided by AnimatedListView via Anim.listAddConfig /
+    // Anim.listRemoveConfig / Anim.listDisplacedConfig.
 
-    // Mostrar todas las notificaciones individuales en lugar de grupos
+    // Show all individual notifications instead of groups
     model: root.popup ? Notifications.popupNotifications : Notifications.notifications
 
     delegate: NotificationDelegate {
@@ -46,11 +24,11 @@ ListView {
         anchors.left: parent?.left
         anchors.right: parent?.right
         notificationObject: modelData
-        expanded: true // Siempre expandidas para mostrar toda la información
-        onlyNotification: true // Mostrar como notificación individual con header
+        expanded: true // Always expanded to show all info
+        onlyNotification: true // Show as individual notification with header
 
         onDestroyRequested:
-        // No necesitamos lógica especial aquí
+        // No special logic needed here
         {}
     }
 }

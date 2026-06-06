@@ -14,6 +14,7 @@ Item {
     property string valueUnit: ""
     property string subValue: ""
     property string subUnit: ""
+    property bool expanded: false
 
     implicitHeight: parent ? parent.height : 32
     implicitWidth: innerRow.implicitWidth
@@ -21,24 +22,25 @@ Item {
     Row {
         id: innerRow
         anchors.verticalCenter: parent.verticalCenter
-        anchors.left: parent.left
-        spacing: 5
+        anchors.horizontalCenter: root.expanded ? parent.horizontalCenter : undefined
+        anchors.left: root.expanded ? undefined : parent.left
+        spacing: root.expanded ? 6 : 4
 
         // Label
         Text {
             text: root.label
             color: root.labelColor
-            font.pixelSize: 11
+            font.pixelSize: root.expanded ? 13 : 11
             font.weight: Font.Bold
             font.family: "sans-serif"
             anchors.verticalCenter: parent.verticalCenter
         }
 
-        // Value number (large)
+        // Value number
         Text {
             text: root.valueText
             color: "#FFFFFF"
-            font.pixelSize: 12
+            font.pixelSize: root.expanded ? 15 : 12
             font.weight: Font.DemiBold
             font.family: "sans-serif"
             anchors.verticalCenter: parent.verticalCenter
@@ -49,18 +51,18 @@ Item {
         Text {
             text: root.valueUnit
             color: "#CCFFFFFF"
-            font.pixelSize: 8
+            font.pixelSize: root.expanded ? 10 : 8
             font.weight: Font.Normal
             font.family: "sans-serif"
             anchors.verticalCenter: parent.verticalCenter
             visible: root.valueUnit !== ""
         }
 
-        // Sub value (large, e.g. watts)
+        // Sub value (e.g. watts)
         Text {
             text: root.subValue
             color: "#FFFFFF"
-            font.pixelSize: 12
+            font.pixelSize: root.expanded ? 14 : 12
             font.weight: Font.DemiBold
             font.family: "sans-serif"
             anchors.verticalCenter: parent.verticalCenter
@@ -71,7 +73,7 @@ Item {
         Text {
             text: root.subUnit
             color: "#CCFFFFFF"
-            font.pixelSize: 8
+            font.pixelSize: root.expanded ? 9 : 8
             font.weight: Font.Normal
             font.family: "sans-serif"
             anchors.verticalCenter: parent.verticalCenter

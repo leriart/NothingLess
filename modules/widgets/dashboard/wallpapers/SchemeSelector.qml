@@ -326,9 +326,9 @@ Item {
                             Behavior on x {
                                 enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 200
+                                    duration: Anim.standardSmall
                                     easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                                    easing.bezierCurve: Anim.easing("standard").bezierCurve
                                 }
                             }
                         }
@@ -348,7 +348,7 @@ Item {
                     radius: Styling.radius(0)
                     opacity: schemeListExpanded ? 1 : 0
 
-                    ListView {
+                    AnimatedListView {
                         id: schemeListView
                         anchors.fill: parent
                         clip: true

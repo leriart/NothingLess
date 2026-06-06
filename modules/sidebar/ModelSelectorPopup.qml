@@ -85,7 +85,7 @@ Popup {
         if (text.trim() === "") {
             filteredModels = allModels;
         } else {
-            filteredModels = allModels.filter(m => m.name.toLowerCase().includes(text) || m.api_format.toLowerCase().includes(text) || m.model.toLowerCase().includes(text));
+            filteredModels = allModels.filter(m => m.name.toLowerCase().includes(text) || m.provider.toLowerCase().includes(text) || m.model.toLowerCase().includes(text));
         }
 
         // Reset selection if out of bounds
@@ -211,8 +211,9 @@ Popup {
                                 loops: Animation.Infinite
                                 from: 0
                                 to: 360
-                                duration: 1000
+                                duration: Anim.standardNormal
                                 running: Ai.fetchingModels
+                                easing.type: Anim.easing("linear").type
                                 onRunningChanged: {
                                     if (!running) {
                                         refreshIcon.rotation = 0;
@@ -384,7 +385,7 @@ Popup {
                                     src = modelData.icon;
                                 } else
                                 // Fallback to provider icon
-                                if (modelData.api_format) {
+                                if (modelData.provider) {
                                     src = root.getProviderIcon(modelData.api_format);
                                 }
                             }
@@ -482,7 +483,7 @@ Popup {
 
                         Text {
                             // Show provider and model ID
-                            text: modelData.api_format.toUpperCase() + " • " + modelData.model
+                            text: modelData.provider.toUpperCase() + " • " + modelData.model
                             color: delegateBtn.isSelected ? Styling.srItem("primary") : Colors.outline
                             font.family: Config.theme.font
                             font.pixelSize: 11

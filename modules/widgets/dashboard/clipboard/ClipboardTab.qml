@@ -997,7 +997,7 @@ Item {
                 anchors.bottom: parent.bottom
                 anchors.topMargin: 8
 
-                ListView {
+                AnimatedListView {
                     id: resultsList
                     anchors.fill: parent
                     visible: ClipboardService.items.length > 0
@@ -1768,7 +1768,7 @@ Item {
                                     }
                                 }
 
-                                ListView {
+                                AnimatedListView {
                                     id: optionsListView
                                     anchors.fill: parent
                                     clip: true
@@ -2811,7 +2811,7 @@ Item {
                                                     RotationAnimator on rotation {
                                                         from: 0
                                                         to: 360
-                                                        duration: 1000
+                                                        duration: Anim.standardNormal
                                                         loops: Animation.Infinite
                                                         running: imageLoadingRect.visible
                                                     }
@@ -3011,7 +3011,7 @@ Item {
                                         RotationAnimator on rotation {
                                             from: 0
                                             to: 360
-                                            duration: 1000
+                                            duration: Anim.standardNormal
                                             loops: Animation.Infinite
                                             running: linkPreviewLoadingRect.visible
                                         }

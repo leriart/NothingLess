@@ -287,6 +287,7 @@ StyledRect {
                     duration: 8000
                     loops: Animation.Infinite
                     running: false
+                    easing.type: Anim.easing("linear").type
                 }
 
                 // Standalone spring animation for inertia (can be stopped)
@@ -456,9 +457,9 @@ StyledRect {
             transitions: Transition {
                 NumberAnimation {
                     properties: "radius"
-                    duration: 300
+                    duration: Anim.duration("emphasized", "normal")
                     easing.type: Anim.easing("emphasized").type
-                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
+                    easing.bezierCurve: Anim.easing("emphasized").bezierCurve
                 }
             }
 
@@ -619,8 +620,9 @@ StyledRect {
         color: mouseArea.containsMouse ? Colors.primary : Colors.overBackground
 
         Behavior on color {
+            enabled: Anim.animationsEnabled
             ColorAnimation {
-                duration: 150
+                duration: Anim.standardSmall
             }
         }
 

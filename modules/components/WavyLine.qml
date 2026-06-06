@@ -32,7 +32,8 @@ ShaderEffect {
         id: phaseAnim
         from: 0
         to: Math.PI * 2
-        duration: 1600
+        duration: Anim.standardExtraLarge * 2
+        easing.type: Anim.easing("linear").type
         loops: Animation.Infinite
         running: root.shouldAnimate
     }

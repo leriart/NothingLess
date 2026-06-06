@@ -76,7 +76,8 @@ Item {
             enabled: Anim.animationsEnabled
             NumberAnimation {
                 duration: Anim.standardSmall
-                easing.type: Easing.OutCubic
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve || []
             }
         }
     }
@@ -118,7 +119,8 @@ Item {
                 from: root.rippleOpacity
                 to: 0
                 duration: Anim.emphasizedNormal
-                easing.type: Easing.OutCubic
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve || []
             }
 
             onStopped: {

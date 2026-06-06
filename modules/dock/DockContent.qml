@@ -187,41 +187,37 @@ Item {
         }
 
         Behavior on x {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardSmall
-                easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+            AnimatedBehavior {
+                type: "spatial"
+                size: "fast"
+                useSpring: true
+                springName: "snappy"
             }
         }
         Behavior on y {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardSmall
-                easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+            AnimatedBehavior {
+                type: "spatial"
+                size: "fast"
+                useSpring: true
+                springName: "snappy"
             }
         }
 
         Behavior on width {
-            enabled: Anim.animationsEnabled && root.isVertical
-            NumberAnimation {
-                duration: Anim.standardSmall
-                easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+            AnimatedBehavior {
+                type: "spatial"
+                size: "fast"
+                useSpring: true
+                springName: "snappy"
             }
         }
 
         Behavior on height {
-            enabled: Anim.animationsEnabled && !root.isVertical
-            NumberAnimation {
-                duration: Anim.standardSmall
-                easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+            AnimatedBehavior {
+                type: "spatial"
+                size: "fast"
+                useSpring: true
+                springName: "snappy"
             }
         }
 
@@ -262,33 +258,28 @@ Item {
             }
 
             Behavior on x {
-                enabled: Anim.animationsEnabled
-                NumberAnimation {
-                    duration: Anim.standardSmall
-                    easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+                AnimatedBehavior {
+                    type: "spatial"
+                    size: "fast"
+                    useSpring: true
+                    springName: "snappy"
                 }
             }
             Behavior on y {
-                enabled: Anim.animationsEnabled
-                NumberAnimation {
-                    duration: Anim.standardSmall
-                    easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+                AnimatedBehavior {
+                    type: "spatial"
+                    size: "fast"
+                    useSpring: true
+                    springName: "snappy"
                 }
             }
 
             // Animation for dock reveal
             opacity: root.reveal ? 1 : 0
             Behavior on opacity {
-                enabled: Anim.animationsEnabled
-                NumberAnimation {
-                    duration: Anim.standardSmall
-                    easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+                AnimatedBehavior {
+                    type: "standard"
+                    size: "normal"
                 }
             }
 
@@ -297,21 +288,19 @@ Item {
                 x: root.isVertical ? (root.reveal ? 0 : (root.isLeft ? -(dockContainer.width + root.edgeSideMargin) : (dockContainer.width + root.edgeSideMargin))) : 0
                 y: root.isBottom ? (root.reveal ? 0 : (dockContainer.height + root.edgeSideMargin)) : 0
                 Behavior on x {
-                    enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardSmall
-                        easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+                    AnimatedBehavior {
+                        type: "spatial"
+                        size: "default"
+                        useSpring: true
+                        springName: "snappy"
                     }
                 }
                 Behavior on y {
-                    enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardSmall
-                        easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+                    AnimatedBehavior {
+                        type: "spatial"
+                        size: "default"
+                        useSpring: true
+                        springName: "snappy"
                     }
                 }
             }

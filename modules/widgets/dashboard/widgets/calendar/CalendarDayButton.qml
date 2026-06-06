@@ -49,7 +49,7 @@ Rectangle {
             Behavior on color {
                 enabled: Anim.animationsEnabled
                 ColorAnimation {
-                    duration: 150
+                    duration: Anim.standardSmall
                 }
             }
         }

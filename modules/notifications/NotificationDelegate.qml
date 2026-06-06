@@ -8,7 +8,7 @@ import qs.modules.theme
 import qs.modules.services
 import qs.modules.components
 import qs.config
-import "./NotificationAnimation.qml"
+// NotificationAnimation is provided by qs.modules.components
 import "./NotificationAppIcon.qml"
 import "./NotificationDismissButton.qml"
 import "./NotificationActionButtons.qml"

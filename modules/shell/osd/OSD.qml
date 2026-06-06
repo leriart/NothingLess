@@ -47,6 +47,24 @@ PanelWindow {
             implicitHeight: 52
             radius: Styling.radius(16)
 
+            opacity: GlobalStates.osdVisible ? 1 : 0
+            scale: GlobalStates.osdVisible ? 1 : 0.92
+            transformOrigin: Item.Bottom
+
+            Behavior on opacity {
+                AnimatedBehavior { type: "standard"; size: "normal" }
+            }
+            Behavior on scale {
+                AnimatedBehavior {
+                    type: "emphasized"
+                    size: "normal"
+                    useSpring: true
+                    springName: "snappy"
+                }
+            }
+
+            visible: opacity > 0
+
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 12
@@ -75,22 +93,20 @@ PanelWindow {
                     scale: GlobalStates.osdIndicator === "brightness" ? (0.8 + (root.osdValue * 0.2)) : 1
 
                     Behavior on rotation {
-                        enabled: Anim.animationsEnabled
-                        NumberAnimation {
-                            duration: Anim.standardNormal
-                            easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                    easing.overshoot: Anim.springSnappy().overshoot || 0
+                        AnimatedBehavior {
+                            type: "standard"
+                            size: "normal"
+                            useSpring: true
+                            springName: "snappy"
                         }
                     }
 
                     Behavior on scale {
-                        enabled: Anim.animationsEnabled
-                        NumberAnimation {
-                            duration: Anim.standardNormal
-                            easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                    easing.overshoot: Anim.springSnappy().overshoot || 0
+                        AnimatedBehavior {
+                            type: "standard"
+                            size: "normal"
+                            useSpring: true
+                            springName: "snappy"
                         }
                     }
                 }

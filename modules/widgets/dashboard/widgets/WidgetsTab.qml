@@ -149,27 +149,27 @@ Rectangle {
                             Behavior on opacity {
                                 enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 150
+                                    duration: Anim.standardSmall
                                     easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                                    easing.bezierCurve: Anim.easing("standard").bezierCurve || []
                                 }
                             }
 
                             Behavior on rotation {
                                 enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 400
+                                    duration: Anim.emphasizedNormal
                                     easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                                    easing.bezierCurve: Anim.easing("standard").bezierCurve || []
                                 }
                             }
 
                             Behavior on scale {
                                 enabled: Anim.animationsEnabled
                                 NumberAnimation {
-                                    duration: 400
+                                    duration: Anim.emphasizedNormal
                                     easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                                    easing.bezierCurve: Anim.easing("standard").bezierCurve || []
                                 }
                             }
                         }

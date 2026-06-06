@@ -89,8 +89,8 @@ Item {
     anchors.horizontalCenter: Config.notchTheme === "island" ? parent.horizontalCenter : undefined
 
     implicitWidth: {
+        // Normal width: capped to maxIslandWidth when merged with bar
         let w = screenNotchOpen ? Math.max(stackContainer.width + totalCornerWidth, 290) : stackContainer.width + totalCornerWidth;
-        // When merged with bar, cap width to not overflow bar bounds
         if (root.mergeWithBar && root.maxIslandWidth > 0) {
             w = Math.min(w, root.maxIslandWidth);
         }
@@ -105,7 +105,10 @@ Item {
     // Match bar size when merged
     readonly property int maxIslandWidth: root.mergeWithBar ? (parent ? Math.min(parent.width, 400) : 400) : (parent ? Math.min(parent.width * 0.85, 600) : 600)
     // When merged, make the background transparent so bar bg shows through
-    readonly property bool sectionInvisible: (root.mergeWithBar === true) && !root.screenNotchOpen && !root.hasActiveNotifications
+    readonly property bool sectionInvisible: (root.mergeWithBar === true) && !root.screenNotchOpen && !root.hasActiveNotifications && !root.metricsModeActive
+
+    // Metrics overlay mode
+    readonly property bool metricsModeActive: Config.notch && Config.notch.showMetrics === true
 
     Behavior on implicitWidth {
         enabled: Anim.animationsEnabled

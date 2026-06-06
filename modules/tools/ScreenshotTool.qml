@@ -29,7 +29,7 @@ PanelWindow {
     WlrLayershell.keyboardFocus: screenshotPopup.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // Visible only when explicitly opened
-    visible: state !== "idle"
+    visible: state !== "idle" || controlsPopup.visible
     exclusionMode: ExclusionMode.Ignore
 
     property string state: "idle" // idle, loading, active, processing
@@ -204,7 +204,15 @@ PanelWindow {
             anchors.fill: parent
             color: "black"
             opacity: screenshotPopup.state === "active" ? 0.4 : 0
-            visible: screenshotPopup.state === "active" && screenshotPopup.currentMode !== "screen"
+            visible: opacity > 0
+
+            Behavior on opacity {
+                enabled: Anim.animationsEnabled
+                AnimatedBehavior {
+                    type: "standard"
+                    size: "normal"
+                }
+            }
         }
 
         // 3. Window Selection
@@ -332,40 +340,46 @@ PanelWindow {
         }
 
         // 5. Controls UI
-        Rectangle {
-            id: controlsBar
+        AnimatedPopup {
+            id: controlsPopup
+            isOpen: screenshotPopup.state === "active"
+            transformOrigin: Item.Bottom
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottomMargin: 50
             width: modeGrid.width + 32
             height: modeGrid.height + 32
-            radius: Styling.radius(20)
-            color: Colors.background
-            border.color: Colors.surface
-            border.width: 1
-            visible: screenshotPopup.state === "active"
 
-            MouseArea {
+            Rectangle {
+                id: controlsBar
                 anchors.fill: parent
-                hoverEnabled: true
-                // preventStealing: true 
-            }
+                radius: Styling.radius(20)
+                color: Colors.background
+                border.color: Colors.surface
+                border.width: 1
 
-            ActionGrid {
-                id: modeGrid
-                anchors.centerIn: parent
-                actions: screenshotPopup.modes
-                buttonSize: 48
-                iconSize: 24
-                spacing: 10
-
-                onCurrentIndexChanged: {
-                    // Update local property, which triggers GlobalStates update
-                    screenshotPopup.currentMode = screenshotPopup.modes[currentIndex].name;
+                MouseArea {
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    // preventStealing: true
                 }
 
-                onActionTriggered: {
-                    screenshotPopup.executeCapture();
+                ActionGrid {
+                    id: modeGrid
+                    anchors.centerIn: parent
+                    actions: screenshotPopup.modes
+                    buttonSize: 48
+                    iconSize: 24
+                    spacing: 10
+
+                    onCurrentIndexChanged: {
+                        // Update local property, which triggers GlobalStates update
+                        screenshotPopup.currentMode = screenshotPopup.modes[currentIndex].name;
+                    }
+
+                    onActionTriggered: {
+                        screenshotPopup.executeCapture();
+                    }
                 }
             }
         }

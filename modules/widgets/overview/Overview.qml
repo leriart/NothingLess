@@ -434,7 +434,11 @@ Item {
                             z: 5
                             Behavior on color {
                                 enabled: Anim.animationsEnabled
-                                ColorAnimation { duration: 120 }
+                                ColorAnimation {
+                                    duration: Anim.standardSmall
+                                    easing.type: Anim.easing("standard").type
+                                    easing.bezierCurve: Anim.easing("standard").bezierCurve
+                                }
                             }
                         }
                     }
@@ -451,11 +455,19 @@ Item {
                     z: 10
                     Behavior on opacity {
                         enabled: Anim.animationsEnabled
-                        NumberAnimation { duration: 100 }
+                        NumberAnimation {
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                            easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        }
                     }
                     Behavior on border.width {
                         enabled: Anim.animationsEnabled
-                        NumberAnimation { duration: 100 }
+                        NumberAnimation {
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                            easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        }
                     }
                 }
 

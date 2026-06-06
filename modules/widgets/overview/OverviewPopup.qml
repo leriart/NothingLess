@@ -82,32 +82,36 @@ PanelWindow {
         }
     }
 
+    // Animation properties
+    property real popupOpacity: overviewOpen ? 1 : 0
+    property real popupScale: overviewOpen ? 1 : 0.95
+
+    Behavior on popupOpacity {
+        enabled: Anim.animationsEnabled
+        AnimatedBehavior {
+            type: "standard"
+            size: "normal"
+        }
+    }
+
+    Behavior on popupScale {
+        enabled: Anim.animationsEnabled
+        AnimatedBehavior {
+            type: "emphasized"
+            size: "large"
+            useSpring: true
+            springName: "snappy"
+        }
+    }
+
     // Fullscreen overview — covers entire screen, no search bar
     Item {
         id: mainContainer
         anchors.fill: parent
         anchors.margins: 16
 
-        opacity: overviewOpen ? 1 : 0
-        scale: overviewOpen ? 1 : 0.95
-
-        Behavior on opacity {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal
-                easing.type: Anim.easing("standard").type
-                easing.bezierCurve: Anim.easing("standard").bezierCurve
-            }
-        }
-
-        Behavior on scale {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.emphasizedLarge
-                easing.type: Anim.easing("emphasized").type
-                easing.bezierCurve: Anim.easing("emphasized").bezierCurve
-            }
-        }
+        opacity: popupOpacity
+        scale: popupScale
 
         // Overview grid — fills available space
         Item {

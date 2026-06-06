@@ -46,10 +46,22 @@ Item {
     // Handle Animation
     property real animatedHandleOffset: isDragging ? 9 : 6
     property real animatedHandleWidth: isDragging ? lineWidth * 0.5 : lineWidth
-    Behavior on animatedHandleOffset { NumberAnimation { duration: 200; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve } }
-    Behavior on animatedHandleWidth { NumberAnimation { duration: 200; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve } }
+    Behavior on animatedHandleOffset {
+        enabled: Anim.animationsEnabled
+        NumberAnimation {
+            duration: Anim.standardSmall
+            easing.type: Anim.easing("standard").type
+            easing.bezierCurve: Anim.easing("standard").bezierCurve
+        }
+    }
+    Behavior on animatedHandleWidth {
+        enabled: Anim.animationsEnabled
+        NumberAnimation {
+            duration: Anim.standardSmall
+            easing.type: Anim.easing("standard").type
+            easing.bezierCurve: Anim.easing("standard").bezierCurve
+        }
+    }
 
     // Dash Configuration (Matches CarouselProgress logic)
     property real dotSize: lineWidth
@@ -63,8 +75,22 @@ Item {
     property real currentDashLen: dashedActive ? baseDashLength : (baseDashLength + targetSpacing)
     property real currentGapLen: dashedActive ? targetSpacing : 0
     
-    Behavior on currentDashLen { NumberAnimation { duration: Anim.standardNormal; easing.type: Easing.InOutQuad } }
-    Behavior on currentGapLen { NumberAnimation { duration: Anim.standardNormal; easing.type: Easing.InOutQuad } }
+    Behavior on currentDashLen {
+        enabled: Anim.animationsEnabled
+        NumberAnimation {
+            duration: Anim.standardNormal
+            easing.type: Anim.easing("standard").type
+            easing.bezierCurve: Anim.easing("standard").bezierCurve
+        }
+    }
+    Behavior on currentGapLen {
+        enabled: Anim.animationsEnabled
+        NumberAnimation {
+            duration: Anim.standardNormal
+            easing.type: Anim.easing("standard").type
+            easing.bezierCurve: Anim.easing("standard").bezierCurve
+        }
+    }
 
     // Marquee Animation
     property real phase: 0
@@ -74,7 +100,8 @@ Item {
         running: (root.dashedActive || root.wavy) && root.visible
         from: 0
         to: -root.cycleLength // Move forward along path
-        duration: 1000 // Adjust speed
+        duration: Anim.standardNormal
+        easing.type: Anim.easing("linear").type
         loops: Animation.Infinite
     }
 

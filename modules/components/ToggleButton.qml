@@ -50,7 +50,11 @@ Button {
             radius: parent.radius ?? 0
             Behavior on opacity {
                 enabled: Anim.animationsEnabled
-                NumberAnimation { duration: Anim.standardSmall; easing.type: Easing.OutCubic }
+                NumberAnimation {
+                    duration: Anim.standardSmall
+                    easing.type: Anim.easing("standard").type
+                    easing.bezierCurve: Anim.easing("standard").bezierCurve
+                }
             }
         }
 

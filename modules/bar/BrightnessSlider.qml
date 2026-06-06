@@ -32,19 +32,11 @@ Item {
 
     Behavior on iconRotation {
         enabled: Anim.animationsEnabled
-        NumberAnimation {
-            duration: 400
-            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
-        }
+        AnimatedBehavior { type: "standard"; size: "normal" }
     }
     Behavior on iconScale {
         enabled: Anim.animationsEnabled
-        NumberAnimation {
-            duration: 400
-            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
-        }
+        AnimatedBehavior { type: "standard"; size: "normal" }
     }
 
     HoverHandler {

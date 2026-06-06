@@ -259,7 +259,7 @@ Rectangle {
 
             Behavior on height {
                 enabled: Anim.animationsEnabled
-                NumberAnimation { duration: Anim.standardSmall }
+                AnimatedBehavior { type: "standard"; size: "small" }
             }
 
             RowLayout {
@@ -451,10 +451,9 @@ Rectangle {
 
         Behavior on height {
             enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal
-                easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+            AnimatedBehavior {
+                type: "standard"
+                size: "normal"
             }
         }
 
@@ -646,7 +645,7 @@ Rectangle {
             }
 
             // Results list
-            ListView {
+            AnimatedListView {
                 id: resultsList
                 width: parent.width
                 anchors.top: searchInput.bottom
@@ -668,10 +667,9 @@ Rectangle {
 
                 Behavior on contentY {
                     enabled: Anim.animationsEnabled && resultsList.enableScrollAnimation && !resultsList.moving
-                    NumberAnimation {
-                        duration: Anim.standardSmall
-                        easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                    AnimatedBehavior {
+                        type: "standard"
+                        size: "small"
                     }
                 }
 
@@ -738,10 +736,9 @@ Rectangle {
 
                     Behavior on height {
                         enabled: Anim.animationsEnabled
-                        NumberAnimation {
-                            duration: Anim.standardNormal
-                            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        AnimatedBehavior {
+                            type: "standard"
+                            size: "normal"
                         }
                     }
 
@@ -900,10 +897,9 @@ Rectangle {
 
                         Behavior on opacity {
                             enabled: Anim.animationsEnabled
-                            NumberAnimation {
-                                duration: Anim.standardNormal
-                                easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                            AnimatedBehavior {
+                                type: "standard"
+                                size: "normal"
                             }
                         }
 
@@ -913,7 +909,7 @@ Rectangle {
                             color: Colors.background
                             radius: Styling.radius(0)
 
-                            ListView {
+                            AnimatedListView {
                                 id: optionsListView
                                 anchors.fill: parent
                                 clip: true
@@ -1108,19 +1104,17 @@ Rectangle {
 
                     Behavior on y {
                         enabled: Anim.animationsEnabled
-                        NumberAnimation {
-                            duration: Anim.standardSmall
-                            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        AnimatedBehavior {
+                            type: "spatial"
+                            size: "small"
                         }
                     }
 
                     Behavior on height {
                         enabled: Anim.animationsEnabled
-                        NumberAnimation {
-                            duration: Anim.standardNormal
-                            easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+                        AnimatedBehavior {
+                            type: "standard"
+                            size: "normal"
                         }
                     }
 

@@ -235,9 +235,7 @@ Rectangle {
                                 radius: avatarContainer.radius
 
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: 150
-                                    }
+                                    AnimatedBehavior { type: "standard"; size: "small" }
                                 }
                             }
                         }

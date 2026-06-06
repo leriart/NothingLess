@@ -158,7 +158,10 @@ Item {
                     StyledRect {
                         anchors.fill: parent; anchors.margins: 1; radius: 4
                         variant: "bg"; opacity: hov ? 0.5 : 0.0
-                        Behavior on opacity { NumberAnimation { duration: 80 } }
+                        Behavior on opacity {
+                            enabled: Anim.animationsEnabled
+                            AnimatedBehavior { type: "standard"; size: "small" }
+                        }
                     }
                     IconImage {
                         anchors.centerIn: parent; width: 18; height: 18

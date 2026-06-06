@@ -116,22 +116,18 @@ PopupWindow {
 
     // Animation behaviors
     Behavior on popupOpacity {
-        enabled: Anim.animationsEnabled
-        NumberAnimation {
-            duration: Anim.standardNormal
-            easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+        AnimatedBehavior {
+            type: "standard"
+            size: "normal"
         }
     }
 
     Behavior on popupScale {
-        enabled: Anim.animationsEnabled
-        NumberAnimation {
-            duration: Anim.standardNormal
-            easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                        easing.overshoot: Anim.springSnappy().overshoot || 0
+        AnimatedBehavior {
+            type: "emphasized"
+            size: "normal"
+            useSpring: true
+            springName: "snappy"
         }
     }
 

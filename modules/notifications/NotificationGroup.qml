@@ -8,7 +8,7 @@ import qs.modules.theme
 import qs.modules.components
 import qs.modules.services
 import qs.config
-import "./NotificationAnimation.qml"
+// NotificationAnimation is provided by qs.modules.components
 import "./NotificationDelegate.qml"
 import "./notification_utils.js" as NotificationUtils
 
@@ -149,7 +149,7 @@ Item {
         Behavior on anchors.leftMargin {
             enabled: !dragManager.dragging && Anim.animationsEnabled
             NumberAnimation {
-                duration: 300
+                duration: Anim.standardNormal
                 easing.type: Anim.easing("standard").type
                         easing.bezierCurve: Anim.easing("standard").bezierCurve
             }

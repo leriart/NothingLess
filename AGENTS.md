@@ -220,7 +220,7 @@ All services use `pragma Singleton` and expose `Singleton { id: root }`.
 | `Visibilities` | `modules/services/Visibilities.qml` | Per-screen UI visibility/layering manager |
 | `Colors` | `modules/theme/Colors.qml` | Dynamic color palette from `matugen` output |
 | `Styling` | `modules/theme/Styling.qml` | Shared style utilities: `radius()`, `fontSize()`, `getStyledRectConfig()` |
-| `Anim` | `modules/theme/Anim.qml` | Material 3 animation system: `duration()`, `easing()`, `configure()`, global speed scale |
+| `Anim` | `modules/theme/Anim.qml` | Unified animation system: 12 profiles, `duration()`, `easing()`, spring helpers, `listAddConfig`, global speed scale, compositor sync |
 | `Icons` | `modules/theme/Icons.qml` | Phosphor-Bold icon font character map |
 | `AxctlService` | `modules/services/AxctlService.qml` | Compositor abstraction (focus, dispatch, state sync) |
 | `PerMonitorConfig` | `modules/services/PerMonitorConfig.qml` | Per-monitor config overrides (bar/notch/dock position) |
@@ -235,6 +235,9 @@ All services use `pragma Singleton` and expose `Singleton { id: root }`.
 | `StateLayer` | `modules/components/StateLayer.qml` | M3 interaction overlay: ripple + hover/press/focus state opacity |
 | `Surface` | `modules/components/Surface.qml` | M3 elevated surface wrapper (`StyledRect` + `StateLayer`). Elevation 0-4 mapping |
 | `BarPopup` | `modules/components/BarPopup.qml` | Popup anchored to bar items |
+| `AnimatedBehavior` | `modules/components/AnimatedBehavior.qml` | Reusable `NumberAnimation` that follows the active `Anim` profile |
+| `AnimatedPopup` | `modules/components/AnimatedPopup.qml` | Wrapper with `opacity` + `scale` entrance/exit animations |
+| `AnimatedListView` | `modules/components/AnimatedListView.qml` | `ListView` with unified `add`/`remove`/`displaced`/`populate` transitions |
 | `SearchInput` | `modules/components/SearchInput.qml` | Universal search field |
 | `PaneRect` | `modules/components/PaneRect.qml` | Pane variant container |
 
@@ -255,6 +258,44 @@ Always use one of these string values for the `variant` property:
 - **Focus management:** Never call `forceActiveFocus()` directly on popups. Use `FocusGrabManager.requestGrab(item)` / `releaseGrab(item)`.
 - **Color resolution:** Never hardcode colors. Use `Config.resolveColor(name)` or bind to `Colors.*`.
 
+### Animation System
+All UI motion must go through the unified animation system in `Anim.qml`.
+
+- **Use `AnimatedBehavior`** for every `Behavior` when possible:
+  ```qml
+  Behavior on opacity {
+      AnimatedBehavior { type: "standard"; size: "normal" }
+  }
+  ```
+  Valid `type` values: `"standard"`, `"emphasized"`, `"spatial"`, `"spring"`.  
+  Valid `size` values: `"small"`, `"normal"`, `"large"`, `"extraLarge"` (standard); `"fast"`, `"default"`, `"slow"` (spatial); `"small"`, `"normal"`, `"large"` (emphasized/spring).  
+  Optional: `variant` ("enter" | "exit" | "expand" | "collapse"), `useSpring: true`, `springName: "snappy" | "expressive"`, `speedMultiplier`.
+
+- **When `AnimatedBehavior` is not enough**, use `Anim.duration(type, size)` and `Anim.easing(type, variant).type` / `.bezierCurve`:
+  ```qml
+  NumberAnimation {
+      duration: Anim.emphasizedNormal
+      easing.type: Anim.easing("emphasized").type
+      easing.bezierCurve: Anim.easing("emphasized").bezierCurve || []
+  }
+  ```
+
+- **List transitions:** use `AnimatedListView` as a drop-in replacement for `ListView`, or build transitions from `Anim.listAddConfig`, `Anim.listRemoveConfig`, `Anim.listDisplacedConfig`.
+
+- **Popup/window open & close:** animate `opacity` + `scale` via `AnimatedPopup` or the `BarPopup`/`OverviewPopup`/`PresetsPopup` pattern (`popupOpacity`/`popupScale` + `AnimatedBehavior`).
+
+- **Floating windows (`FloatingWindow`, `SettingsWindow`, `MirrorWindow`, etc.):** the root element must remain the window type. Animate an inner container, not the window root. Initialize `popupOpacity`/`popupScale` from the global visibility state so the window is not transparent on first open:
+  ```qml
+  property real popupOpacity: GlobalStates.settingsWindowVisible ? 1.0 : 0.0
+  property real popupScale: GlobalStates.settingsWindowVisible ? 1.0 : 0.96
+  visible: popupOpacity > 0 || GlobalStates.settingsWindowVisible
+  ```
+  Subsequent visibility changes should be driven by a `Connections` handler that assigns target values (breaking the initial binding is acceptable).
+
+- **Game mode / reduced motion:** every animation must respect `Anim.animationsEnabled`. `AnimatedBehavior` does this automatically; manual `Behavior` blocks must set `enabled: Anim.animationsEnabled`.
+
+- **Decorative long-loop animations** (weather effects, marquee, disc rotation) may keep fixed durations, but their easing curves must still come from `Anim.easing("linear")`.
+
 ### Configuration
 - **Atomic defaults:** Every new config key MUST have a corresponding entry in `config/defaults/<domain>.js`.
 - **Bulk updates:** Wrap multi-property config changes in `Config.pauseAutoSave = true` ... `Config.pauseAutoSave = false`.
@@ -262,13 +303,38 @@ Always use one of these string values for the `variant` property:
 - **Validation:** Add type constraints in `ConfigValidator.js` when introducing new config shapes.
 
 ### Anti-Patterns (Strictly Avoid)
-1. **Hardcoding:** NEVER hardcode colors, sizes, or durations. Use `Config.theme.*`, `Config.bar.*`, `Colors.*`, `Styling.*`.
+1. **Hardcoding:** NEVER hardcode colors, sizes, or durations. Use `Config.theme.*`, `Config.bar.*`, `Colors.*`, `Styling.*`, `Anim.*`.
 2. **Direct Config Props:** AVOID modifying `Config` properties directly outside the `JsonAdapter` binding system.
 3. **Global Pollution:** Do not add properties to `root` in `shell.qml`. Use `GlobalStates` for shared transient state.
 4. **Missing Defaults:** NEVER add a config key without updating `config/defaults/*.js`.
 5. **StyledRect bypass:** NEVER create raw `Rectangle` containers. Use `StyledRect` with an appropriate variant.
+6. **Animation bypass:** NEVER use raw `Easing.OutCubic`, `Easing.InOutQuad`, or hardcoded `duration: 200` in UI animations. Route everything through `Anim` or `AnimatedBehavior`.
+7. **Missing popup transitions:** NEVER make a popup/window appear or disappear instantly. Add `opacity` + `scale` animations.
+8. **Orphaned `Behavior`:** NEVER leave a `Behavior` without `enabled: Anim.animationsEnabled` (unless it uses `AnimatedBehavior`, which handles it internally).
+9. **Floating window animated with the wrong root:** NEVER replace a `FloatingWindow` root with a generic `Item`/`AnimatedPopup`. Keep `FloatingWindow` as the root and animate inner content. Also NEVER start `popupOpacity` at `0` unconditionally when the window may already be visible — initialize it from the visibility state.
 
 ---
+
+
+### AI Module Conventions
+
+All AI provider integrations live under `modules/services/ai/strategies/` and MUST implement the `ApiStrategy` interface.
+
+- **Base helpers:** use the shared helpers in `ApiStrategy.qml`:
+  - `formatMessages(messages)` — converts internal messages with attachments to OpenAI-compatible content parts.
+  - `formatTools(tools)` — converts internal tool definitions to OpenAI function-calling format.
+  - `normalizeChatEndpoint(base)` — safely appends `/v1/chat/completions`.
+- **OpenAI-compatible providers** MUST subclass `OpenAiCompatibleStrategy` instead of duplicating SSE/tool-call parsing. Currently used by: OpenAI, Mistral, Groq, DeepSeek.
+- **DeepSeek specifics:** set `supportsReasoning: true` and `reasoningField: "reasoning_content"` so the chat UI can display chain-of-thought and `Ai.qml` can stream reasoning deltas.
+- **Images in attachments:** always use `att.base64` + `att.mimeType`. The old `att.url` field does not exist in the attachment model.
+- **Tool calls:**
+  - Always propagate `tool_call_id` from assistant responses into the follow-up `role: "tool"` / `role: "function"` message.
+  - For Anthropic/Gemini (no OpenAI-style IDs), continue using `name` as the identifier.
+- **Agent connections:** external agents connect via `AgentManager` + `AgentToolRegistry`. Supported types:
+  - `http-bridge` — generic REST agent (OpenClaw gateway, Odysseus API, custom server). Discovers tools via `GET <endpoint>/tools`, invokes via `POST <endpoint>/invoke`.
+  - `command` — stateless command wrapper; the binary receives a JSON payload as its last argument and prints a JSON response.
+- **Tool safety:** shell commands are gated by `Config.ai.enabledTools` (must include `"shell"`) and `Config.ai.toolAllowlist`. Empty allowlist means manual approval; non-empty allowlist + `toolAutoApprove: true` runs allowlisted commands without confirmation.
+- **New config keys** for AI (e.g. `enabledTools`, `agents`, `toolAllowlist`) MUST be added to both `config/defaults/ai.js` and `config/Config.qml` adapter.
 
 ## 8. Security Considerations
 

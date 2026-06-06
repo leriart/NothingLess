@@ -93,8 +93,9 @@ RowLayout {
                     running: actionButton.isLoading
                     from: 0
                     to: 360
-                    duration: 1000
+                    duration: Anim.duration("standard", "normal")
                     loops: Animation.Infinite
+                    easing.type: Anim.easing("linear").type
                 }
             }
 

@@ -115,10 +115,7 @@ ClippingRectangle {
         }
 
         Behavior on opacity {
-            NumberAnimation {
-                duration: 500
-                easing.type: Easing.InOutQuad
-            }
+            AnimatedBehavior { type: "standard"; size: "normal" }
         }
     }
 
@@ -135,10 +132,7 @@ ClippingRectangle {
         visible: opacity > 0
 
         Behavior on opacity {
-            NumberAnimation {
-                duration: 1000
-                easing.type: Easing.InOutQuad
-            }
+            AnimatedBehavior { type: "standard"; size: "normal" }
         }
 
         Repeater {
@@ -167,12 +161,12 @@ ClippingRectangle {
                     NumberAnimation {
                         to: star.baseOpacity * 0.3
                         duration: star.twinkleSpeed / 2
-                        easing.type: Easing.InOutSine
+                        easing.type: Anim.easing("linear").type
                     }
                     NumberAnimation {
                         to: star.baseOpacity
                         duration: star.twinkleSpeed / 2
-                        easing.type: Easing.InOutSine
+                        easing.type: Anim.easing("linear").type
                     }
                 }
             }
@@ -194,10 +188,7 @@ ClippingRectangle {
         visible: opacity > 0
 
         Behavior on opacity {
-            NumberAnimation {
-                duration: 800
-                easing.type: Easing.InOutQuad
-            }
+            AnimatedBehavior { type: "standard"; size: "normal" }
         }
 
         Repeater {
@@ -237,12 +228,12 @@ ClippingRectangle {
                     NumberAnimation {
                         to: 0.5
                         duration: ray.pulseSpeed / 2
-                        easing.type: Easing.InOutSine
+                        easing.type: Anim.easing("linear").type
                     }
                     NumberAnimation {
                         to: 1.0
                         duration: ray.pulseSpeed / 2
-                        easing.type: Easing.InOutSine
+                        easing.type: Anim.easing("linear").type
                     }
                 }
             }
@@ -323,7 +314,7 @@ ClippingRectangle {
                     NumberAnimation {
                         to: cloudEffect.width + 50
                         duration: bgCloud.cycleDuration
-                        easing.type: Easing.Linear
+                        easing.type: Anim.easing("linear").type
                     }
 
                     // Reset to start position smoothly
@@ -339,7 +330,7 @@ ClippingRectangle {
                     from: 0
                     to: 0.8
                     duration: 2000
-                    easing.type: Easing.InOutQuad
+                    easing.type: Anim.easing("linear").type
                 }
             }
         }
@@ -395,7 +386,7 @@ ClippingRectangle {
                     NumberAnimation {
                         to: cloudEffect.width + 50
                         duration: fgCloud.cycleDuration
-                        easing.type: Easing.Linear
+                        easing.type: Anim.easing("linear").type
                     }
 
                     // Reset to start position smoothly
@@ -411,7 +402,7 @@ ClippingRectangle {
                     from: 0
                     to: 0.9
                     duration: 1500
-                    easing.type: Easing.InOutQuad
+                    easing.type: Anim.easing("linear").type
                 }
             }
         }
@@ -461,7 +452,7 @@ ClippingRectangle {
                     duration: 8000 + (fogWisp.index * 2000)
                     loops: Animation.Infinite
                     running: fogEffect.visible && root.animationsEnabled
-                    easing.type: Easing.InOutSine
+                    easing.type: Anim.easing("linear").type
                 }
 
                 NumberAnimation on opacity {
@@ -470,7 +461,7 @@ ClippingRectangle {
                     duration: 4000 + (fogWisp.index * 1000)
                     loops: Animation.Infinite
                     running: fogEffect.visible && root.animationsEnabled
-                    easing.type: Easing.InOutSine
+                    easing.type: Anim.easing("linear").type
                 }
             }
         }
@@ -520,7 +511,7 @@ ClippingRectangle {
                             from: -20
                             to: rainDrop.fallDistance - 20
                             duration: rainDrop.fallSpeed
-                            easing.type: Easing.Linear
+                            easing.type: Anim.easing("linear").type
                         }
                         NumberAnimation {
                             target: rainDrop
@@ -528,7 +519,7 @@ ClippingRectangle {
                             from: rainDrop.initialX
                             to: rainDrop.initialX + rainDrop.horizontalDrift
                             duration: rainDrop.fallSpeed
-                            easing.type: Easing.Linear
+                            easing.type: Anim.easing("linear").type
                         }
                     }
 
@@ -577,7 +568,7 @@ ClippingRectangle {
                     NumberAnimation {
                         to: snowEffect.height + 10
                         duration: snowFlake.fallSpeed
-                        easing.type: Easing.Linear
+                        easing.type: Anim.easing("linear").type
                     }
                 }
 
@@ -591,12 +582,12 @@ ClippingRectangle {
                     NumberAnimation {
                         to: snowFlake.startX + snowFlake.swayAmount
                         duration: snowFlake.fallSpeed / 2
-                        easing.type: Easing.InOutSine
+                        easing.type: Anim.easing("linear").type
                     }
                     NumberAnimation {
                         to: snowFlake.startX - snowFlake.swayAmount
                         duration: snowFlake.fallSpeed / 2
-                        easing.type: Easing.InOutSine
+                        easing.type: Anim.easing("linear").type
                     }
                 }
             }
@@ -647,7 +638,7 @@ ClippingRectangle {
                             from: -25
                             to: stormRainDrop.fallDistance - 25
                             duration: stormRainDrop.fallSpeed
-                            easing.type: Easing.Linear
+                            easing.type: Anim.easing("linear").type
                         }
                         NumberAnimation {
                             target: stormRainDrop
@@ -655,7 +646,7 @@ ClippingRectangle {
                             from: stormRainDrop.initialX
                             to: stormRainDrop.initialX + stormRainDrop.horizontalDrift
                             duration: stormRainDrop.fallSpeed
-                            easing.type: Easing.Linear
+                            easing.type: Anim.easing("linear").type
                         }
                     }
 
@@ -690,24 +681,28 @@ ClippingRectangle {
                     property: "opacity"
                     to: 0.9
                     duration: 50
+                    easing.type: Anim.easing("linear").type
                 }
                 NumberAnimation {
                     target: lightningFlash
                     property: "opacity"
                     to: 0
                     duration: 100
+                    easing.type: Anim.easing("linear").type
                 }
                 NumberAnimation {
                     target: lightningFlash
                     property: "opacity"
                     to: 0.7
                     duration: 50
+                    easing.type: Anim.easing("linear").type
                 }
                 NumberAnimation {
                     target: lightningFlash
                     property: "opacity"
                     to: 0
                     duration: 150
+                    easing.type: Anim.easing("linear").type
                 }
             }
         }
@@ -805,16 +800,10 @@ ClippingRectangle {
             y: posY
 
             Behavior on x {
-                NumberAnimation {
-                    duration: 300
-                    easing.type: Easing.OutQuad
-                }
+                AnimatedBehavior { type: "spatial"; size: "default" }
             }
             Behavior on y {
-                NumberAnimation {
-                    duration: 300
-                    easing.type: Easing.OutQuad
-                }
+                AnimatedBehavior { type: "spatial"; size: "default" }
             }
 
             gradient: Gradient {
@@ -947,10 +936,7 @@ ClippingRectangle {
         visible: root.showDebugControls
 
         Behavior on opacity {
-            NumberAnimation {
-                duration: 150
-                easing.type: Easing.InOutQuad
-            }
+            AnimatedBehavior { type: "standard"; size: "small" }
         }
 
         Text {

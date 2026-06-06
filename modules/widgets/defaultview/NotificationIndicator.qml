@@ -2,6 +2,7 @@ import QtQuick
 import qs.modules.theme
 import qs.modules.services
 import qs.config
+import qs.modules.components
 
 Item {
     id: root
@@ -24,36 +25,41 @@ Item {
                 target: shakeContainer
                 property: "rotation"
                 to: -15
-                duration: 50
-                easing.type: Easing.OutQuad
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
             NumberAnimation {
                 target: shakeContainer
                 property: "rotation"
                 to: 15
-                duration: 100
-                easing.type: Easing.InOutQuad
+                duration: Anim.spatialFast
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
             NumberAnimation {
                 target: shakeContainer
                 property: "rotation"
                 to: -10
-                duration: 80
-                easing.type: Easing.InOutQuad
+                duration: Anim.spatialFast
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
             NumberAnimation {
                 target: shakeContainer
                 property: "rotation"
                 to: 10
-                duration: 80
-                easing.type: Easing.InOutQuad
+                duration: Anim.spatialFast
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
             NumberAnimation {
                 target: shakeContainer
                 property: "rotation"
                 to: 0
-                duration: 50
-                easing.type: Easing.InQuad
+                duration: Anim.standardSmall
+                easing.type: Anim.easing("standard").type
+                easing.bezierCurve: Anim.easing("standard").bezierCurve
             }
         }
 

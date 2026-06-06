@@ -215,23 +215,23 @@ Item {
 
                 Behavior on opacity {
                     enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal
-                        easing.type: Easing.OutQuad
+                    AnimatedBehavior {
+                        type: "standard"
+                        size: "normal"
                     }
                 }
                 Behavior on x {
                     enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal
-                        easing.type: Easing.OutQuad
+                    AnimatedBehavior {
+                        type: "standard"
+                        size: "normal"
                     }
                 }
                 Behavior on width {
                     enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal
-                        easing.type: Easing.OutQuad
+                    AnimatedBehavior {
+                        type: "standard"
+                        size: "normal"
                     }
                 }
             }
@@ -266,23 +266,23 @@ Item {
 
                 Behavior on opacity {
                     enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal
-                        easing.type: Easing.OutQuad
+                    AnimatedBehavior {
+                        type: "standard"
+                        size: "normal"
                     }
                 }
                 Behavior on y {
                     enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal
-                        easing.type: Easing.OutQuad
+                    AnimatedBehavior {
+                        type: "standard"
+                        size: "normal"
                     }
                 }
                 Behavior on height {
                     enabled: Anim.animationsEnabled
-                    NumberAnimation {
-                        duration: Anim.standardNormal
-                        easing.type: Easing.OutQuad
+                    AnimatedBehavior {
+                        type: "standard"
+                        size: "normal"
                     }
                 }
             }
@@ -320,9 +320,9 @@ Item {
 
             enabled: Anim.animationsEnabled
 
-            NumberAnimation {
-                duration: Anim.standardSmall
-                easing.type: Easing.OutQuad
+            AnimatedBehavior {
+                type: "standard"
+                size: "small"
             }
         }
         Behavior on idx1 {
@@ -378,9 +378,9 @@ Item {
 
             enabled: Anim.animationsEnabled
 
-            NumberAnimation {
-                duration: Anim.standardSmall
-                easing.type: Easing.OutQuad
+            AnimatedBehavior {
+                type: "standard"
+                size: "small"
             }
         }
         Behavior on idx1 {
@@ -476,9 +476,9 @@ Item {
 
                         Behavior on opacity {
                             enabled: Anim.animationsEnabled
-                            NumberAnimation {
-                                duration: Anim.spatialFast
-                                easing.type: Easing.OutQuad
+                            AnimatedBehavior {
+                                type: "spatial"
+                                size: "fast"
                             }
                         }
                     }
@@ -493,9 +493,9 @@ Item {
 
                         Behavior on opacity {
                             enabled: Anim.animationsEnabled
-                            NumberAnimation {
-                                duration: Anim.spatialFast
-                                easing.type: Easing.OutQuad
+                            AnimatedBehavior {
+                                type: "spatial"
+                                size: "fast"
                             }
                         }
                     }
@@ -517,30 +517,30 @@ Item {
 
                             Behavior on opacity {
                                 enabled: Anim.animationsEnabled
-                                NumberAnimation {
-                                    duration: Anim.spatialFast
-                                    easing.type: Easing.OutQuad
+                                AnimatedBehavior {
+                                    type: "spatial"
+                                    size: "fast"
                                 }
                             }
                             Behavior on anchors.bottomMargin {
                                 enabled: Anim.animationsEnabled
-                                NumberAnimation {
-                                    duration: Anim.spatialFast
-                                    easing.type: Easing.OutQuad
+                                AnimatedBehavior {
+                                    type: "spatial"
+                                    size: "fast"
                                 }
                             }
                             Behavior on anchors.rightMargin {
                                 enabled: Anim.animationsEnabled
-                                NumberAnimation {
-                                    duration: Anim.spatialFast
-                                    easing.type: Easing.OutQuad
+                                AnimatedBehavior {
+                                    type: "spatial"
+                                    size: "fast"
                                 }
                             }
                             Behavior on implicitSize {
                                 enabled: Anim.animationsEnabled
-                                NumberAnimation {
-                                    duration: Anim.spatialFast
-                                    easing.type: Easing.OutQuad
+                                AnimatedBehavior {
+                                    type: "spatial"
+                                    size: "fast"
                                 }
                             }
                         }
@@ -625,9 +625,9 @@ Item {
 
                         Behavior on opacity {
                             enabled: Anim.animationsEnabled
-                            NumberAnimation {
-                                duration: Anim.spatialFast
-                                easing.type: Easing.OutQuad
+                            AnimatedBehavior {
+                                type: "spatial"
+                                size: "fast"
                             }
                         }
                     }
@@ -642,9 +642,9 @@ Item {
 
                         Behavior on opacity {
                             enabled: Anim.animationsEnabled
-                            NumberAnimation {
-                                duration: Anim.spatialFast
-                                easing.type: Easing.OutQuad
+                            AnimatedBehavior {
+                                type: "spatial"
+                                size: "fast"
                             }
                         }
                     }
@@ -666,30 +666,30 @@ Item {
 
                             Behavior on opacity {
                                 enabled: Anim.animationsEnabled
-                                NumberAnimation {
-                                    duration: Anim.spatialFast
-                                    easing.type: Easing.OutQuad
+                                AnimatedBehavior {
+                                    type: "spatial"
+                                    size: "fast"
                                 }
                             }
                             Behavior on anchors.bottomMargin {
                                 enabled: Anim.animationsEnabled
-                                NumberAnimation {
-                                    duration: Anim.spatialFast
-                                    easing.type: Easing.OutQuad
+                                AnimatedBehavior {
+                                    type: "spatial"
+                                    size: "fast"
                                 }
                             }
                             Behavior on anchors.rightMargin {
                                 enabled: Anim.animationsEnabled
-                                NumberAnimation {
-                                    duration: Anim.spatialFast
-                                    easing.type: Easing.OutQuad
+                                AnimatedBehavior {
+                                    type: "spatial"
+                                    size: "fast"
                                 }
                             }
                             Behavior on implicitSize {
                                 enabled: Anim.animationsEnabled
-                                NumberAnimation {
-                                    duration: Anim.spatialFast
-                                    easing.type: Easing.OutQuad
+                                AnimatedBehavior {
+                                    type: "spatial"
+                                    size: "fast"
                                 }
                             }
                         }

@@ -144,11 +144,7 @@ Item {
 
             Behavior on angle {
                 enabled: Anim.animationsEnabled
-                NumberAnimation {
-                    duration: 400
-                    easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
-                }
+                AnimatedBehavior { type: "standard"; size: "normal" }
             }
         }
 

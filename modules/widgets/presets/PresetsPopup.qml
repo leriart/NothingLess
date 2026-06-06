@@ -76,10 +76,9 @@ PanelWindow {
 
         Behavior on opacity {
             enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal
-                easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
+            AnimatedBehavior {
+                type: "standard"
+                size: "normal"
             }
         }
 
@@ -91,6 +90,28 @@ PanelWindow {
         }
     }
 
+    // Animation properties
+    property real popupOpacity: presetsOpen ? 1 : 0
+    property real popupScale: presetsOpen ? 1 : 0.9
+
+    Behavior on popupOpacity {
+        enabled: Anim.animationsEnabled
+        AnimatedBehavior {
+            type: "standard"
+            size: "normal"
+        }
+    }
+
+    Behavior on popupScale {
+        enabled: Anim.animationsEnabled
+        AnimatedBehavior {
+            type: "emphasized"
+            size: "normal"
+            useSpring: true
+            springName: "snappy"
+        }
+    }
+
     // Main content column (search + presets)
     Item {
         id: mainContainer
@@ -98,26 +119,8 @@ PanelWindow {
         width: presetsContainer.width + (scrollbarContainer.visible ? scrollbarContainer.width + 8 : 0)
         height: presetsContainer.height
 
-        opacity: presetsOpen ? 1 : 0
-        scale: presetsOpen ? 1 : 0.9
-
-        Behavior on opacity {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal
-                easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve
-            }
-        }
-
-        Behavior on scale {
-            enabled: Anim.animationsEnabled
-            NumberAnimation {
-                duration: Anim.standardNormal
-                easing.type: Anim.easing("emphasized").type
-                        easing.bezierCurve: Anim.easing("emphasized").bezierCurve
-            }
-        }
+        opacity: popupOpacity
+        scale: popupScale
 
         // Presets container
         Item {
