@@ -145,14 +145,18 @@ Rectangle {
         property int loadedCount: 0
         property int batchSize: 10
 
+        property bool modelRebuilding: false
+
         Timer {
             id: incrementalLoader
-            interval: 100
+            interval: 50
             repeat: true
             running: false
             onTriggered: {
                 if (appLauncher.loadedCount >= appLauncher.pendingApps.length || appLauncher.batchSize <= 0) {
                     running = false;
+                    // Re-enable list transitions after all batches are loaded
+                    appLauncher.modelRebuilding = false;
                     return;
                 }
 
@@ -191,8 +195,11 @@ Rectangle {
         }
 
         onFilteredAppsChanged: {
+            // Reset scroll and expanded state when search results change
             resultsList.enableScrollAnimation = false;
             resultsList.contentY = 0;
+            appLauncher.expandedItemIndex = -1;
+            appLauncher.selectedOptionIndex = 0;
             updateAppsModel();
             Qt.callLater(() => {
                 resultsList.enableScrollAnimation = true;
@@ -200,8 +207,9 @@ Rectangle {
         }
 
         function updateAppsModel() {
-            // Stop any existing loading
+            // Stop any existing loading and suppress animations during rebuild
             incrementalLoader.stop();
+            appLauncher.modelRebuilding = true;
             
             let newApps = filteredApps;
             appLauncher.pendingApps = newApps;
@@ -212,7 +220,16 @@ Rectangle {
                 appsById[newApps[i].id] = newApps[i];
             }
 
+            // Save intended selection before clearing (clear resets currentIndex to -1)
+            let hadSelection = appLauncher.selectedIndex >= 0 && appLauncher.searchText.length > 0;
+            let targetIndex = hadSelection ? 0 : -1;
+
             appsModel.clear();
+            
+            // Apply intended selection
+            appLauncher.selectedIndex = targetIndex;
+            GlobalStates.launcherSelectedIndex = targetIndex;
+            resultsList.currentIndex = targetIndex;
             
             // Load first batch immediately for instant feedback
             let initialBatch = Math.min(appLauncher.batchSize, newApps.length);
@@ -231,9 +248,18 @@ Rectangle {
             
             appLauncher.loadedCount = initialBatch;
             
-            // Schedule rest if needed
+            // Restore currentIndex after first batch populates the model
+            Qt.callLater(() => {
+                if (targetIndex >= 0 && appsModel.count > 0) {
+                    resultsList.currentIndex = targetIndex;
+                }
+            });
+            
+            // Schedule rest if needed, or re-enable transitions immediately
             if (appLauncher.loadedCount < newApps.length) {
                 incrementalLoader.start();
+            } else {
+                appLauncher.modelRebuilding = false;
             }
         }
 
@@ -657,6 +683,10 @@ Rectangle {
                 interactive: appLauncher.expandedItemIndex === -1
                 cacheBuffer: 96
                 reuseItems: true
+
+                // Suppress add/remove transitions during model rebuild to avoid visual glitches
+                enableAddTransition: !appLauncher.modelRebuilding
+                enableRemoveTransition: !appLauncher.modelRebuilding
 
                 property bool isScrolling: dragging || flicking
 
