@@ -157,12 +157,22 @@ PanelWindow {
         anchors.fill: parent
     }
 
+    // Zero-size mask item — used when no full-screen input is needed.
+    // Explicitly setting a 0×0 item prevents the compositor from
+    // defaulting to the entire surface as an input region.
+    Item {
+        id: emptyMask
+        width: 0
+        height: 0
+    }
+
     // Mask Region Logic
-    // When a module or popup is open, expand to full-screen to capture click-outside.
-    // Otherwise, restrict input to Bar, Notch, and Dock hitboxes only.
+    // When a popup/dropdown is open (FocusGrab active): full-screen mask.
+    // Otherwise: only Bar, Notch hover edge, Notch content, Dock, and
+    // Sidebar hitboxes receive input — clicks everywhere else pass
+    // through to real windows behind the shell.
     mask: Region {
-        // Full-screen capture when any module/popup is open
-        item: unifiedPanel.needsFullScreenInput ? fullScreenMask : null
+        item: unifiedPanel.needsFullScreenInput ? fullScreenMask : emptyMask
         regions: [
             Region {
                 // In island mode, exclude bar hitbox so clicks reach the notch
@@ -258,10 +268,31 @@ PanelWindow {
         running: false
     }
 
+    // Track what activated needsFullScreenInput so we can log/debug leaks
+    property string _lastNeedsInputReason: ""
+    onNeedsFullScreenInputChanged: {
+        if (needsFullScreenInput) {
+            if (FocusGrabManager.hasActiveGrab && !(assistantSidebar.active && assistantSidebar.wantsFocus)) {
+                _lastNeedsInputReason = "focus-grab";
+                console.warn("needsFullScreenInput activated by FocusGrabManager. Grab count:", FocusGrabManager._activeCount);
+            } else if (assistantSidebar.active && assistantSidebar.wantsFocus) {
+                _lastNeedsInputReason = "assistant-sidebar";
+                console.warn("needsFullScreenInput activated by AssistantSidebar.");
+            } else {
+                _lastNeedsInputReason = "unknown";
+                console.warn("needsFullScreenInput activated for unknown reason.");
+            }
+        } else {
+            _lastNeedsInputReason = "";
+            console.log("needsFullScreenInput deactivated.");
+        }
+    }
+
     MouseArea {
         id: backdropArea
         anchors.fill: parent
         visible: unifiedPanel.needsFullScreenInput
+        enabled: unifiedPanel.needsFullScreenInput
         propagateComposedEvents: true
 
         onClicked: {
@@ -276,25 +307,67 @@ PanelWindow {
         }
     }
 
-    // Safety net: if needsFullScreenInput stays true for more than 10 seconds
+    // Safety net: if needsFullScreenInput stays true for more than 5 seconds
     // without any visible popup/tool, force-clear it. This catches any edge
     // case where a destroyed component failed to release its focus grab.
     Timer {
         id: backdropSafetyTimer
-        interval: 10000
-        repeat: false
+        interval: 5000
+        repeat: true
         running: unifiedPanel.needsFullScreenInput
         onTriggered: {
-            if (!unifiedPanel.notchOpen && !GlobalStates.screenshotToolVisible && !GlobalStates.screenRecordToolVisible && !GlobalStates.settingsWindowVisible && !GlobalStates.mirrorWindowVisible && !GlobalStates.assistantVisible) {
-                console.warn("UnifiedShellPanel: backdrop safety net triggered — forcing grab cleanup.");
-                while (FocusGrabManager.hasActiveGrab) {
-                    FocusGrabManager.clearTopGrab();
-                }
-                Visibilities.setActiveModule("");
-                if (assistantSidebar.active && assistantSidebar.wantsFocus) {
-                    assistantSidebar.wantsFocus = false;
+            console.warn("UnifiedShellPanel: backdrop safety net checking — reason:", unifiedPanel._lastNeedsInputReason,
+                         "| grabs:", FocusGrabManager._activeCount,
+                         "| notchOpen:", unifiedPanel.notchOpen,
+                         "| screenshot:", GlobalStates.screenshotToolVisible,
+                         "| record:", GlobalStates.screenRecordToolVisible,
+                         "| settings:", GlobalStates.settingsWindowVisible,
+                         "| mirror:", GlobalStates.mirrorWindowVisible,
+                         "| assistant:", GlobalStates.assistantVisible);
+
+            // If the reason was a focus grab and no tool/popup is visibly open,
+            // the grab is almost certainly orphaned — wipe it.
+            if (FocusGrabManager.hasActiveGrab) {
+                if (!unifiedPanel.notchOpen && !GlobalStates.screenshotToolVisible && !GlobalStates.screenRecordToolVisible && !GlobalStates.settingsWindowVisible && !GlobalStates.mirrorWindowVisible && !GlobalStates.assistantVisible) {
+                    console.warn("UnifiedShellPanel: safety net triggered — clearing orphaned grabs.");
+                    while (FocusGrabManager.hasActiveGrab) {
+                        FocusGrabManager.clearTopGrab();
+                    }
                 }
             }
+
+            // Also clear assistant focus if sidebar is not visible anymore
+            if (assistantSidebar.active && assistantSidebar.wantsFocus && !GlobalStates.assistantVisible) {
+                console.warn("UnifiedShellPanel: safety net clearing stale assistant wantsFocus.");
+                assistantSidebar.wantsFocus = false;
+            }
+
+            // If after cleanup needsFullScreenInput is still true, log loudly
+            if (unifiedPanel.needsFullScreenInput) {
+                console.error("UnifiedShellPanel: CRITICAL — needsFullScreenInput STILL true after safety net! Reason:", unifiedPanel._lastNeedsInputReason);
+            }
+        }
+    }
+
+    // Emergency keyboard shortcut: force-clear all blocking state immediately.
+    // Use this when the transparent overlay gets stuck and you cannot click windows.
+    Shortcut {
+        sequences: ["Meta+Shift+Escape", "Ctrl+Shift+Escape"]
+        onActivated: {
+            console.warn("EMERGENCY: force-clearing all input-blocking state.");
+            while (FocusGrabManager.hasActiveGrab) {
+                FocusGrabManager.clearTopGrab();
+            }
+            Visibilities.setActiveModule("");
+            if (assistantSidebar.active && assistantSidebar.wantsFocus) {
+                assistantSidebar.wantsFocus = false;
+            }
+            GlobalStates.screenshotToolVisible = false;
+            GlobalStates.screenRecordToolVisible = false;
+            GlobalStates.settingsWindowVisible = false;
+            GlobalStates.mirrorWindowVisible = false;
+            GlobalStates.assistantVisible = false;
+            focusWindowUnderCursor.running = true;
         }
     }
 

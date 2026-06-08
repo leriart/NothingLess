@@ -96,20 +96,18 @@ PanelWindow {
         
         // Request focus grab
         if (modeGrid)
-            FocusGrabManager.requestGrab(modeGrid);
+            FocusGrabManager.requestGrab("screenrecordToolGrab");
     }
 
     function close() {
         screenrecordPopup.state = "idle";
         GlobalStates.screenRecordToolVisible = false;
-        // Release the focus grab requested in open() — without this,
-        // FocusGrabManager.hasActiveGrab stays true and the full-screen
-        // input mask in UnifiedShellPanel blocks all clicks permanently.
-        if (modeGrid) FocusGrabManager.releaseGrab(modeGrid);
-        // Safety net: ensure the notch tools module is cleared so
-        // needsFullScreenInput (which depends on screenNotchOpen)
-        // becomes false and the transparent click-blocking backdrop
-        // is removed.
+        // Release the manual focus grab using the stable string ID.
+        // Using a QML object reference (modeGrid) as grab ID is unsafe
+        // because the object may be destroyed by the time close() runs,
+        // causing releaseGrab to silently fail and hasActiveGrab to
+        // stay true permanently.
+        FocusGrabManager.releaseGrab("screenrecordToolGrab");
         Visibilities.setActiveModule("");
     }
 
@@ -388,6 +386,6 @@ PanelWindow {
 
     // Safety net: release grab if the tool is destroyed without close()
     Component.onDestruction: {
-        if (modeGrid) FocusGrabManager.releaseGrab(modeGrid);
+        FocusGrabManager.releaseGrab("screenrecordToolGrab");
     }
 }
