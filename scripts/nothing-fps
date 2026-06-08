@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# nothing-fps — Launch any program with FPS monitoring
+# nothing-fps — Launch any program with FPS monitoring for NothingLess notch
 #
-# Incluye MangoHud modificado (con output SHM). Auto-instala
-# las librerías si no están en ~/.local/lib/.
-# FPS escrito a /dev/shm/nothingless_fps para el notch.
+# Uses the patched MangoHud libraries that write FPS to /dev/shm/nothingless_fps.
+# Falls back to libambfps.so (LD_PRELOAD) for reliable shm output when
+# MangoHud's overlay update loop would be skipped.
 #
 # Usage:
 #   nothing-fps %command%            Steam launch options / normal
@@ -14,12 +14,12 @@ SHM_FILE="/dev/shm/nothingless_fps"
 cleanup() { rm -f "$SHM_FILE" 2>/dev/null; }
 trap cleanup EXIT
 
-# ── Locate MangoHud libraries ──
+# ── Locate libraries ──────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
 LHOME="$HOME/.local/lib"
 LREPO=""
 
-# Search order: (1) junto al script, (2) repo scripts/, (3) ~/.local/lib/
+# Search order: (1) next to this script, (2) repo scripts/, (3) ~/.local/lib/
 for dir in "$SCRIPT_DIR" "$HOME/.local/src/nothingless/scripts" "$HOME/.local/src/Test-NothingLess/scripts"; do
     if [ -f "$dir/libMangoHud_shim.so" ]; then
         LREPO="$dir"
@@ -27,40 +27,113 @@ for dir in "$SCRIPT_DIR" "$HOME/.local/src/nothingless/scripts" "$HOME/.local/sr
     fi
 done
 
-# If found in repo but not in home, copy
+# Copy libraries to ~/.local/lib/ if found in repo but not installed
 if [ -n "$LREPO" ]; then
     mkdir -p "$LHOME"
-    for lib in libMangoHud.so libMangoHud_shim.so libMangoHud_opengl.so; do
+    for lib in libMangoHud.so libMangoHud_shim.so libMangoHud_opengl.so libambfps.so; do
         [ -f "$LREPO/$lib" ] && cp -n "$LREPO/$lib" "$LHOME/$lib" 2>/dev/null || true
     done
 fi
 
-if [ ! -f "$LHOME/libMangoHud_shim.so" ]; then
-    echo "nothing-fps: error — libMangoHud_shim.so no encontrado." >&2
-    echo "Reinstalá NothingLess o copiá los archivos a ~/.local/lib/" >&2
+# ── Check required libraries ──────────────────────────────────────
+HAVE_MANGOHUD=false
+HAVE_AMBFPS=false
+[ -f "$LHOME/libMangoHud_shim.so" ] && HAVE_MANGOHUD=true
+[ -f "$LHOME/libambfps.so" ] && HAVE_AMBFPS=true
+
+if ! $HAVE_MANGOHUD && ! $HAVE_AMBFPS; then
+    echo "nothing-fps: error — no FPS library found." >&2
+    echo "  Expected at ~/.local/lib/: libMangoHud_shim.so or libambfps.so" >&2
+    echo "  Run: nothingless install   to set up dependencies." >&2
     exec "$@"
 fi
 
-# ── Environment ──
+# ── Build LD_PRELOAD chain ────────────────────────────────────────
+# MangoHud shim (primary): renders overlay + patched shm write
+# libambfps.so (fallback): reliable shm write via Vulkan/GL hooks
+PRELOAD_CHAIN=""
+if $HAVE_MANGOHUD; then
+    PRELOAD_CHAIN="${LHOME}/libMangoHud_shim.so"
+fi
+if $HAVE_AMBFPS; then
+    PRELOAD_CHAIN="${PRELOAD_CHAIN}${PRELOAD_CHAIN:+:}${LHOME}/libambfps.so"
+fi
+
 export LD_LIBRARY_PATH="${LHOME}:${LD_LIBRARY_PATH:-}"
-export LD_PRELOAD="${LHOME}/libMangoHud_shim.so${LD_PRELOAD:+:$LD_PRELOAD}"
-# ── Parse flags ──
+export LD_PRELOAD="${PRELOAD_CHAIN}${LD_PRELOAD:+:$LD_PRELOAD}"
+
+# ── Parse flags ───────────────────────────────────────────────────
 SHOW_OVERLAY=false
 ARGS=()
 for arg in "$@"; do
     case "$arg" in
         --quiet|--hidden)  ;;
         --visible)  SHOW_OVERLAY=true ;;
+        --help|-h)
+            echo "Usage: nothing-fps [--quiet|--visible] <command> [args...]"
+            echo ""
+            echo "  Launch a program with FPS monitoring for the NothingLess notch."
+            echo "  FPS data is written to /dev/shm/nothingless_fps and displayed"
+            echo "  in the notch metrics overlay (enable via Config.notch.showMetrics)."
+            echo ""
+            echo "Options:"
+            echo "  --quiet     Hidden mode (default) — FPS sent to notch only, no overlay"
+            echo "  --visible   Show MangoHud FPS overlay in addition to notch output"
+            echo "  --help, -h  Show this help"
+            echo ""
+            echo "Examples:"
+            echo "  nothing-fps vkcube"
+            echo "  nothing-fps --visible ./my-game"
+            echo "  nothing-fps %command%          (Steam launch options)"
+            echo "  nothing-fps steam steam://rungameid/730"
+            exit 0
+            ;;
         *) ARGS+=("$arg") ;;
     esac
 done
 
-# ── MangoHud config ──
-if [ "$SHOW_OVERLAY" = true ]; then
-    export MANGOHUD_CONFIG="fps_only,font_size=14,background_alpha=0.2,position=top-right,offset_x=8,offset_y=8"
-else
-    export MANGOHUD_CONFIG="fps_only,no_display,font_size=14"
+# ── MangoHud config ───────────────────────────────────────────────
+# NOTE: do NOT use 'no_display' — it skips the overlay update loop,
+# which prevents the patched FPS→shm code in overlay.cpp from running.
+# Instead, use background_alpha=0 for a fully transparent overlay
+# that still calculates FPS and writes to /dev/shm/nothingless_fps.
+if $HAVE_MANGOHUD; then
+    if [ "$SHOW_OVERLAY" = true ]; then
+        export MANGOHUD_CONFIG="fps_only,font_size=14,background_alpha=0.2,position=top-right,offset_x=8,offset_y=8"
+    else
+        # Hidden mode: overlay runs (for shm output) but is invisible
+        export MANGOHUD_CONFIG="fps_only,background_alpha=0,font_size=1,position=top-left,offset_x=-999,offset_y=-999"
+    fi
+    export MANGOHUD=1
 fi
-export MANGOHUD=1
 
-exec env 'nothingless-fps=1' "${ARGS[@]}"
+# Activate libambfps.so (reads this env var; writes to same shm file)
+export NOTHINGLESS_FPS=1
+
+# ── Validate ──────────────────────────────────────────────────────
+if [ ${#ARGS[@]} -eq 0 ]; then
+    echo "nothing-fps: error — no command specified." >&2
+    echo "Usage: nothing-fps [--quiet|--visible] <command> [args...]" >&2
+    echo "  nothing-fps --help  for more information" >&2
+    exit 1
+fi
+
+# Ensure first arg is an executable (warn if not, but proceed —
+# Steam %command% may resolve to a relative path or runtime launcher)
+if ! command -v "${ARGS[0]}" >/dev/null 2>&1 && [ ! -x "${ARGS[0]}" ]; then
+    echo "nothing-fps: warning — '${ARGS[0]}' not found in PATH." >&2
+    echo "  The game may still launch via Steam runtime or absolute path." >&2
+fi
+
+# ── Launch ────────────────────────────────────────────────────────
+# Use exec to replace the shell process with the game, so the game's
+# PID is the same as the launcher's (Steam expects this).
+# Cleanup of /dev/shm/nothingless_fps is handled by libambfps.so's
+# destructor (__attribute__((destructor))) when the game exits.
+exec env \
+    MANGOHUD="${MANGOHUD:-0}" \
+    MANGOHUD_CONFIG="${MANGOHUD_CONFIG:-}" \
+    NOTHINGLESS_FPS=1 \
+    LD_PRELOAD="${LD_PRELOAD}" \
+    LD_LIBRARY_PATH="${LD_LIBRARY_PATH}" \
+    "${ARGS[@]}"

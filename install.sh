@@ -499,6 +499,17 @@ setup_launcher() {
 	EOF
   sudo chmod +x "$LAUNCHER"
   log_success "Launcher created"
+
+  # Symlink companion scripts for FPS monitoring and window resizing
+  local script_src script_dst
+  for script in nothing-fps nothingless-resize; do
+    script_src="$INSTALL_PATH/scripts/$script"
+    script_dst="$BIN_DIR/$script"
+    if [[ -f "$script_src" ]]; then
+      sudo ln -sf "$script_src" "$script_dst"
+      log_info "  Linked $script → $script_dst"
+    fi
+  done
 }
 
 # === Axctl Installation ===
