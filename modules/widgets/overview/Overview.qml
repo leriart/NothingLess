@@ -803,4 +803,21 @@ Item {
 
 
 
+Component.onDestruction: {
+    clientProcess.stop ? clientProcess.stop() : undefined;
+    clientProcess.running !== undefined ? clientProcess.running = false : undefined;
+    clientProcess.destroy !== undefined ? clientProcess.destroy() : undefined;
+    monProcess.stop ? monProcess.stop() : undefined;
+    monProcess.running !== undefined ? monProcess.running = false : undefined;
+    monProcess.destroy !== undefined ? monProcess.destroy() : undefined;
+    refreshTimer.stop ? refreshTimer.stop() : undefined;
+    refreshTimer.running !== undefined ? refreshTimer.running = false : undefined;
+    refreshTimer.destroy !== undefined ? refreshTimer.destroy() : undefined;
+    delayedRefreshTimer.stop ? delayedRefreshTimer.stop() : undefined;
+    delayedRefreshTimer.running !== undefined ? delayedRefreshTimer.running = false : undefined;
+    delayedRefreshTimer.destroy !== undefined ? delayedRefreshTimer.destroy() : undefined;
+    openRefreshTimer.stop ? openRefreshTimer.stop() : undefined;
+    openRefreshTimer.running !== undefined ? openRefreshTimer.running = false : undefined;
+    openRefreshTimer.destroy !== undefined ? openRefreshTimer.destroy() : undefined;
+}
 }

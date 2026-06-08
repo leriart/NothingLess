@@ -221,4 +221,9 @@ PopupWindow {
             root.visible = false;
         }
     }
+Component.onDestruction: {
+    closeTimer.stop ? closeTimer.stop() : undefined;
+    closeTimer.running !== undefined ? closeTimer.running = false : undefined;
+    closeTimer.destroy !== undefined ? closeTimer.destroy() : undefined;
+}
 }

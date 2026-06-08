@@ -348,4 +348,21 @@ StyledRect {
         updateWeather();
         updateDay();
     }
+Component.onDestruction: {
+    geoipProcess.stop ? geoipProcess.stop() : undefined;
+    geoipProcess.running !== undefined ? geoipProcess.running = false : undefined;
+    geoipProcess.destroy !== undefined ? geoipProcess.destroy() : undefined;
+    geocodingProcess.stop ? geocodingProcess.stop() : undefined;
+    geocodingProcess.running !== undefined ? geocodingProcess.running = false : undefined;
+    geocodingProcess.destroy !== undefined ? geocodingProcess.destroy() : undefined;
+    weatherProcess.stop ? weatherProcess.stop() : undefined;
+    weatherProcess.running !== undefined ? weatherProcess.running = false : undefined;
+    weatherProcess.destroy !== undefined ? weatherProcess.destroy() : undefined;
+    weatherRetryTimer.stop ? weatherRetryTimer.stop() : undefined;
+    weatherRetryTimer.running !== undefined ? weatherRetryTimer.running = false : undefined;
+    weatherRetryTimer.destroy !== undefined ? weatherRetryTimer.destroy() : undefined;
+    dayUpdateTimer.stop ? dayUpdateTimer.stop() : undefined;
+    dayUpdateTimer.running !== undefined ? dayUpdateTimer.running = false : undefined;
+    dayUpdateTimer.destroy !== undefined ? dayUpdateTimer.destroy() : undefined;
+}
 }

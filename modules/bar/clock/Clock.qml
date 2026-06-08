@@ -674,4 +674,9 @@ Item {
         root.currentMinutes = parts[1];
         updateDay();
     }
+Component.onDestruction: {
+    dayUpdateTimer.stop ? dayUpdateTimer.stop() : undefined;
+    dayUpdateTimer.running !== undefined ? dayUpdateTimer.running = false : undefined;
+    dayUpdateTimer.destroy !== undefined ? dayUpdateTimer.destroy() : undefined;
+}
 }

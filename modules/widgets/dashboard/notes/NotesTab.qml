@@ -3526,4 +3526,39 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    saveDebounceTimer.stop ? saveDebounceTimer.stop() : undefined;
+    saveDebounceTimer.running !== undefined ? saveDebounceTimer.running = false : undefined;
+    saveDebounceTimer.destroy !== undefined ? saveDebounceTimer.destroy() : undefined;
+    initDirProcess.stop ? initDirProcess.stop() : undefined;
+    initDirProcess.running !== undefined ? initDirProcess.running = false : undefined;
+    initDirProcess.destroy !== undefined ? initDirProcess.destroy() : undefined;
+    readIndexProcess.stop ? readIndexProcess.stop() : undefined;
+    readIndexProcess.running !== undefined ? readIndexProcess.running = false : undefined;
+    readIndexProcess.destroy !== undefined ? readIndexProcess.destroy() : undefined;
+    createNoteProcess.stop ? createNoteProcess.stop() : undefined;
+    createNoteProcess.running !== undefined ? createNoteProcess.running = false : undefined;
+    createNoteProcess.destroy !== undefined ? createNoteProcess.destroy() : undefined;
+    deleteNoteProcess.stop ? deleteNoteProcess.stop() : undefined;
+    deleteNoteProcess.running !== undefined ? deleteNoteProcess.running = false : undefined;
+    deleteNoteProcess.destroy !== undefined ? deleteNoteProcess.destroy() : undefined;
+    readNoteProcess.stop ? readNoteProcess.stop() : undefined;
+    readNoteProcess.running !== undefined ? readNoteProcess.running = false : undefined;
+    readNoteProcess.destroy !== undefined ? readNoteProcess.destroy() : undefined;
+    saveNoteProcess.stop ? saveNoteProcess.stop() : undefined;
+    saveNoteProcess.running !== undefined ? saveNoteProcess.running = false : undefined;
+    saveNoteProcess.destroy !== undefined ? saveNoteProcess.destroy() : undefined;
+    saveIndexProcess.stop ? saveIndexProcess.stop() : undefined;
+    saveIndexProcess.running !== undefined ? saveIndexProcess.running = false : undefined;
+    saveIndexProcess.destroy !== undefined ? saveIndexProcess.destroy() : undefined;
+    readIndexForUpdateProcess.stop ? readIndexForUpdateProcess.stop() : undefined;
+    readIndexForUpdateProcess.running !== undefined ? readIndexForUpdateProcess.running = false : undefined;
+    readIndexForUpdateProcess.destroy !== undefined ? readIndexForUpdateProcess.destroy() : undefined;
+    readIndexForModifiedProcess.stop ? readIndexForModifiedProcess.stop() : undefined;
+    readIndexForModifiedProcess.running !== undefined ? readIndexForModifiedProcess.running = false : undefined;
+    readIndexForModifiedProcess.destroy !== undefined ? readIndexForModifiedProcess.destroy() : undefined;
+    mdSyncTimer.stop ? mdSyncTimer.stop() : undefined;
+    mdSyncTimer.running !== undefined ? mdSyncTimer.running = false : undefined;
+    mdSyncTimer.destroy !== undefined ? mdSyncTimer.destroy() : undefined;
+}
 }

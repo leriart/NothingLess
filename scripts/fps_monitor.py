@@ -101,10 +101,14 @@ def _get_gpu_stats():
     usages, temps, powers = [], [], []
     if os.path.exists('/proc/driver/nvidia/gpus'):
         try:
-            out = os.popen(
-                'nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,power.draw'
-                ' --format=csv,noheader,nounits 2>/dev/null'
-            ).read().strip()
+            out = subprocess.run(
+                [
+                    'nvidia-smi',
+                    '--query-gpu=utilization.gpu,temperature.gpu,power.draw',
+                    '--format=csv,noheader,nounits',
+                ],
+                capture_output=True, text=True, timeout=5,
+            ).stdout.strip()
             if out:
                 parts = out.split(',')
                 if len(parts) >= 3:

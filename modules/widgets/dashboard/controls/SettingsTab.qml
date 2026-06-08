@@ -654,4 +654,15 @@ Rectangle {
             }
         }
     }
+Component.onDestruction: {
+    focusRestoreTimer.stop ? focusRestoreTimer.stop() : undefined;
+    focusRestoreTimer.running !== undefined ? focusRestoreTimer.running = false : undefined;
+    focusRestoreTimer.destroy !== undefined ? focusRestoreTimer.destroy() : undefined;
+    advanceTimer.stop ? advanceTimer.stop() : undefined;
+    advanceTimer.running !== undefined ? advanceTimer.running = false : undefined;
+    advanceTimer.destroy !== undefined ? advanceTimer.destroy() : undefined;
+    indexingTimer.stop ? indexingTimer.stop() : undefined;
+    indexingTimer.running !== undefined ? indexingTimer.running = false : undefined;
+    indexingTimer.destroy !== undefined ? indexingTimer.destroy() : undefined;
+}
 }

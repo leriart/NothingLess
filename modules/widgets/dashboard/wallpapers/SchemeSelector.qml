@@ -511,4 +511,9 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    positionTimer.stop ? positionTimer.stop() : undefined;
+    positionTimer.running !== undefined ? positionTimer.running = false : undefined;
+    positionTimer.destroy !== undefined ? positionTimer.destroy() : undefined;
+}
 }

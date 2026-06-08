@@ -449,4 +449,36 @@ QtObject {
             }
         }
     }
+Component.onDestruction: {
+    xdgProcess.stop ? xdgProcess.stop() : undefined;
+    xdgProcess.running !== undefined ? xdgProcess.running = false : undefined;
+    xdgProcess.destroy !== undefined ? xdgProcess.destroy() : undefined;
+    ensureDirProcess.stop ? ensureDirProcess.stop() : undefined;
+    ensureDirProcess.running !== undefined ? ensureDirProcess.running = false : undefined;
+    ensureDirProcess.destroy !== undefined ? ensureDirProcess.destroy() : undefined;
+    freezeProcess.stop ? freezeProcess.stop() : undefined;
+    freezeProcess.running !== undefined ? freezeProcess.running = false : undefined;
+    freezeProcess.destroy !== undefined ? freezeProcess.destroy() : undefined;
+    monitorsProcess.stop ? monitorsProcess.stop() : undefined;
+    monitorsProcess.running !== undefined ? monitorsProcess.running = false : undefined;
+    monitorsProcess.destroy !== undefined ? monitorsProcess.destroy() : undefined;
+    clientsProcess.stop ? clientsProcess.stop() : undefined;
+    clientsProcess.running !== undefined ? clientsProcess.running = false : undefined;
+    clientsProcess.destroy !== undefined ? clientsProcess.destroy() : undefined;
+    cropProcess.stop ? cropProcess.stop() : undefined;
+    cropProcess.running !== undefined ? cropProcess.running = false : undefined;
+    cropProcess.destroy !== undefined ? cropProcess.destroy() : undefined;
+    copyProcess.stop ? copyProcess.stop() : undefined;
+    copyProcess.running !== undefined ? copyProcess.running = false : undefined;
+    copyProcess.destroy !== undefined ? copyProcess.destroy() : undefined;
+    lensProcess.stop ? lensProcess.stop() : undefined;
+    lensProcess.running !== undefined ? lensProcess.running = false : undefined;
+    lensProcess.destroy !== undefined ? lensProcess.destroy() : undefined;
+    openScreenshotsProcess.stop ? openScreenshotsProcess.stop() : undefined;
+    openScreenshotsProcess.running !== undefined ? openScreenshotsProcess.running = false : undefined;
+    openScreenshotsProcess.destroy !== undefined ? openScreenshotsProcess.destroy() : undefined;
+    verifyImageProcess.stop ? verifyImageProcess.stop() : undefined;
+    verifyImageProcess.running !== undefined ? verifyImageProcess.running = false : undefined;
+    verifyImageProcess.destroy !== undefined ? verifyImageProcess.destroy() : undefined;
+}
 }

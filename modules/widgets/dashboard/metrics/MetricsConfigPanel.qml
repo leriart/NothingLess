@@ -217,4 +217,9 @@ Flickable {
             }
         }
     }
+Component.onDestruction: {
+    content.stop ? content.stop() : undefined;
+    content.running !== undefined ? content.running = false : undefined;
+    content.destroy !== undefined ? content.destroy() : undefined;
+}
 }

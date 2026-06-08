@@ -687,4 +687,21 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    hostnameReader.stop ? hostnameReader.stop() : undefined;
+    hostnameReader.running !== undefined ? hostnameReader.running = false : undefined;
+    hostnameReader.destroy !== undefined ? hostnameReader.destroy() : undefined;
+    playPauseScaleTimer.stop ? playPauseScaleTimer.stop() : undefined;
+    playPauseScaleTimer.running !== undefined ? playPauseScaleTimer.running = false : undefined;
+    playPauseScaleTimer.destroy !== undefined ? playPauseScaleTimer.destroy() : undefined;
+    previousScaleTimer.stop ? previousScaleTimer.stop() : undefined;
+    previousScaleTimer.running !== undefined ? previousScaleTimer.running = false : undefined;
+    previousScaleTimer.destroy !== undefined ? previousScaleTimer.destroy() : undefined;
+    nextScaleTimer.stop ? nextScaleTimer.stop() : undefined;
+    nextScaleTimer.running !== undefined ? nextScaleTimer.running = false : undefined;
+    nextScaleTimer.destroy !== undefined ? nextScaleTimer.destroy() : undefined;
+    modeScaleTimer.stop ? modeScaleTimer.stop() : undefined;
+    modeScaleTimer.running !== undefined ? modeScaleTimer.running = false : undefined;
+    modeScaleTimer.destroy !== undefined ? modeScaleTimer.destroy() : undefined;
+}
 }

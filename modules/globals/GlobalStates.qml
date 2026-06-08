@@ -159,7 +159,7 @@ Singleton {
 
     function getActiveNotchOpen() {
         let active = Visibilities.getForActive();
-        return active ? (active.launcher || active.dashboard || active.overview) : false;
+        return active ? (active.launcher || active.dashboard || active.overview || active.presets) : false;
     }
 
     // Legacy properties for backward compatibility - use active screen
@@ -316,11 +316,22 @@ Singleton {
         }
     }
 
+    // Helper to check if any change session is still active (prevents
+    // pauseAutoSave from being reset while another editor has changes).
+    function _anyChangesActive(excluding) {
+        if (excluding !== "theme" && themeHasChanges) return true;
+        if (excluding !== "shell" && shellHasChanges) return true;
+        if (excluding !== "compositor" && compositorHasChanges) return true;
+        return false;
+    }
+
     function markThemeChanged() {
         // Take a snapshot before the first change
         if (!themeHasChanges) {
             themeSnapshot = createThemeSnapshot();
-            Config.pauseAutoSave = true;
+            if (!_anyChangesActive("theme")) {
+                Config.pauseAutoSave = true;
+            }
         }
         themeHasChanges = true;
     }
@@ -330,7 +341,9 @@ Singleton {
             Config.loader.writeAdapter();
             themeHasChanges = false;
             themeSnapshot = null;
-            Config.pauseAutoSave = false;
+            if (!_anyChangesActive("theme")) {
+                Config.pauseAutoSave = false;
+            }
         }
     }
 
@@ -339,7 +352,9 @@ Singleton {
             restoreThemeSnapshot(themeSnapshot);
             themeHasChanges = false;
             themeSnapshot = null;
-            Config.pauseAutoSave = false;
+            if (!_anyChangesActive("theme")) {
+                Config.pauseAutoSave = false;
+            }
         }
     }
 
@@ -431,7 +446,9 @@ Singleton {
         // Take a snapshot before the first change
         if (!shellHasChanges) {
             shellSnapshot = createShellSnapshot();
-            Config.pauseAutoSave = true;
+            if (!_anyChangesActive("shell")) {
+                Config.pauseAutoSave = true;
+            }
         }
         shellHasChanges = true;
     }
@@ -446,10 +463,12 @@ Singleton {
             Config.saveLockscreen();
             Config.saveDesktop();
             Config.saveSystem();
-            
+
             shellHasChanges = false;
             shellSnapshot = null;
-            Config.pauseAutoSave = false;
+            if (!_anyChangesActive("shell")) {
+                Config.pauseAutoSave = false;
+            }
         }
     }
 
@@ -458,7 +477,9 @@ Singleton {
             restoreShellSnapshot(shellSnapshot);
             shellHasChanges = false;
             shellSnapshot = null;
-            Config.pauseAutoSave = false;
+            if (!_anyChangesActive("shell")) {
+                Config.pauseAutoSave = false;
+            }
         }
     }
 
@@ -524,7 +545,9 @@ Singleton {
         // Take a snapshot before the first change
         if (!compositorHasChanges) {
             compositorSnapshot = createCompositorSnapshot();
-            Config.pauseAutoSave = true;
+            if (!_anyChangesActive("compositor")) {
+                Config.pauseAutoSave = true;
+            }
         }
         compositorHasChanges = true;
     }
@@ -540,7 +563,9 @@ Singleton {
             Config.saveCompositor();
             compositorHasChanges = false;
             compositorSnapshot = null;
-            Config.pauseAutoSave = false;
+            if (!_anyChangesActive("compositor")) {
+                Config.pauseAutoSave = false;
+            }
             // Apply directly via script (bypasses QML signal chain)
             _applyProcess.running = true;
         }
@@ -551,7 +576,9 @@ Singleton {
             restoreCompositorSnapshot(compositorSnapshot);
             compositorHasChanges = false;
             compositorSnapshot = null;
-            Config.pauseAutoSave = false;
+            if (!_anyChangesActive("compositor")) {
+                Config.pauseAutoSave = false;
+            }
         }
     }
 
@@ -559,9 +586,9 @@ Singleton {
     // ASSISTANT SIDEBAR STATE
     // ═══════════════════════════════════════════════════════════════
     property bool assistantVisible: false
-    property bool assistantPinned: Config.ai.sidebarPinnedOnStartup ?? false
-    property int assistantWidth: Config.ai.sidebarWidth ?? 400
-    property string assistantPosition: Config.ai.sidebarPosition ?? "right"
+    property bool assistantPinned: Config.ai.sidebarPinnedOnStartup || false
+    property int assistantWidth: Config.ai.sidebarWidth || 400
+    property string assistantPosition: Config.ai.sidebarPosition || "right"
     property string assistantScreenName: ""
 
     signal assistantFocusRequested(bool wasAlreadyOpen)

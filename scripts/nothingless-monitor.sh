@@ -6,16 +6,34 @@
 # Outputs SUSPEND/WAKE on stdout for SuspendManager integration.
 
 LOCKFILE="/tmp/nothingless_monitor.lock"
-if [ -e "$LOCKFILE" ]; then
-	PID=$(cat "$LOCKFILE")
-	if kill -0 "$PID" 2>/dev/null; then
-		exit 0
-	fi
+# Atomic lock via mkdir
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+	exit 0
 fi
-echo $$ >"$LOCKFILE"
-trap 'rm -f "$LOCKFILE"' EXIT
+trap 'rm -rf "$LOCKFILE"' EXIT
 
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/nothingless/config/system.json"
+
+# Safely execute a command string by validating the binary exists.
+# We do NOT use eval; instead we verify the first token is a real
+# command and run it via bash -c.
+safe_exec() {
+	local cmd="$1"
+	if [ -z "$cmd" ]; then
+		return 1
+	fi
+	# Extract first token (the binary)
+	local binary
+	binary=$(printf '%s' "$cmd" | awk '{print $1}')
+	if [ -z "$binary" ]; then
+		return 1
+	fi
+	if ! command -v "$binary" >/dev/null 2>&1; then
+		echo "Error: command not found: $binary" >&2
+		return 1
+	fi
+	bash -c "$cmd" &
+}
 
 get_lock_cmd() {
 	if [ -f "$CONFIG_FILE" ]; then
@@ -48,10 +66,10 @@ monitor_sleep() {
 		dbus-monitor --system --profile "type='signal',interface='org.freedesktop.login1.Manager',member='PrepareForSleep'" 2>/dev/null | while read -r line; do
 			if echo "$line" | grep -q "boolean true"; then
 				echo "SUSPEND"
-				eval "$(get_before_sleep_cmd)" &
+				safe_exec "$(get_before_sleep_cmd)"
 			elif echo "$line" | grep -q "boolean false"; then
 				echo "WAKE"
-				eval "$(get_after_sleep_cmd)" &
+				safe_exec "$(get_after_sleep_cmd)"
 			fi
 		done
 		sleep 1  # Restart dbus-monitor on disconnect
@@ -63,7 +81,7 @@ monitor_lockscreen() {
 	while true; do
 		dbus-monitor --session "type='signal',interface='org.freedesktop.ScreenSaver',member='ActiveChanged'" 2>/dev/null | while read -r line; do
 			if echo "$line" | grep -q "boolean true"; then
-				eval "$(get_lock_cmd)" &
+				safe_exec "$(get_lock_cmd)"
 			fi
 		done
 		sleep 1
@@ -75,7 +93,7 @@ monitor_system_lock() {
 	while true; do
 		dbus-monitor --system "type='signal',interface='org.freedesktop.login1.Session',member='Lock'" 2>/dev/null | while read -r line; do
 			if echo "$line" | grep -q "member=Lock"; then
-				eval "$(get_lock_cmd)" &
+				safe_exec "$(get_lock_cmd)"
 			fi
 		done
 		sleep 1

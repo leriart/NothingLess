@@ -1452,7 +1452,8 @@ Singleton {
                     current.nothingless.launcher.argument = "nothingless run launcher";
                     current.nothingless.launcher.action = createAction(current.nothingless.launcher);
                 }
-                if (nested.dashboard) {
+                const hadNestedDashboard = !!nested.dashboard;
+                if (hadNestedDashboard) {
                     current.nothingless.dashboard = nested.dashboard;
                     current.nothingless.dashboard.argument = "nothingless run dashboard";
                     current.nothingless.dashboard.action = createAction(current.nothingless.dashboard);
@@ -1488,8 +1489,13 @@ Singleton {
                     current.nothingless.wallpapers.action = createAction(current.nothingless.wallpapers);
                 }
 
-                // Remove the old nested object
-                delete current.nothingless.dashboard;
+                // Remove the old nested container only if we did NOT migrate a
+                // 'dashboard' sub-property. When nested.dashboard exists the
+                // assignment above already replaced the container with the real
+                // bind object, so delete would destroy the migrated data.
+                if (!hadNestedDashboard) {
+                    delete current.nothingless.dashboard;
+                }
                 needsUpdate = true;
             }
 
@@ -3699,6 +3705,8 @@ Singleton {
     onNotchPositionChanged: {
         if (!initialLoadComplete || !dockReady) return;
 
+        let needsMark = false;
+
         // If notch moves bottom
         if (notchPosition === "bottom") {
             // Conflict with Dock?
@@ -3710,18 +3718,27 @@ Singleton {
                 } else {
                     dock.position = "left";
                 }
-                // Trigger save
-                GlobalStates.markShellChanged();
+                needsMark = true;
             }
-        } 
+        }
         // If notch moves top
         else if (notchPosition === "top") {
             // Restore Dock if displaced
             if (dock.position === "left" || dock.position === "right") {
                 console.log("Notch moved to top, restoring Dock to bottom...");
                 dock.position = "bottom";
-                GlobalStates.markShellChanged();
+                needsMark = true;
             }
+        }
+
+        // Only mark shell changed if we're NOT in the middle of an external
+        // file reload. External reloads set pauseAutoSave=true before reload()
+        // and false after. If pauseAutoSave is already true here it means we
+        // are either in an external reload or already inside a change session.
+        // In both cases calling markShellChanged would leave pauseAutoSave
+        // stuck true forever because no apply/discard is triggered.
+        if (needsMark && !root.pauseAutoSave) {
+            GlobalStates.markShellChanged();
         }
     }
 

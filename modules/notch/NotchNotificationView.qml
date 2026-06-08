@@ -879,4 +879,12 @@ Item {
         // No reemplazar saltos de línea con espacios
         return processedBody;
     }
+Component.onDestruction: {
+    timestampUpdateTimer.stop ? timestampUpdateTimer.stop() : undefined;
+    timestampUpdateTimer.running !== undefined ? timestampUpdateTimer.running = false : undefined;
+    timestampUpdateTimer.destroy !== undefined ? timestampUpdateTimer.destroy() : undefined;
+    navigationHoverTimer.stop ? navigationHoverTimer.stop() : undefined;
+    navigationHoverTimer.running !== undefined ? navigationHoverTimer.running = false : undefined;
+    navigationHoverTimer.destroy !== undefined ? navigationHoverTimer.destroy() : undefined;
+}
 }

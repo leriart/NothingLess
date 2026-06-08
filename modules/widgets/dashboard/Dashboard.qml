@@ -595,4 +595,9 @@ NotchAnimationBehavior {
         id: wallpapersComponent
         WallpapersTab {}
     }
+Component.onDestruction: {
+    focusUnifiedLauncherTimer.stop ? focusUnifiedLauncherTimer.stop() : undefined;
+    focusUnifiedLauncherTimer.running !== undefined ? focusUnifiedLauncherTimer.running = false : undefined;
+    focusUnifiedLauncherTimer.destroy !== undefined ? focusUnifiedLauncherTimer.destroy() : undefined;
+}
 }

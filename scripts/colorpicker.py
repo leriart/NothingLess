@@ -48,7 +48,10 @@ rn, gn, bn = r / 255, g / 255, b / 255
 h, s, v = colorsys.rgb_to_hsv(rn, gn, bn)
 hsv_color = f"hsv({round(h*360)}, {round(s*100)}%, {round(v*100)}%)"
 
-icon = Path(tempfile.gettempdir()) / "color_picker_preview.png"
+# Use a unique temporary file to prevent symlink attacks in /tmp
+icon_fd, icon_path = tempfile.mkstemp(suffix=".png")
+os.close(icon_fd)
+icon = Path(icon_path)
 cmd("magick", "-size", "64x64", f"xc:{hex_color}", str(icon))
 
 subprocess.run(["wl-copy"], input=hex_color.encode())

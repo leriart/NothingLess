@@ -36,7 +36,7 @@ ShellRoot {
 
     ContextMenu {
         id: contextMenu
-        screen: Quickshell.screens[0]
+        screen: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null
         Component.onCompleted: Visibilities.setContextMenu(contextMenu)
     }
 
@@ -252,10 +252,11 @@ ShellRoot {
         }
 
         Connections {
-            target: screenRecordLoader.item
+            target: screenRecordLoader.status === Loader.Ready ? screenRecordLoader.item : null
+            enabled: screenRecordLoader.status === Loader.Ready
             ignoreUnknownSignals: true
             function onVisibleChanged() {
-                if (!screenRecordLoader.item.visible && GlobalStates.screenRecordToolVisible) {
+                if (screenRecordLoader.item && !screenRecordLoader.item.visible && GlobalStates.screenRecordToolVisible) {
                     GlobalStates.screenRecordToolVisible = false;
                 }
             }
@@ -290,13 +291,7 @@ ShellRoot {
         }
     }
 
-    // Init clipboard service
-    Connections {
-        target: ClipboardService
-        function onListCompleted() {
-        // Service initialized and ready
-        }
-    }
+    // ClipboardService initializes automatically on import; no explicit init needed.
 
     // Force service init at startup but defer it slightly so it doesn't block the UI
     QtObject {
@@ -340,8 +335,9 @@ ShellRoot {
                     WlrLayershell.namespace: "nothingless:splash-overlay"
                     exclusionMode: ExclusionMode.Ignore
 
-                    Rectangle {
+                    StyledRect {
                         id: splashBg
+                        variant: "transparent"
                         anchors.fill: parent
                         color: "#000000"
 
@@ -368,7 +364,6 @@ ShellRoot {
                         }
 
                         property bool splashVisible: true
-                        property bool splashEnded: false
 
                         readonly property int splashDuration: {
                             if (typeof Config !== "undefined" && Config.performance && Config.performance.splashDuration) {

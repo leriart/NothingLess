@@ -112,4 +112,9 @@ Item {
             color: Colors.overSurfaceVariant
         }
     }
+Component.onDestruction: {
+    initialScanTimer.stop ? initialScanTimer.stop() : undefined;
+    initialScanTimer.running !== undefined ? initialScanTimer.running = false : undefined;
+    initialScanTimer.destroy !== undefined ? initialScanTimer.destroy() : undefined;
+}
 }

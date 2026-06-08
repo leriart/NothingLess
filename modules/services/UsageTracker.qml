@@ -164,4 +164,9 @@ Singleton {
             saveUsageData();
         }
     }
+Component.onDestruction: {
+    ensureUsageFile.stop ? ensureUsageFile.stop() : undefined;
+    ensureUsageFile.running !== undefined ? ensureUsageFile.running = false : undefined;
+    ensureUsageFile.destroy !== undefined ? ensureUsageFile.destroy() : undefined;
+}
 }

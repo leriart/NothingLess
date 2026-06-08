@@ -479,4 +479,9 @@ StyledRect {
             if (detailedInfo.transform !== undefined) transformCombo.currentIndex = Math.min(detailedInfo.transform, 5);
         }
     }
+Component.onDestruction: {
+    monitorSyncDebounce.stop ? monitorSyncDebounce.stop() : undefined;
+    monitorSyncDebounce.running !== undefined ? monitorSyncDebounce.running = false : undefined;
+    monitorSyncDebounce.destroy !== undefined ? monitorSyncDebounce.destroy() : undefined;
+}
 }

@@ -542,4 +542,14 @@ Singleton {
         currentHour = now.getHours() + now.getMinutes() / 60;
         _initialized = true;
     }
+
+    Component.onDestruction: {
+        wakeRefreshTimer.stop();
+        refreshTimer.stop();
+        sunPositionTimer.stop();
+        retryTimer.stop();
+        debugTimeBlend.stop ? debugTimeBlend.stop() : undefined;
+        realTimeBlend.stop ? realTimeBlend.stop() : undefined;
+        effectiveTimeBlend.stop ? effectiveTimeBlend.stop() : undefined;
+    }
 }

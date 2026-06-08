@@ -213,4 +213,18 @@ QtObject {
         id: stopProcess
         command: ["pkill", "-SIGINT", "-f", "gpu-screen-recorder"]
     }
+
+    Component.onDestruction: {
+        statusTimer.stop();
+        checkProcess.running = false;
+        timeProcess.running = false;
+        prepareProcess.running = false;
+        notifyStartProcess.running = false;
+        startProcess.running = false;
+        notifyErrorProcess.running = false;
+        notifySavedProcess.running = false;
+        openVideosProcess.running = false;
+        stopProcess.running = false;
+        checkCapabilitiesProcess.running = false;
+    }
 }

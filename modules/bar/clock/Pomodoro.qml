@@ -443,7 +443,9 @@ Item {
                             x: Config.system.pomodoro.autoStart ? parent.width - 18 : 2
                             y: 2; width: 16; height: 16; radius: 8
                             color: Colors.background
-                            Behavior on x { NumberAnimation { duration: Anim.standardSmall;
+                            Behavior on x {
+                                enabled: Anim.animationsEnabled
+                                NumberAnimation { duration: Anim.standardSmall;
                 easing.type: Anim.easing("emphasized").type;
                 easing.bezierCurve: Anim.easing("emphasized").bezierCurve } }
                         }
@@ -475,7 +477,9 @@ Item {
                             x: Config.system.pomodoro.syncSpotify ? parent.width - 18 : 2
                             y: 2; width: 16; height: 16; radius: 8
                             color: Colors.background
-                            Behavior on x { NumberAnimation { duration: Anim.standardSmall;
+                            Behavior on x {
+                                enabled: Anim.animationsEnabled
+                                NumberAnimation { duration: Anim.standardSmall;
                 easing.type: Anim.easing("emphasized").type;
                 easing.bezierCurve: Anim.easing("emphasized").bezierCurve } }
                         }
@@ -557,4 +561,12 @@ Item {
             onClicked: cBtn.clicked()
         }
     }
+Component.onDestruction: {
+    notifyProcess.stop ? notifyProcess.stop() : undefined;
+    notifyProcess.running !== undefined ? notifyProcess.running = false : undefined;
+    notifyProcess.destroy !== undefined ? notifyProcess.destroy() : undefined;
+    countdownTimer.stop ? countdownTimer.stop() : undefined;
+    countdownTimer.running !== undefined ? countdownTimer.running = false : undefined;
+    countdownTimer.destroy !== undefined ? countdownTimer.destroy() : undefined;
+}
 }

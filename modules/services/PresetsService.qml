@@ -506,4 +506,33 @@ Singleton {
         console.log("PresetsService created, presetsDir:", presetsDir)
         initProcess.running = true
     }
+Component.onDestruction: {
+    scanProcess.stop ? scanProcess.stop() : undefined;
+    scanProcess.running !== undefined ? scanProcess.running = false : undefined;
+    scanProcess.destroy !== undefined ? scanProcess.destroy() : undefined;
+    saveProcess.stop ? saveProcess.stop() : undefined;
+    saveProcess.running !== undefined ? saveProcess.running = false : undefined;
+    saveProcess.destroy !== undefined ? saveProcess.destroy() : undefined;
+    renameProcess.stop ? renameProcess.stop() : undefined;
+    renameProcess.running !== undefined ? renameProcess.running = false : undefined;
+    renameProcess.destroy !== undefined ? renameProcess.destroy() : undefined;
+    updateProcess.stop ? updateProcess.stop() : undefined;
+    updateProcess.running !== undefined ? updateProcess.running = false : undefined;
+    updateProcess.destroy !== undefined ? updateProcess.destroy() : undefined;
+    deleteProcess.stop ? deleteProcess.stop() : undefined;
+    deleteProcess.running !== undefined ? deleteProcess.running = false : undefined;
+    deleteProcess.destroy !== undefined ? deleteProcess.destroy() : undefined;
+    updateActivePresetFileProcess.stop ? updateActivePresetFileProcess.stop() : undefined;
+    updateActivePresetFileProcess.running !== undefined ? updateActivePresetFileProcess.running = false : undefined;
+    updateActivePresetFileProcess.destroy !== undefined ? updateActivePresetFileProcess.destroy() : undefined;
+    loadProcess.stop ? loadProcess.stop() : undefined;
+    loadProcess.running !== undefined ? loadProcess.running = false : undefined;
+    loadProcess.destroy !== undefined ? loadProcess.destroy() : undefined;
+    readActivePresetProcess.stop ? readActivePresetProcess.stop() : undefined;
+    readActivePresetProcess.running !== undefined ? readActivePresetProcess.running = false : undefined;
+    readActivePresetProcess.destroy !== undefined ? readActivePresetProcess.destroy() : undefined;
+    initProcess.stop ? initProcess.stop() : undefined;
+    initProcess.running !== undefined ? initProcess.running = false : undefined;
+    initProcess.destroy !== undefined ? initProcess.destroy() : undefined;
+}
 }

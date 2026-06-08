@@ -58,4 +58,9 @@ Singleton {
             root.onWakingUp();
         }
     }
+Component.onDestruction: {
+    wakeReadyTimer.stop ? wakeReadyTimer.stop() : undefined;
+    wakeReadyTimer.running !== undefined ? wakeReadyTimer.running = false : undefined;
+    wakeReadyTimer.destroy !== undefined ? wakeReadyTimer.destroy() : undefined;
+}
 }

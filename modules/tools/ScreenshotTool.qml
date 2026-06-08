@@ -140,7 +140,7 @@ PanelWindow {
                 // Fetch windows if needed (idempotent call)
                 // Screenshot.fetchWindows();
                 
-                modeGrid.forceActiveFocus();
+                FocusGrabManager.requestGrab(modeGrid);
             }
         }
         function onWindowListReady(windows) {

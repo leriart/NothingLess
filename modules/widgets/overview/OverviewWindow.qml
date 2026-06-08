@@ -558,4 +558,12 @@ Item {
             horizontalAlignment: Text.AlignHCenter
         }
     }
+Component.onDestruction: {
+    resetOverrideTimer.stop ? resetOverrideTimer.stop() : undefined;
+    resetOverrideTimer.running !== undefined ? resetOverrideTimer.running = false : undefined;
+    resetOverrideTimer.destroy !== undefined ? resetOverrideTimer.destroy() : undefined;
+    holdTimer.stop ? holdTimer.stop() : undefined;
+    holdTimer.running !== undefined ? holdTimer.running = false : undefined;
+    holdTimer.destroy !== undefined ? holdTimer.destroy() : undefined;
+}
 }

@@ -310,6 +310,8 @@ PanelWindow {
         initialLoadCompleted = true;
         var pathIndex = wallpaperPaths.indexOf(path);
         if (pathIndex !== -1) {
+            const wasPaused = Config.pauseAutoSave;
+            Config.pauseAutoSave = true;
             if (targetScreen) {
                 let perScreen = Object.assign({}, wallpaperConfig.adapter.perScreenWallpapers || {});
                 perScreen[targetScreen] = path;
@@ -336,6 +338,7 @@ PanelWindow {
                 runMatugenForCurrentWallpaper();
             }
             generateLockscreenFrame(path);
+            Config.pauseAutoSave = wasPaused;
         } else {
             console.warn("Wallpaper path not found in current list:", path);
         }
@@ -347,11 +350,14 @@ PanelWindow {
             return;
         }
         console.log("Clearing per-screen wallpaper for:", targetScreen);
+        const wasPaused = Config.pauseAutoSave;
+        Config.pauseAutoSave = true;
         let perScreen = Object.assign({}, wallpaperConfig.adapter.perScreenWallpapers || {});
         if (perScreen[targetScreen]) {
             delete perScreen[targetScreen];
             wallpaperConfig.adapter.perScreenWallpapers = perScreen;
         }
+        Config.pauseAutoSave = wasPaused;
     }
 
     function nextWallpaper() {
@@ -1470,4 +1476,42 @@ PanelWindow {
             }
         }
     }
+Component.onDestruction: {
+    checkWallpapersJson.stop ? checkWallpapersJson.stop() : undefined;
+    checkWallpapersJson.running !== undefined ? checkWallpapersJson.running = false : undefined;
+    checkWallpapersJson.destroy !== undefined ? checkWallpapersJson.destroy() : undefined;
+    matugenProcessWithConfig.stop ? matugenProcessWithConfig.stop() : undefined;
+    matugenProcessWithConfig.running !== undefined ? matugenProcessWithConfig.running = false : undefined;
+    matugenProcessWithConfig.destroy !== undefined ? matugenProcessWithConfig.destroy() : undefined;
+    matugenProcessNormal.stop ? matugenProcessNormal.stop() : undefined;
+    matugenProcessNormal.running !== undefined ? matugenProcessNormal.running = false : undefined;
+    matugenProcessNormal.destroy !== undefined ? matugenProcessNormal.destroy() : undefined;
+    thumbnailGeneratorScript.stop ? thumbnailGeneratorScript.stop() : undefined;
+    thumbnailGeneratorScript.running !== undefined ? thumbnailGeneratorScript.running = false : undefined;
+    thumbnailGeneratorScript.destroy !== undefined ? thumbnailGeneratorScript.destroy() : undefined;
+    delayedThumbnailGen.stop ? delayedThumbnailGen.stop() : undefined;
+    delayedThumbnailGen.running !== undefined ? delayedThumbnailGen.running = false : undefined;
+    delayedThumbnailGen.destroy !== undefined ? delayedThumbnailGen.destroy() : undefined;
+    lockscreenWallpaperScript.stop ? lockscreenWallpaperScript.stop() : undefined;
+    lockscreenWallpaperScript.running !== undefined ? lockscreenWallpaperScript.running = false : undefined;
+    lockscreenWallpaperScript.destroy !== undefined ? lockscreenWallpaperScript.destroy() : undefined;
+    scanSubfoldersProcess.stop ? scanSubfoldersProcess.stop() : undefined;
+    scanSubfoldersProcess.running !== undefined ? scanSubfoldersProcess.running = false : undefined;
+    scanSubfoldersProcess.destroy !== undefined ? scanSubfoldersProcess.destroy() : undefined;
+    scanWallpapers.stop ? scanWallpapers.stop() : undefined;
+    scanWallpapers.running !== undefined ? scanWallpapers.running = false : undefined;
+    scanWallpapers.destroy !== undefined ? scanWallpapers.destroy() : undefined;
+    scanFallback.stop ? scanFallback.stop() : undefined;
+    scanFallback.running !== undefined ? scanFallback.running = false : undefined;
+    scanFallback.destroy !== undefined ? scanFallback.destroy() : undefined;
+    scanPresetsProcess.stop ? scanPresetsProcess.stop() : undefined;
+    scanPresetsProcess.running !== undefined ? scanPresetsProcess.running = false : undefined;
+    scanPresetsProcess.destroy !== undefined ? scanPresetsProcess.destroy() : undefined;
+    applyPresetProcess.stop ? applyPresetProcess.stop() : undefined;
+    applyPresetProcess.running !== undefined ? applyPresetProcess.running = false : undefined;
+    applyPresetProcess.destroy !== undefined ? applyPresetProcess.destroy() : undefined;
+    captureTimer.stop ? captureTimer.stop() : undefined;
+    captureTimer.running !== undefined ? captureTimer.running = false : undefined;
+    captureTimer.destroy !== undefined ? captureTimer.destroy() : undefined;
+}
 }

@@ -873,8 +873,7 @@ def _apply_derived_config(local_cfg):
         for derived_key, derived_val in target.items():
             # Handle "max(N, current)" pattern
             if isinstance(derived_val, str) and derived_val.startswith("max("):
-                import re as _re
-                m = _re.match(r'max\((\d+),\s*current\)', derived_val)
+                m = re.match(r'max\((\d+),\s*current\)', derived_val)
                 if m:
                     min_val = int(m.group(1))
                     current = local_cfg.get(derived_key, 0)
@@ -1251,14 +1250,34 @@ def build_gesture_binds():
 # ═══════════════════════════════════════════════════════════════════════════
 
 def _inject_block(content, marker, end_marker, new_block):
-    """Replace or inject a marked block in existing content."""
-    content = re.sub(
-        re.escape(marker) + ".*?" + re.escape(end_marker),
-        "", content, flags=re.DOTALL
-    ).strip()
+    """Replace or inject a marked block in existing content.
+
+    Uses safe line-by-line scanning instead of regex DOTALL.
+    This avoids catastrophic deletion when an END marker is missing
+    due to a partial/aborted write — unmatched markers simply stop
+    skipping at EOF without consuming other sections.
+    """
+    marker_stripped = marker.strip()
+    end_stripped = end_marker.strip()
+    lines = content.split('\n')
+    result = []
+    skip = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped == marker_stripped:
+            skip = True
+            continue
+        if skip and stripped == end_stripped:
+            skip = False
+            continue
+        if not skip:
+            result.append(line)
+
+    content = '\n'.join(result).strip()
+
     if new_block:
         if content:
-            content += "\n" + new_block
+            content += '\n' + new_block
         else:
             content = new_block
     return content
@@ -1395,32 +1414,32 @@ def main():
         with open(TOML_PATH) as f:
             toml_content = f.read()
 
-        # Remove ALL old NothingLess section markers and content
-        # This prevents accumulation from partial/aborted writes
+        # Remove ALL old NothingLess section markers and content.
+        # Uses safe line-by-line scanning — no DOTALL regex that could
+        # consume user content when markers are malformed.
         for section_id in ["KEYBINDS", "COMPOSITOR", "GESTURES"]:
-            # Remove closed sections (with END marker)
-            toml_content = re.sub(
-                re.escape(f"# === NOTHINGLESS {section_id} ===")
-                + ".*?"
-                + re.escape(f"# === END {section_id} ==="),
-                '', toml_content, flags=re.DOTALL
-            ).strip()
-            # Remove any leftover unclosed section headers
-            # (stray markers without END that accumulate from partial writes)
-            toml_content = re.sub(
-                re.escape(f"# === NOTHINGLESS {section_id} ===")
-                + r".*?(?=\n|\Z)",
-                '', toml_content, flags=re.DOTALL
-            ).strip()
-        # Remove old appearance blocks + keybinds
-        toml_content = re.sub(
-            r'\n?\[appearance\].*?(?=\n?\[\[keybinds\]\]|\n?# === NOTHINGLESS|\Z)',
-            '', toml_content, flags=re.DOTALL
-        ).strip()
-        toml_content = re.sub(
-            r'\n?(\[\[keybinds\]\].*?)(?=\n\[|\Z)',
-            '', toml_content, flags=re.DOTALL
-        ).strip()
+            start_marker = f"# === NOTHINGLESS {section_id} ==="
+            end_marker = f"# === END {section_id} ==="
+            toml_content = _inject_block(toml_content, start_marker, end_marker, "")
+
+        # Remove legacy [appearance] and [[keybinds]] blocks (pre-NothingLess format).
+        # These are one-time migration cleanups; once migrated they won't match.
+        # We use line-by-line to avoid crossing TOML section boundaries.
+        toml_lines = toml_content.split('\n')
+        cleaned = []
+        skip_legacy = False
+        for line in toml_lines:
+            stripped = line.strip()
+            # Start skipping on legacy [appearance] or [[keybinds]] sections
+            if stripped.startswith('[appearance]') or stripped.startswith('[[keybinds]]'):
+                skip_legacy = True
+                continue
+            # Stop skipping at the next TOML section header or NothingLess marker
+            if skip_legacy and (stripped.startswith('[') or stripped.startswith('# === NOTHINGLESS')):
+                skip_legacy = False
+            if not skip_legacy:
+                cleaned.append(line)
+        toml_content = '\n'.join(cleaned).strip()
 
         toml_content = toml_content.rstrip() + "\n\n" + toml_compositor.strip() + "\n"
         if binds_toml:

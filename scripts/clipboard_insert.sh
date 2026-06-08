@@ -43,29 +43,38 @@ PREVIEW_FILE=$(mktemp)
 trap 'rm -f "$CONTENT_FILE" "$PREVIEW_FILE"' EXIT
 printf '%s' "$PREVIEW" >"$PREVIEW_FILE"
 
-# Use sqlite3 with -cmd to read from files using readfile() function
-# This avoids all shell escaping issues
+# Use sqlite3 with positional parameters to avoid SQL injection.
+# The .parameter command is supported since sqlite3 3.32.0 (2020).
 sqlite3 "$DB_PATH" <<EOSQL
 .timeout 5000
+.parameter init
+.parameter set :hash '${HASH}'
+.parameter set :mime '${MIME_TYPE}'
+.parameter set :preview_file '${PREVIEW_FILE}'
+.parameter set :content_file '${CONTENT_FILE}'
+.parameter set :is_image ${IS_IMAGE}
+.parameter set :binary_path '${BINARY_PATH}'
+.parameter set :size ${SIZE}
+.parameter set :ts ${TIMESTAMP}
 BEGIN TRANSACTION;
 -- Insert or update item (unpinned items always get display_index 0)
-INSERT INTO clipboard_items 
-(content_hash, mime_type, preview, full_content, is_image, binary_path, size, pinned, display_index, created_at, updated_at) 
+INSERT INTO clipboard_items
+(content_hash, mime_type, preview, full_content, is_image, binary_path, size, pinned, display_index, created_at, updated_at)
 VALUES (
-    '${HASH}',
-    '${MIME_TYPE}',
-    readfile('${PREVIEW_FILE}'),
-    readfile('${CONTENT_FILE}'),
-    ${IS_IMAGE},
-    '${BINARY_PATH}',
-    ${SIZE},
+    :hash,
+    :mime,
+    readfile(:preview_file),
+    readfile(:content_file),
+    :is_image,
+    :binary_path,
+    :size,
     0,
     0,
-    ${TIMESTAMP},
-    ${TIMESTAMP}
+    :ts,
+    :ts
 )
 ON CONFLICT(content_hash) DO UPDATE SET
-updated_at = ${TIMESTAMP},
+updated_at = :ts,
 display_index = 0;
 -- Reindex unpinned items (new item is at 0, others shift down)
 WITH reindexed AS (

@@ -224,4 +224,9 @@ PanelWindow {
             }
         }
     }
+Component.onDestruction: {
+    hideTimer.stop ? hideTimer.stop() : undefined;
+    hideTimer.running !== undefined ? hideTimer.running = false : undefined;
+    hideTimer.destroy !== undefined ? hideTimer.destroy() : undefined;
+}
 }

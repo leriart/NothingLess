@@ -345,7 +345,11 @@ def main():
         sys.exit(1)
 
     url = sys.argv[1]
-    timeout = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+    try:
+        timeout = int(sys.argv[2]) if len(sys.argv) > 2 else 5
+    except ValueError:
+        print(json.dumps({"error": "Invalid timeout value"}))
+        sys.exit(1)
 
     result = fetch_preview(url, timeout)
     print(json.dumps(result, ensure_ascii=False))

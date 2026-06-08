@@ -26,8 +26,27 @@ def hyprctl_j(cmd):
         return json.loads(out) if out else {}
     except: return {}
 
+_pending_dispatches = []
+
 def dispatch(cmd):
-    subprocess.run(["hyprctl", "dispatch"] + cmd.split(),
+    """Queue a hyprctl dispatch command. Flushes automatically on next tick."""
+    _pending_dispatches.append(cmd)
+    # Use a small delay to batch multiple dispatches into a single hyprctl call.
+    # This reduces process churn from ~180/sec to 1 per frame.
+    if len(_pending_dispatches) == 1:
+        # Schedule flush after current event loop iteration
+        import threading
+        threading.Timer(0.01, _flush_dispatches).start()
+
+def _flush_dispatches():
+    global _pending_dispatches
+    if not _pending_dispatches:
+        return
+    cmds = _pending_dispatches
+    _pending_dispatches = []
+    # Build batch command if possible, otherwise run individually
+    batch = "; ".join([f"dispatch {c}" for c in cmds])
+    subprocess.run(["hyprctl", "--batch", batch],
                    capture_output=True, timeout=1)
 
 def get_active_window():

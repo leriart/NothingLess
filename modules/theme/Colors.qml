@@ -560,4 +560,12 @@ FileView {
 
     // List of available color names for color pickers (excludes internal/source colors)
     readonly property var availableColorNames: ["background", "surface", "surfaceBright", "surfaceContainer", "surfaceContainerHigh", "surfaceContainerHighest", "surfaceContainerLow", "surfaceContainerLowest", "surfaceDim", "surfaceTint", "surfaceVariant", "primary", "primaryContainer", "primaryFixed", "primaryFixedDim", "secondary", "secondaryContainer", "secondaryFixed", "secondaryFixedDim", "tertiary", "tertiaryContainer", "tertiaryFixed", "tertiaryFixedDim", "error", "errorContainer", "overBackground", "overSurface", "overSurfaceVariant", "overPrimary", "overPrimaryContainer", "overPrimaryFixed", "overPrimaryFixedVariant", "overSecondary", "overSecondaryContainer", "overSecondaryFixed", "overSecondaryFixedVariant", "overTertiary", "overTertiaryContainer", "overTertiaryFixed", "overTertiaryFixedVariant", "overError", "overErrorContainer", "outline", "outlineVariant", "inversePrimary", "inverseSurface", "inverseOnSurface", "shadow", "scrim", "blue", "blueContainer", "overBlue", "overBlueContainer", "lightBlue", "cyan", "cyanContainer", "overCyan", "overCyanContainer", "lightCyan", "green", "greenContainer", "overGreen", "overGreenContainer", "lightGreen", "magenta", "magentaContainer", "overMagenta", "overMagentaContainer", "lightMagenta", "red", "redContainer", "overRed", "overRedContainer", "lightRed", "yellow", "yellowContainer", "overYellow", "overYellowContainer", "lightYellow", "white", "whiteContainer", "overWhite", "overWhiteContainer"]
+Component.onDestruction: {
+    generationTimer.stop ? generationTimer.stop() : undefined;
+    generationTimer.running !== undefined ? generationTimer.running = false : undefined;
+    generationTimer.destroy !== undefined ? generationTimer.destroy() : undefined;
+    _wallpaperInitTimer.stop ? _wallpaperInitTimer.stop() : undefined;
+    _wallpaperInitTimer.running !== undefined ? _wallpaperInitTimer.running = false : undefined;
+    _wallpaperInitTimer.destroy !== undefined ? _wallpaperInitTimer.destroy() : undefined;
+}
 }

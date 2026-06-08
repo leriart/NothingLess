@@ -169,4 +169,18 @@ ActionGrid {
             GlobalStates.mirrorWindowVisible = !GlobalStates.mirrorWindowVisible;
         }
     }
+Component.onDestruction: {
+    colorPickerProc.stop ? colorPickerProc.stop() : undefined;
+    colorPickerProc.running !== undefined ? colorPickerProc.running = false : undefined;
+    colorPickerProc.destroy !== undefined ? colorPickerProc.destroy() : undefined;
+    ocrProc.stop ? ocrProc.stop() : undefined;
+    ocrProc.running !== undefined ? ocrProc.running = false : undefined;
+    ocrProc.destroy !== undefined ? ocrProc.destroy() : undefined;
+    qrProc.stop ? qrProc.stop() : undefined;
+    qrProc.running !== undefined ? qrProc.running = false : undefined;
+    qrProc.destroy !== undefined ? qrProc.destroy() : undefined;
+    openFolderProc.stop ? openFolderProc.stop() : undefined;
+    openFolderProc.running !== undefined ? openFolderProc.running = false : undefined;
+    openFolderProc.destroy !== undefined ? openFolderProc.destroy() : undefined;
+}
 }

@@ -118,4 +118,15 @@ Singleton {
             }
         }
     }
+Component.onDestruction: {
+    listProcess.stop ? listProcess.stop() : undefined;
+    listProcess.running !== undefined ? listProcess.running = false : undefined;
+    listProcess.destroy !== undefined ? listProcess.destroy() : undefined;
+    setProcess.stop ? setProcess.stop() : undefined;
+    setProcess.running !== undefined ? setProcess.running = false : undefined;
+    setProcess.destroy !== undefined ? setProcess.destroy() : undefined;
+    deleteProcess.stop ? deleteProcess.stop() : undefined;
+    deleteProcess.running !== undefined ? deleteProcess.running = false : undefined;
+    deleteProcess.destroy !== undefined ? deleteProcess.destroy() : undefined;
+}
 }

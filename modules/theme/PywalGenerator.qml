@@ -156,4 +156,9 @@ QtObject {
             }
         }
     }
+Component.onDestruction: {
+    writerProcess.stop ? writerProcess.stop() : undefined;
+    writerProcess.running !== undefined ? writerProcess.running = false : undefined;
+    writerProcess.destroy !== undefined ? writerProcess.destroy() : undefined;
+}
 }

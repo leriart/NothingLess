@@ -156,4 +156,9 @@ Item {
             onTriggered: root.externalVolumeChange = false
         }
     }
+Component.onDestruction: {
+    externalChangeTimer.stop ? externalChangeTimer.stop() : undefined;
+    externalChangeTimer.running !== undefined ? externalChangeTimer.running = false : undefined;
+    externalChangeTimer.destroy !== undefined ? externalChangeTimer.destroy() : undefined;
+}
 }

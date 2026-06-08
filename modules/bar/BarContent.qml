@@ -846,4 +846,12 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    showDelayTimer.stop ? showDelayTimer.stop() : undefined;
+    showDelayTimer.running !== undefined ? showDelayTimer.running = false : undefined;
+    showDelayTimer.destroy !== undefined ? showDelayTimer.destroy() : undefined;
+    hideDelayTimer.stop ? hideDelayTimer.stop() : undefined;
+    hideDelayTimer.running !== undefined ? hideDelayTimer.running = false : undefined;
+    hideDelayTimer.destroy !== undefined ? hideDelayTimer.destroy() : undefined;
+}
 }

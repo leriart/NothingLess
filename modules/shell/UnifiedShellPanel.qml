@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Effects
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import qs.modules.bar
 import qs.modules.bar.workspaces
@@ -44,7 +45,8 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
 
     // Whether we need to capture full-screen input for click-outside detection.
-    // True when notch modules are open OR any FocusGrab is active (e.g., BarPopups).
+    // True when notch modules are open, a FocusGrab-managed popup is active,
+    // or the sidebar needs focus.
     readonly property bool needsFullScreenInput: notchContent.screenNotchOpen || FocusGrabManager.hasActiveGrab || (assistantSidebar.active && assistantSidebar.wantsFocus)
 
     readonly property bool barEnabled: {
@@ -180,14 +182,59 @@ PanelWindow {
         ]
     }
 
-    // Focus Grab for Notch — registers with FocusGrabManager for click-outside coordination
-    FocusGrab {
-        id: focusGrab
-        windows: [unifiedPanel]
-        active: notchContent.screenNotchOpen
+    // Track which window was focused before the notch opened, so we can detect
+    // when the user clicks a real window and dismiss the notch accordingly.
+    property string _focusedClientAddressBeforeNotch: ""
 
-        onCleared: {
-            Visibilities.setActiveModule("");
+    onNotchOpenChanged: {
+        if (notchOpen) {
+            let fc = AxctlService.focusedClient;
+            _focusedClientAddressBeforeNotch = (fc && fc.address) ? fc.address : "";
+        }
+    }
+
+    // Dismiss the notch when the user clicks a real window.
+    //
+    // Uses TWO mechanisms because WlrKeyboardFocus.Exclusive (needed for
+    // text input in the launcher) prevents Hyprland from updating
+    // focusedClient in the normal way:
+    //
+    // 1. AxctlService.rawEvent — catches Hyprland IPC events directly
+    //    (activewindow, activewindowv2) which fire even with Exclusive keyboard.
+    // 2. AxctlService.onFocusedClientChanged — fallback for state-poll updates.
+    Connections {
+        target: AxctlService
+
+        // Primary: listen for Hyprland window-focus events via IPC socket.
+        // These fire when the user clicks ANY window, regardless of which
+        // surface has WlrKeyboardFocus.
+        function onRawEvent(event) {
+            if (!notchContent.screenNotchOpen) return;
+            if (!event || !event.name) return;
+
+            var name = event.name;
+
+            // activewindow / activewindowv2: a window was focused.
+            // The event data contains the window address string.
+            // We only dismiss if there IS window data (not null/empty),
+            // which guards against spurious events when layer surfaces
+            // change keyboard focus.
+            if (name === "activewindow" || name === "activewindowv2") {
+                if (event.data && event.data !== "") {
+                    Visibilities.setActiveModule("");
+                }
+            }
+        }
+
+        // Fallback: state-based focusedClient change detection.
+        // Works when Exclusive keyboard is NOT preventing focus changes.
+        function onFocusedClientChanged() {
+            if (notchContent.screenNotchOpen && AxctlService.focusedClient) {
+                let currentAddr = AxctlService.focusedClient.address || "";
+                if (_focusedClientAddressBeforeNotch !== currentAddr) {
+                    Visibilities.setActiveModule("");
+                }
+            }
         }
     }
 
@@ -197,6 +244,12 @@ PanelWindow {
 
     // Transparent backdrop that captures clicks on empty areas when modules/popups are open.
     // z: -1 ensures it's below all visual content (bar, notch, dock).
+    //
+    // On click-outside, the backdrop:
+    // 1. Dismisses the active popup/module via FocusGrabManager
+    // 2. Dispatches a hyprctl focuswindow command to focus whichever
+    //    real window is under the cursor, so the user can interact
+    //    with it immediately after the notch closes.
     MouseArea {
         id: backdropArea
         anchors.fill: parent
@@ -208,7 +261,23 @@ PanelWindow {
             if (assistantSidebar.active && assistantSidebar.wantsFocus) {
                 assistantSidebar.wantsFocus = false;
             }
+            // If the notch was open, dismiss it AND focus the window under cursor.
+            // The click event is consumed by the Wayland overlay (cannot pass through),
+            // so we programmatically focus the real window via hyprctl.
+            if (notchContent.screenNotchOpen) {
+                Visibilities.setActiveModule("");
+                // Focus the real window under the mouse cursor
+                focusWindowUnderCursor.running = true;
+            }
         }
+    }
+
+    // One-shot Process that focuses the real window under the mouse cursor.
+    // Used by the backdrop to restore window focus after dismissing the notch.
+    Process {
+        id: focusWindowUnderCursor
+        command: ["hyprctl", "dispatch", "focuswindow", "mouse"]
+        running: false
     }
 
     // ═══════════════════════════════════════════════════════════════

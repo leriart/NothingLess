@@ -789,19 +789,23 @@ QtObject {
             "COMMIT;\n" +
             "EOSQL";
             
-        var proc = Qt.createQmlObject('import Quickshell.Io; Process {}', root);
-        proc.command = ["sh", "-c", cmd];
-        
-        proc.onExited.connect(function(code) {
-             if (code === 0) {
-                 Qt.callLater(root.list);
-             } else {
-                 console.warn("ClipboardService: dynamic swapProcess failed with code:", code);
-             }
-             proc.destroy();
-        });
-        
-        proc.running = true;
+        try {
+            var proc = Qt.createQmlObject('import Quickshell.Io; Process {}', root);
+            proc.command = ["sh", "-c", cmd];
+            
+            proc.onExited.connect(function(code) {
+                 if (code === 0) {
+                     Qt.callLater(root.list);
+                 } else {
+                     console.warn("ClipboardService: dynamic swapProcess failed with code:", code);
+                 }
+                 proc.destroy();
+            });
+            
+            proc.running = true;
+        } catch (e) {
+            console.warn("ClipboardService: failed to create swap process:", e);
+        }
     }
     
 
@@ -867,4 +871,9 @@ QtObject {
     Component.onCompleted: {
         Qt.callLater(() => initialize());
     }
+Component.onDestruction: {
+    wakeRestartTimer.stop ? wakeRestartTimer.stop() : undefined;
+    wakeRestartTimer.running !== undefined ? wakeRestartTimer.running = false : undefined;
+    wakeRestartTimer.destroy !== undefined ? wakeRestartTimer.destroy() : undefined;
+}
 }

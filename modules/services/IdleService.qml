@@ -147,4 +147,11 @@ Singleton {
         root.elapsedIdleTime = 0;
         root.triggeredListeners = [];
     }
+
+    Component.onDestruction: {
+        monitorRestartTimer.stop ? monitorRestartTimer.stop() : undefined;
+        idleTimer.stop ? idleTimer.stop() : undefined;
+        killerProc.running = false;
+        monitorProc.running = false;
+    }
 }

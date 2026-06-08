@@ -13,6 +13,7 @@ import qs.config
         import qs.modules.theme
 
         Behavior on opacity {
+            enabled: Anim.animationsEnabled
             NumberAnimation { Anim.apply(this, "standard", "normal") }
         }
 
@@ -1105,7 +1106,7 @@ QtObject {
             overshoot: c.overshoot,
             bezierCurve: [],
             duration: c.duration,
-            zeta: 0
+            zeta: c.zeta
         };
     }
 
@@ -1117,7 +1118,7 @@ QtObject {
             overshoot: c.overshoot,
             bezierCurve: [],
             duration: c.duration,
-            zeta: 0
+            zeta: c.zeta
         };
     }
 

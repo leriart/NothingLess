@@ -129,4 +129,9 @@ ColumnLayout {
             }
         }
     }
+Component.onDestruction: {
+    copyFeedbackTimer.stop ? copyFeedbackTimer.stop() : undefined;
+    copyFeedbackTimer.running !== undefined ? copyFeedbackTimer.running = false : undefined;
+    copyFeedbackTimer.destroy !== undefined ? copyFeedbackTimer.destroy() : undefined;
+}
 }

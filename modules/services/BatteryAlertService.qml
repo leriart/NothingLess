@@ -155,4 +155,11 @@ Singleton {
         repeat: true
         onTriggered: root.checkBatteryState()
     }
+
+    Component.onDestruction: {
+        startupCheckTimer.stop();
+        wakeCheckTimer.stop();
+        pollTimer.stop();
+        notificationProcess.running = false;
+    }
 }

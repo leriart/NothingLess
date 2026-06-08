@@ -748,4 +748,15 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    wheelScrollTimer.stop ? wheelScrollTimer.stop() : undefined;
+    wheelScrollTimer.running !== undefined ? wheelScrollTimer.running = false : undefined;
+    wheelScrollTimer.destroy !== undefined ? wheelScrollTimer.destroy() : undefined;
+    delayedRefreshTimer.stop ? delayedRefreshTimer.stop() : undefined;
+    delayedRefreshTimer.running !== undefined ? delayedRefreshTimer.running = false : undefined;
+    delayedRefreshTimer.destroy !== undefined ? delayedRefreshTimer.destroy() : undefined;
+    resetOverrideTimer.stop ? resetOverrideTimer.stop() : undefined;
+    resetOverrideTimer.running !== undefined ? resetOverrideTimer.running = false : undefined;
+    resetOverrideTimer.destroy !== undefined ? resetOverrideTimer.destroy() : undefined;
+}
 }

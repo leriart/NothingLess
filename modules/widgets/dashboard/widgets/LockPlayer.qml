@@ -518,4 +518,9 @@ StyledRect {
             }
         }
     }
+Component.onDestruction: {
+    pressAndHoldTimer.stop ? pressAndHoldTimer.stop() : undefined;
+    pressAndHoldTimer.running !== undefined ? pressAndHoldTimer.running = false : undefined;
+    pressAndHoldTimer.destroy !== undefined ? pressAndHoldTimer.destroy() : undefined;
+}
 }

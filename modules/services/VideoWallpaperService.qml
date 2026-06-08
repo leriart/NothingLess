@@ -307,4 +307,9 @@ Singleton {
         const codec = GpuDetector.detectCodecFromPath(filePath);
         return GpuDetector.getBestDecoder(codec);
     }
+Component.onDestruction: {
+    genProc.stop ? genProc.stop() : undefined;
+    genProc.running !== undefined ? genProc.running = false : undefined;
+    genProc.destroy !== undefined ? genProc.destroy() : undefined;
+}
 }

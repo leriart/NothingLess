@@ -133,4 +133,9 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    layout.stop ? layout.stop() : undefined;
+    layout.running !== undefined ? layout.running = false : undefined;
+    layout.destroy !== undefined ? layout.destroy() : undefined;
+}
 }

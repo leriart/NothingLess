@@ -275,15 +275,16 @@ run)
 	if [ "$CMD" = "toggle-metrics" ]; then
 		# Debounce: prevent double-fire from Hyprland key repeat
 		LOCK_FILE="/tmp/nothingless_toggle_metrics.lock"
-		if [ -f "$LOCK_FILE" ]; then
-			last_run=$(cat "$LOCK_FILE")
+		# Atomic lock via mkdir; if it already exists, check debounce timestamp
+		if ! mkdir "$LOCK_FILE" 2>/dev/null; then
+			last_run=$(cat "$LOCK_FILE/timestamp" 2>/dev/null || echo 0)
 			now=$(date +%s%N)
 			elapsed=$(( (now - last_run) / 1000000 ))
 			if [ "$elapsed" -lt 500 ]; then
 				exit 0
 			fi
 		fi
-		date +%s%N > "$LOCK_FILE"
+		date +%s%N > "$LOCK_FILE/timestamp"
 
 		NOTCH_JSON="${XDG_CONFIG_HOME:-$HOME/.config}/nothingless/config/notch.json"
 		if [ -f "$NOTCH_JSON" ]; then

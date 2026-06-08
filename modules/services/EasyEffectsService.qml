@@ -224,4 +224,9 @@ Singleton {
             activePresetsProcess.running = true;
         }
     }
+Component.onDestruction: {
+    refreshDelayTimer.stop ? refreshDelayTimer.stop() : undefined;
+    refreshDelayTimer.running !== undefined ? refreshDelayTimer.running = false : undefined;
+    refreshDelayTimer.destroy !== undefined ? refreshDelayTimer.destroy() : undefined;
+}
 }

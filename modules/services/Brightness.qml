@@ -316,4 +316,9 @@ Singleton {
             }
         }
     }
+Component.onDestruction: {
+    setTimer.stop ? setTimer.stop() : undefined;
+    setTimer.running !== undefined ? setTimer.running = false : undefined;
+    setTimer.destroy !== undefined ? setTimer.destroy() : undefined;
+}
 }

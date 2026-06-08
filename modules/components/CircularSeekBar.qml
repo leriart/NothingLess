@@ -355,4 +355,9 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    waveTimer.stop ? waveTimer.stop() : undefined;
+    waveTimer.running !== undefined ? waveTimer.running = false : undefined;
+    waveTimer.destroy !== undefined ? waveTimer.destroy() : undefined;
+}
 }

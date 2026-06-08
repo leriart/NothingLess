@@ -65,4 +65,9 @@ ActionGrid {
         }
         root.itemSelected();
     }
+Component.onDestruction: {
+    actionProcess.stop ? actionProcess.stop() : undefined;
+    actionProcess.running !== undefined ? actionProcess.running = false : undefined;
+    actionProcess.destroy !== undefined ? actionProcess.destroy() : undefined;
+}
 }

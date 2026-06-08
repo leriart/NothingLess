@@ -321,4 +321,9 @@ Item {
             root.colorChanged(selectedColor.toString());
         }
     }
+Component.onDestruction: {
+    applyTimer.stop ? applyTimer.stop() : undefined;
+    applyTimer.running !== undefined ? applyTimer.running = false : undefined;
+    applyTimer.destroy !== undefined ? applyTimer.destroy() : undefined;
+}
 }

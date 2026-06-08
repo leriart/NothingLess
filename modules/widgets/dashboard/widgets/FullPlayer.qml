@@ -654,4 +654,9 @@ StyledRect {
             return Icons.telegram;
         return Icons.player;
     }
+Component.onDestruction: {
+    seekUnlockTimer.stop ? seekUnlockTimer.stop() : undefined;
+    seekUnlockTimer.running !== undefined ? seekUnlockTimer.running = false : undefined;
+    seekUnlockTimer.destroy !== undefined ? seekUnlockTimer.destroy() : undefined;
+}
 }

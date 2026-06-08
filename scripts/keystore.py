@@ -44,9 +44,11 @@ def main():
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
+        # Set umask so the DB is created with restrictive permissions from the start.
+        # This avoids a race where the file is briefly readable between creation and chmod.
+        old_umask = os.umask(0o177)
         conn = sqlite3.connect(str(db_path))
-        # Secure the file
-        os.chmod(str(db_path), 0o600)
+        os.umask(old_umask)
 
         cursor = conn.cursor()
         cursor.execute("""

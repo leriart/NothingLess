@@ -97,4 +97,9 @@ Singleton {
             }
         }
     }
+Component.onDestruction: {
+    flushTimer.stop ? flushTimer.stop() : undefined;
+    flushTimer.running !== undefined ? flushTimer.running = false : undefined;
+    flushTimer.destroy !== undefined ? flushTimer.destroy() : undefined;
+}
 }

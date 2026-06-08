@@ -1644,4 +1644,24 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    zenityProcess.stop ? zenityProcess.stop() : undefined;
+    zenityProcess.running !== undefined ? zenityProcess.running = false : undefined;
+    zenityProcess.destroy !== undefined ? zenityProcess.destroy() : undefined;
+    attachmentReadProcess.stop ? attachmentReadProcess.stop() : undefined;
+    attachmentReadProcess.running !== undefined ? attachmentReadProcess.running = false : undefined;
+    attachmentReadProcess.destroy !== undefined ? attachmentReadProcess.destroy() : undefined;
+    clipboardTypesProcess.stop ? clipboardTypesProcess.stop() : undefined;
+    clipboardTypesProcess.running !== undefined ? clipboardTypesProcess.running = false : undefined;
+    clipboardTypesProcess.destroy !== undefined ? clipboardTypesProcess.destroy() : undefined;
+    clipboardImageProcess.stop ? clipboardImageProcess.stop() : undefined;
+    clipboardImageProcess.running !== undefined ? clipboardImageProcess.running = false : undefined;
+    clipboardImageProcess.destroy !== undefined ? clipboardImageProcess.destroy() : undefined;
+    clipboardUrisProcess.stop ? clipboardUrisProcess.stop() : undefined;
+    clipboardUrisProcess.running !== undefined ? clipboardUrisProcess.running = false : undefined;
+    clipboardUrisProcess.destroy !== undefined ? clipboardUrisProcess.destroy() : undefined;
+    retryTimer.stop ? retryTimer.stop() : undefined;
+    retryTimer.running !== undefined ? retryTimer.running = false : undefined;
+    retryTimer.destroy !== undefined ? retryTimer.destroy() : undefined;
+}
 }

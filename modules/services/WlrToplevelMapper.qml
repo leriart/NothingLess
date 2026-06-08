@@ -211,4 +211,12 @@ Singleton {
             root.captureScreenshot(win.addr, win.at, win.size);
         }
     }
+Component.onDestruction: {
+    pollTimer.stop ? pollTimer.stop() : undefined;
+    pollTimer.running !== undefined ? pollTimer.running = false : undefined;
+    pollTimer.destroy !== undefined ? pollTimer.destroy() : undefined;
+    grimProcess.stop ? grimProcess.stop() : undefined;
+    grimProcess.running !== undefined ? grimProcess.running = false : undefined;
+    grimProcess.destroy !== undefined ? grimProcess.destroy() : undefined;
+}
 }

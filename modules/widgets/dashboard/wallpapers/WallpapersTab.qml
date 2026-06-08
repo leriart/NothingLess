@@ -1463,4 +1463,9 @@ FocusScope {
             }
         }
     }
+Component.onDestruction: {
+    centerTimer.stop ? centerTimer.stop() : undefined;
+    centerTimer.running !== undefined ? centerTimer.running = false : undefined;
+    centerTimer.destroy !== undefined ? centerTimer.destroy() : undefined;
+}
 }

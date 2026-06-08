@@ -457,4 +457,9 @@ Singleton {
         _initialized = true;
         updateStatus();
     }
+Component.onDestruction: {
+    wakeSyncTimer.stop ? wakeSyncTimer.stop() : undefined;
+    wakeSyncTimer.running !== undefined ? wakeSyncTimer.running = false : undefined;
+    wakeSyncTimer.destroy !== undefined ? wakeSyncTimer.destroy() : undefined;
+}
 }

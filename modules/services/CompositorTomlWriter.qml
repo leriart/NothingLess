@@ -6,6 +6,7 @@ import Quickshell.Io
 import qs.config
 import qs.modules.globals
 import "../../config/KeybindActions.js" as KeybindActions
+import "CompositorColors.js" as CompositorColors
 
 /**
  * CompositorTomlWriter - Generates TOML configuration for axctl
@@ -21,23 +22,7 @@ Singleton {
         stdout: SplitParser {}
     }
 
-    function getColorValue(colorName) {
-        const resolved = Config.resolveColor(colorName);
-        return (typeof resolved === 'string') ? Qt.color(resolved) : resolved;
-    }
-
-    function formatColorForCompositor(color) {
-        const r = Math.round(color.r * 255).toString(16).padStart(2, '0');
-        const g = Math.round(color.g * 255).toString(16).padStart(2, '0');
-        const b = Math.round(color.b * 255).toString(16).padStart(2, '0');
-        const a = Math.round(color.a * 255).toString(16).padStart(2, '0');
-
-        if (color.a === 1.0) {
-            return `rgb(${r}${g}${b})`;
-        } else {
-            return `rgba(${r}${g}${b}${a})`;
-        }
-    }
+    // Color helpers delegated to CompositorColors.js (shared with CompositorConfig)
 
     function colorToHex(color, includeAlpha = false) {
         const r = Math.round(color.r * 255).toString(16).padStart(2, '0');
@@ -68,14 +53,14 @@ Singleton {
         if (colorNames.length > 1) {
             // Multi-color gradient
             const formattedColors = colorNames.map(colorName => {
-                const color = getColorValue(colorName);
-                return formatColorForCompositor(color);
+                const color = CompositorColors.getColorValue(Config, colorName);
+                return CompositorColors.formatColorForCompositor(color);
             }).join(" ");
             return [`${formattedColors} ${angle}deg`];
         } else {
             // Single color
-            const color = getColorValue(colorNames[0]);
-            return [formatColorForCompositor(color)];
+            const color = CompositorColors.getColorValue(Config, colorNames[0]);
+            return [CompositorColors.formatColorForCompositor(color)];
         }
     }
 
@@ -87,16 +72,16 @@ Singleton {
         if (colorNames.length > 1) {
             // Multi-color gradient - force full opacity
             const formattedColors = colorNames.map(colorName => {
-                const color = getColorValue(colorName);
+                const color = CompositorColors.getColorValue(Config, colorName);
                 const colorWithFullOpacity = Qt.rgba(color.r, color.g, color.b, 1.0);
-                return formatColorForCompositor(colorWithFullOpacity);
+                return CompositorColors.formatColorForCompositor(colorWithFullOpacity);
             }).join(" ");
             return [`${formattedColors} ${angle}deg`];
         } else {
             // Single color - force full opacity
-            const color = getColorValue(colorNames[0] || "surface");
+            const color = CompositorColors.getColorValue(Config, colorNames[0] || "surface");
             const colorWithFullOpacity = Qt.rgba(color.r, color.g, color.b, 1.0);
-            return [formatColorForCompositor(colorWithFullOpacity)];
+            return [CompositorColors.formatColorForCompositor(colorWithFullOpacity)];
         }
     }
 
@@ -112,17 +97,12 @@ Singleton {
     }
 
     function calculateIgnoreAlpha() {
-        let ignoreAlphaValue = 0.0;
-
         if (Config.compositor.blurExplicitIgnoreAlpha) {
-            ignoreAlphaValue = Config.compositor.blurIgnoreAlphaValue;
-        } else {
-            const barBgOpacity = (Config.theme.srBarBg && Config.theme.srBarBg.opacity !== undefined) ? Config.theme.srBarBg.opacity : 0;
-            const bgOpacity = (Config.theme.srBg && Config.theme.srBg.opacity !== undefined) ? Config.theme.srBg.opacity : 1.0;
-            ignoreAlphaValue = (barBgOpacity > 0 ? Math.min(barBgOpacity, bgOpacity) : bgOpacity);
+            return Config.compositor.blurIgnoreAlphaValue.toFixed(2);
         }
-
-        return ignoreAlphaValue.toFixed(2);
+        const barBgOpacity = (Config.theme.srBarBg && Config.theme.srBarBg.opacity !== undefined) ? Config.theme.srBarBg.opacity : 0;
+        const bgOpacity = (Config.theme.srBg && Config.theme.srBg.opacity !== undefined) ? Config.theme.srBg.opacity : 1.0;
+        return CompositorColors.calculateIgnoreAlpha(barBgOpacity, bgOpacity).toFixed(2);
     }
 
     function generateToml() {

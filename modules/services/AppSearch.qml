@@ -207,10 +207,14 @@ Singleton {
                 const wrapped = app.runInTerminal
                     ? "xdg-terminal-exec " + cmdString
                     : cmdString;
-                const p = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
-                // Run in background, detached, from HOME
-                p.command = ["bash", "-c", "cd ~ && setsid " + wrapped + " > /dev/null 2>&1 &"];
-                p.running = true;
+                try {
+                    const p = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
+                    // Run in background, detached, from HOME
+                    p.command = ["bash", "-c", "cd ~ && setsid " + wrapped + " > /dev/null 2>&1 &"];
+                    p.running = true;
+                } catch (e) {
+                    console.warn("AppSearch: failed to create launch process:", e);
+                }
                 return;
             }
         }
@@ -219,10 +223,14 @@ Singleton {
     }
 
     function runInActiveWorkspace(command) {
-        const p = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
-        p.command = ["bash", "-c", "cd ~ && env -u HL_INITIAL_WORKSPACE_TOKEN setsid " + command + " < /dev/null > /dev/null 2>&1 &"];
-        p.onExited.connect(() => p.destroy());
-        p.running = true;
+        try {
+            const p = Qt.createQmlObject('import Quickshell.Io; Process { }', root);
+            p.command = ["bash", "-c", "cd ~ && env -u HL_INITIAL_WORKSPACE_TOKEN setsid " + command + " < /dev/null > /dev/null 2>&1 &"];
+            p.onExited.connect(() => p.destroy());
+            p.running = true;
+        } catch (e) {
+            console.warn("AppSearch: failed to create workspace process:", e);
+        }
     }
 
     function getAllApps() {

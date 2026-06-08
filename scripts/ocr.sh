@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # Check dependencies
 for dep in grim slurp tesseract wl-copy notify-send; do

@@ -1,16 +1,32 @@
 #!/usr/bin/env bash
 
 LOCKFILE="/tmp/nothingless_sleep_monitor.lock"
-if [ -e "$LOCKFILE" ]; then
-	PID=$(cat "$LOCKFILE")
-	if kill -0 "$PID" 2>/dev/null; then
-		exit 0
-	fi
+# Atomic lock via mkdir
+if ! mkdir "$LOCKFILE" 2>/dev/null; then
+	exit 0
 fi
-echo $$ >"$LOCKFILE"
+trap 'rm -rf "$LOCKFILE"' EXIT
 
 # Sleep Monitor - Executes commands before and after sleep
 CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/nothingless/config/system.json"
+
+# Safely execute a command string by validating the binary exists.
+safe_exec() {
+	local cmd="$1"
+	if [ -z "$cmd" ]; then
+		return 1
+	fi
+	local binary
+	binary=$(printf '%s' "$cmd" | awk '{print $1}')
+	if [ -z "$binary" ]; then
+		return 1
+	fi
+	if ! command -v "$binary" >/dev/null 2>&1; then
+		echo "Error: command not found: $binary" >&2
+		return 1
+	fi
+	bash -c "$cmd" &
+}
 
 get_cmd() {
 	local type=$1
@@ -40,14 +56,14 @@ dbus-monitor --system "type='signal',interface='org.freedesktop.login1.Manager',
 			echo "SUSPEND"
 			CMD=$(get_cmd "before")
 			if [ -n "$CMD" ]; then
-				eval "$CMD" &
+				safe_exec "$CMD"
 			fi
 		elif echo "$line" | grep -q "false"; then
 			# Waking up
 			echo "WAKE"
 			CMD=$(get_cmd "after")
 			if [ -n "$CMD" ]; then
-				eval "$CMD" &
+				safe_exec "$CMD"
 			fi
 		fi
 	done

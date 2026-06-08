@@ -41,16 +41,18 @@ class ThumbnailGenerator:
         self.lock = threading.Lock()
         self._imagemagick_v7: Optional[bool] = None  # cached detection
 
-    @staticmethod
-    def _is_imagemagick_v7() -> bool:
-        """Detect ImageMagick v7 (magick) vs v6 (convert)."""
+    def _is_imagemagick_v7(self) -> bool:
+        """Detect ImageMagick v7 (magick) vs v6 (convert). Cached after first call."""
+        if self._imagemagick_v7 is not None:
+            return self._imagemagick_v7
         try:
             result = subprocess.run(
                 ["magick", "--version"], capture_output=True, text=True, timeout=5
             )
-            return result.returncode == 0
+            self._imagemagick_v7 = result.returncode == 0
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            return False
+            self._imagemagick_v7 = False
+        return self._imagemagick_v7
 
     def load_config(self) -> bool:
         """Load wallpaper configuration."""

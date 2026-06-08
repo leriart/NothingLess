@@ -219,4 +219,9 @@ Singleton {
         if (volume < 0.33) return Icons.speakerLow;
         return Icons.speakerHigh;
     }
+Component.onDestruction: {
+    protectionResetTimer.stop ? protectionResetTimer.stop() : undefined;
+    protectionResetTimer.running !== undefined ? protectionResetTimer.running = false : undefined;
+    protectionResetTimer.destroy !== undefined ? protectionResetTimer.destroy() : undefined;
+}
 }

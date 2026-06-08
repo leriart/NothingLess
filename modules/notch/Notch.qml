@@ -739,4 +739,9 @@ Item {
             function onWidthChanged() { outlineCanvas._requestRepaint(); }
         }
     }
+Component.onDestruction: {
+    _repaintTimer.stop ? _repaintTimer.stop() : undefined;
+    _repaintTimer.running !== undefined ? _repaintTimer.running = false : undefined;
+    _repaintTimer.destroy !== undefined ? _repaintTimer.destroy() : undefined;
+}
 }

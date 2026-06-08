@@ -387,4 +387,12 @@ Rectangle {
             }
         }
     }
+Component.onDestruction: {
+    syncHoldTimer.stop ? syncHoldTimer.stop() : undefined;
+    syncHoldTimer.running !== undefined ? syncHoldTimer.running = false : undefined;
+    syncHoldTimer.destroy !== undefined ? syncHoldTimer.destroy() : undefined;
+    syncFadeOutTimer.stop ? syncFadeOutTimer.stop() : undefined;
+    syncFadeOutTimer.running !== undefined ? syncFadeOutTimer.running = false : undefined;
+    syncFadeOutTimer.destroy !== undefined ? syncFadeOutTimer.destroy() : undefined;
+}
 }

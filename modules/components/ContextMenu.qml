@@ -284,4 +284,8 @@ PanelWindow {
             contextWindow.close();
         }
     }
+
+    Component.onDestruction: {
+        cursorPos.running = false;
+    }
 }

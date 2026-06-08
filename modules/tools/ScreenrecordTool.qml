@@ -93,9 +93,9 @@ PanelWindow {
         // Go directly to active state (no freeze needed)
         screenrecordPopup.state = "active";
         
-        // Force focus
+        // Request focus grab
         if (modeGrid)
-            modeGrid.forceActiveFocus();
+            FocusGrabManager.requestGrab(modeGrid);
     }
 
     function close() {

@@ -82,7 +82,7 @@ Item {
             }
 
             Component.onCompleted: {
-                forceActiveFocus();
+                FocusGrabManager.requestGrab(this);
             }
         }
     }
@@ -101,7 +101,7 @@ Item {
             }
 
             Component.onCompleted: {
-                forceActiveFocus();
+                FocusGrabManager.requestGrab(this);
             }
         }
     }

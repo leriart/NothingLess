@@ -346,4 +346,9 @@ FocusScope {
             }
         }
     }
+Component.onDestruction: {
+    commandProcess.stop ? commandProcess.stop() : undefined;
+    commandProcess.running !== undefined ? commandProcess.running = false : undefined;
+    commandProcess.destroy !== undefined ? commandProcess.destroy() : undefined;
+}
 }

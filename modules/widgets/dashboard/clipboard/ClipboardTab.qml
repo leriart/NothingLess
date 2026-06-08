@@ -1004,7 +1004,7 @@ Item {
                     clip: true
                     interactive: !root.deleteMode && root.expandedItemIndex === -1
                     cacheBuffer: 96
-                    reuseItems: false
+                    reuseItems: true
                     boundsBehavior: Flickable.StopAtBounds
 
                     // Propiedad para detectar si está en movimiento (drag o flick)
@@ -3645,4 +3645,15 @@ Item {
             focusSearchInput();
         });
     }
+Component.onDestruction: {
+    copyProcess.stop ? copyProcess.stop() : undefined;
+    copyProcess.running !== undefined ? copyProcess.running = false : undefined;
+    copyProcess.destroy !== undefined ? copyProcess.destroy() : undefined;
+    longPressTimer.stop ? longPressTimer.stop() : undefined;
+    longPressTimer.running !== undefined ? longPressTimer.running = false : undefined;
+    longPressTimer.destroy !== undefined ? longPressTimer.destroy() : undefined;
+    faviconLoader.stop ? faviconLoader.stop() : undefined;
+    faviconLoader.running !== undefined ? faviconLoader.running = false : undefined;
+    faviconLoader.destroy !== undefined ? faviconLoader.destroy() : undefined;
+}
 }

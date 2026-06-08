@@ -6,6 +6,7 @@ import qs.config
 import qs.modules.theme
 import qs.modules.bar
 import qs.modules.globals
+import "CompositorColors.js" as CompositorColors
 
 QtObject {
     id: root
@@ -56,25 +57,7 @@ QtObject {
         onTriggered: applyCompositorConfigInternal()
     }
 
-    function getColorValue(colorName) {
-        const resolved = Config.resolveColor(colorName);
-        // Convert HEX string to color, or return if already a color.
-        return (typeof resolved === 'string') ? Qt.color(resolved) : resolved;
-    }
-
-    function formatColorForCompositor(color) {
-        // AxctlService expects colors in format: rgb(rrggbb) or rgba(rrggbbaa)
-        const r = Math.round(color.r * 255).toString(16).padStart(2, '0');
-        const g = Math.round(color.g * 255).toString(16).padStart(2, '0');
-        const b = Math.round(color.b * 255).toString(16).padStart(2, '0');
-        const a = Math.round(color.a * 255).toString(16).padStart(2, '0');
-
-        if (color.a === 1.0) {
-            return `rgb(${r}${g}${b})`;
-        } else {
-            return `rgba(${r}${g}${b}${a})`;
-        }
-    }
+    // Color helpers delegated to CompositorColors.js (shared with CompositorTomlWriter)
 
     function applyCompositorConfig() {
         if (_savingCompositor) return;
@@ -98,10 +81,10 @@ QtObject {
         let activeColorHex = "";
         if (borderColors && borderColors.length > 1) {
             // Gradient: multiple colors, handled by sync-hyprland.py via config file
-            activeColorHex = "0xff" + formatColorForCompositor(getColorValue(borderColors[0])).replace("rgb(", "").replace(")", "");
+            activeColorHex = "0xff" + CompositorColors.formatColorForCompositor(CompositorColors.getColorValue(Config, borderColors[0])).replace("rgb(", "").replace(")", "");
         } else {
             const name = (borderColors && borderColors.length === 1) ? borderColors[0] : Config.compositorBorderColor;
-            const c = getColorValue(name);
+            const c = CompositorColors.getColorValue(Config, name);
             activeColorHex = "0x" + (Math.round(c.a * 255).toString(16).padStart(2, '0')) +
                 Math.round(c.r * 255).toString(16).padStart(2, '0') +
                 Math.round(c.g * 255).toString(16).padStart(2, '0') +
@@ -111,7 +94,7 @@ QtObject {
         let inactiveColorHex = "";
         const inactiveBorderColors = Config.compositor.inactiveBorderColor;
         if (inactiveBorderColors && inactiveBorderColors.length > 1) {
-            inactiveColorHex = "0xff" + formatColorForCompositor(getColorValue(inactiveBorderColors[0])).replace("rgb(", "").replace(")", "");
+            inactiveColorHex = "0xff" + CompositorColors.formatColorForCompositor(CompositorColors.getColorValue(Config, inactiveBorderColors[0])).replace("rgb(", "").replace(")", "");
         } else {
             const name = (inactiveBorderColors && inactiveBorderColors.length === 1) ? inactiveBorderColors[0] : "surface";
             const c = getColorValue(name);
@@ -128,7 +111,7 @@ QtObject {
         } else {
             const barBgOpacity = (Config.theme.srBarBg && Config.theme.srBarBg.opacity !== undefined) ? Config.theme.srBarBg.opacity : 0;
             const bgOpacity = (Config.theme.srBg && Config.theme.srBg.opacity !== undefined) ? Config.theme.srBg.opacity : 1.0;
-            ignoreAlphaValue = (barBgOpacity > 0 ? Math.min(barBgOpacity, bgOpacity) : bgOpacity).toFixed(2);
+            ignoreAlphaValue = CompositorColors.calculateIgnoreAlpha(barBgOpacity, bgOpacity).toFixed(2);
         }
 
         // Animations
@@ -638,4 +621,21 @@ QtObject {
         }
         // Otherwise, handled by onLoaded.
     }
+Component.onDestruction: {
+    evalProcess.stop ? evalProcess.stop() : undefined;
+    evalProcess.running !== undefined ? evalProcess.running = false : undefined;
+    evalProcess.destroy !== undefined ? evalProcess.destroy() : undefined;
+    applyConfigProcess.stop ? applyConfigProcess.stop() : undefined;
+    applyConfigProcess.running !== undefined ? applyConfigProcess.running = false : undefined;
+    applyConfigProcess.destroy !== undefined ? applyConfigProcess.destroy() : undefined;
+    syncProcess.stop ? syncProcess.stop() : undefined;
+    syncProcess.running !== undefined ? syncProcess.running = false : undefined;
+    syncProcess.destroy !== undefined ? syncProcess.destroy() : undefined;
+    reloadProcess.stop ? reloadProcess.stop() : undefined;
+    reloadProcess.running !== undefined ? reloadProcess.running = false : undefined;
+    reloadProcess.destroy !== undefined ? reloadProcess.destroy() : undefined;
+    writeConfProcess.stop ? writeConfProcess.stop() : undefined;
+    writeConfProcess.running !== undefined ? writeConfProcess.running = false : undefined;
+    writeConfProcess.destroy !== undefined ? writeConfProcess.destroy() : undefined;
+}
 }

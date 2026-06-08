@@ -159,4 +159,9 @@ Singleton {
             }
         }
     }
+Component.onDestruction: {
+    notificationProcess.stop ? notificationProcess.stop() : undefined;
+    notificationProcess.running !== undefined ? notificationProcess.running = false : undefined;
+    notificationProcess.destroy !== undefined ? notificationProcess.destroy() : undefined;
+}
 }

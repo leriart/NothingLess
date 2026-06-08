@@ -1075,4 +1075,15 @@ Rectangle {
             tooltipText: root.configMode ? "Back to metrics" : "Configure metrics"
         }
     }
+Component.onDestruction: {
+    linuxLogosReader.stop ? linuxLogosReader.stop() : undefined;
+    linuxLogosReader.running !== undefined ? linuxLogosReader.running = false : undefined;
+    linuxLogosReader.destroy !== undefined ? linuxLogosReader.destroy() : undefined;
+    hostnameReader.stop ? hostnameReader.stop() : undefined;
+    hostnameReader.running !== undefined ? hostnameReader.running = false : undefined;
+    hostnameReader.destroy !== undefined ? hostnameReader.destroy() : undefined;
+    osReader.stop ? osReader.stop() : undefined;
+    osReader.running !== undefined ? osReader.running = false : undefined;
+    osReader.destroy !== undefined ? osReader.destroy() : undefined;
+}
 }

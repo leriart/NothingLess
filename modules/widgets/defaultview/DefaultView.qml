@@ -473,4 +473,9 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    mediaHoverTimer.stop ? mediaHoverTimer.stop() : undefined;
+    mediaHoverTimer.running !== undefined ? mediaHoverTimer.running = false : undefined;
+    mediaHoverTimer.destroy !== undefined ? mediaHoverTimer.destroy() : undefined;
+}
 }

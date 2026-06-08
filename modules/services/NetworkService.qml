@@ -405,4 +405,30 @@ Singleton {
         update();
         wifiStatusProcess.running = true;
     }
+Component.onDestruction: {
+    internalProc.stop ? internalProc.stop() : undefined;
+    internalProc.running !== undefined ? internalProc.running = false : undefined;
+    internalProc.destroy !== undefined ? internalProc.destroy() : undefined;
+    updateDebouncer.stop ? updateDebouncer.stop() : undefined;
+    updateDebouncer.running !== undefined ? updateDebouncer.running = false : undefined;
+    updateDebouncer.destroy !== undefined ? updateDebouncer.destroy() : undefined;
+    subscriber.stop ? subscriber.stop() : undefined;
+    subscriber.running !== undefined ? subscriber.running = false : undefined;
+    subscriber.destroy !== undefined ? subscriber.destroy() : undefined;
+    updateConnectionType.stop ? updateConnectionType.stop() : undefined;
+    updateConnectionType.running !== undefined ? updateConnectionType.running = false : undefined;
+    updateConnectionType.destroy !== undefined ? updateConnectionType.destroy() : undefined;
+    updateNetworkName.stop ? updateNetworkName.stop() : undefined;
+    updateNetworkName.running !== undefined ? updateNetworkName.running = false : undefined;
+    updateNetworkName.destroy !== undefined ? updateNetworkName.destroy() : undefined;
+    updateNetworkStrength.stop ? updateNetworkStrength.stop() : undefined;
+    updateNetworkStrength.running !== undefined ? updateNetworkStrength.running = false : undefined;
+    updateNetworkStrength.destroy !== undefined ? updateNetworkStrength.destroy() : undefined;
+    wifiStatusProcess.stop ? wifiStatusProcess.stop() : undefined;
+    wifiStatusProcess.running !== undefined ? wifiStatusProcess.running = false : undefined;
+    wifiStatusProcess.destroy !== undefined ? wifiStatusProcess.destroy() : undefined;
+    getNetworks.stop ? getNetworks.stop() : undefined;
+    getNetworks.running !== undefined ? getNetworks.running = false : undefined;
+    getNetworks.destroy !== undefined ? getNetworks.destroy() : undefined;
+}
 }

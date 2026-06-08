@@ -2079,4 +2079,12 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    unbindProcess.stop ? unbindProcess.stop() : undefined;
+    unbindProcess.running !== undefined ? unbindProcess.running = false : undefined;
+    unbindProcess.destroy !== undefined ? unbindProcess.destroy() : undefined;
+    scrollToBottomTimer.stop ? scrollToBottomTimer.stop() : undefined;
+    scrollToBottomTimer.running !== undefined ? scrollToBottomTimer.running = false : undefined;
+    scrollToBottomTimer.destroy !== undefined ? scrollToBottomTimer.destroy() : undefined;
+}
 }

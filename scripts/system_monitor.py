@@ -276,7 +276,8 @@ class SystemMonitor:
                                     gpu["pci_id"],
                                     "--query-gpu=utilization.gpu,temperature.gpu",
                                     "--format=csv,noheader,nounits",
-                                ]
+                                ],
+                                timeout=5,
                             )
                             .decode("utf-8")
                             .strip()

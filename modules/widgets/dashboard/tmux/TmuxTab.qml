@@ -765,7 +765,7 @@ Item {
                 clip: true
                 interactive: !root.deleteMode && !root.renameMode && root.expandedItemIndex === -1
                 cacheBuffer: 96
-                reuseItems: false
+                reuseItems: true
 
                 // Propiedad para detectar si está en movimiento (drag o flick)
                 property bool isScrolling: dragging || flicking
@@ -2278,4 +2278,36 @@ Item {
     onRenameModeChanged: {
         if (!renameMode) {}
     }
+Component.onDestruction: {
+    tmuxProcess.stop ? tmuxProcess.stop() : undefined;
+    tmuxProcess.running !== undefined ? tmuxProcess.running = false : undefined;
+    tmuxProcess.destroy !== undefined ? tmuxProcess.destroy() : undefined;
+    createProcess.stop ? createProcess.stop() : undefined;
+    createProcess.running !== undefined ? createProcess.running = false : undefined;
+    createProcess.destroy !== undefined ? createProcess.destroy() : undefined;
+    attachProcess.stop ? attachProcess.stop() : undefined;
+    attachProcess.running !== undefined ? attachProcess.running = false : undefined;
+    attachProcess.destroy !== undefined ? attachProcess.destroy() : undefined;
+    killProcess.stop ? killProcess.stop() : undefined;
+    killProcess.running !== undefined ? killProcess.running = false : undefined;
+    killProcess.destroy !== undefined ? killProcess.destroy() : undefined;
+    renameProcess.stop ? renameProcess.stop() : undefined;
+    renameProcess.running !== undefined ? renameProcess.running = false : undefined;
+    renameProcess.destroy !== undefined ? renameProcess.destroy() : undefined;
+    windowsProcess.stop ? windowsProcess.stop() : undefined;
+    windowsProcess.running !== undefined ? windowsProcess.running = false : undefined;
+    windowsProcess.destroy !== undefined ? windowsProcess.destroy() : undefined;
+    panesProcess.stop ? panesProcess.stop() : undefined;
+    panesProcess.running !== undefined ? panesProcess.running = false : undefined;
+    panesProcess.destroy !== undefined ? panesProcess.destroy() : undefined;
+    switchWindowProcess.stop ? switchWindowProcess.stop() : undefined;
+    switchWindowProcess.running !== undefined ? switchWindowProcess.running = false : undefined;
+    switchWindowProcess.destroy !== undefined ? switchWindowProcess.destroy() : undefined;
+    focusPaneProcess.stop ? focusPaneProcess.stop() : undefined;
+    focusPaneProcess.running !== undefined ? focusPaneProcess.running = false : undefined;
+    focusPaneProcess.destroy !== undefined ? focusPaneProcess.destroy() : undefined;
+    longPressTimer.stop ? longPressTimer.stop() : undefined;
+    longPressTimer.running !== undefined ? longPressTimer.running = false : undefined;
+    longPressTimer.destroy !== undefined ? longPressTimer.destroy() : undefined;
+}
 }

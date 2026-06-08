@@ -91,4 +91,9 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    hostnameProcess.stop ? hostnameProcess.stop() : undefined;
+    hostnameProcess.running !== undefined ? hostnameProcess.running = false : undefined;
+    hostnameProcess.destroy !== undefined ? hostnameProcess.destroy() : undefined;
+}
 }

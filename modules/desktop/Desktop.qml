@@ -233,7 +233,8 @@ PanelWindow {
         }
     }
 
-    Rectangle {
+    StyledRect {
+        variant: "transparent"
         anchors.centerIn: parent
         width: 200
         height: 60

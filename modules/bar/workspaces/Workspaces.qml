@@ -703,4 +703,9 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    updateTimer.stop ? updateTimer.stop() : undefined;
+    updateTimer.running !== undefined ? updateTimer.running = false : undefined;
+    updateTimer.destroy !== undefined ? updateTimer.destroy() : undefined;
+}
 }

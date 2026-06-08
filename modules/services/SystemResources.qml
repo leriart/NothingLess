@@ -300,4 +300,12 @@ Singleton {
         // FPS history
         fpsHistory = pushHistory(fpsHistory, fps);
     }
+Component.onDestruction: {
+    fpsWatcher.stop ? fpsWatcher.stop() : undefined;
+    fpsWatcher.running !== undefined ? fpsWatcher.running = false : undefined;
+    fpsWatcher.destroy !== undefined ? fpsWatcher.destroy() : undefined;
+    monitorProcess.stop ? monitorProcess.stop() : undefined;
+    monitorProcess.running !== undefined ? monitorProcess.running = false : undefined;
+    monitorProcess.destroy !== undefined ? monitorProcess.destroy() : undefined;
+}
 }

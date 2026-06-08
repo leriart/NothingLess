@@ -226,4 +226,12 @@ Item {
             }
         }
     }
+Component.onDestruction: {
+    cascadeTimer.stop ? cascadeTimer.stop() : undefined;
+    cascadeTimer.running !== undefined ? cascadeTimer.running = false : undefined;
+    cascadeTimer.destroy !== undefined ? cascadeTimer.destroy() : undefined;
+    discardAllTimer.stop ? discardAllTimer.stop() : undefined;
+    discardAllTimer.running !== undefined ? discardAllTimer.running = false : undefined;
+    discardAllTimer.destroy !== undefined ? discardAllTimer.destroy() : undefined;
+}
 }

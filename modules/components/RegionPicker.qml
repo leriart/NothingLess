@@ -273,4 +273,12 @@ PanelWindow {
             root.close();
         }
     }
+Component.onDestruction: {
+    captureProcess.stop ? captureProcess.stop() : undefined;
+    captureProcess.running !== undefined ? captureProcess.running = false : undefined;
+    captureProcess.destroy !== undefined ? captureProcess.destroy() : undefined;
+    copyProcess.stop ? copyProcess.stop() : undefined;
+    copyProcess.running !== undefined ? copyProcess.running = false : undefined;
+    copyProcess.destroy !== undefined ? copyProcess.destroy() : undefined;
+}
 }

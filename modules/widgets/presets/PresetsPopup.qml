@@ -145,6 +145,7 @@ PanelWindow {
                 id: presetsLoader
                 anchors.centerIn: parent
                 active: presetsOpen
+                asynchronous: true
 
                 sourceComponent: PresetsTab {}
             }

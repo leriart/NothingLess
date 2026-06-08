@@ -645,4 +645,14 @@ Singleton {
             thumbnailTimer.running = true;
         }
     }
+
+    Component.onDestruction: {
+        savePositionsProcess.running = false;
+        loadPositionsProcess.running = false;
+        getDesktopDirProcess.running = false;
+        scanProcess.running = false;
+        parseDesktopFileProcess.running = false;
+        thumbnailProcess.running = false;
+        thumbnailTimer.stop();
+    }
 }

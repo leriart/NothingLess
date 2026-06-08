@@ -322,4 +322,27 @@ Singleton {
             return "Performance";
         return profileName;
     }
+Component.onDestruction: {
+    startupDelay.stop ? startupDelay.stop() : undefined;
+    startupDelay.running !== undefined ? startupDelay.running = false : undefined;
+    startupDelay.destroy !== undefined ? startupDelay.destroy() : undefined;
+    checkPowerProfilesCtl.stop ? checkPowerProfilesCtl.stop() : undefined;
+    checkPowerProfilesCtl.running !== undefined ? checkPowerProfilesCtl.running = false : undefined;
+    checkPowerProfilesCtl.destroy !== undefined ? checkPowerProfilesCtl.destroy() : undefined;
+    checkTLP.stop ? checkTLP.stop() : undefined;
+    checkTLP.running !== undefined ? checkTLP.running = false : undefined;
+    checkTLP.destroy !== undefined ? checkTLP.destroy() : undefined;
+    getProc.stop ? getProc.stop() : undefined;
+    getProc.running !== undefined ? getProc.running = false : undefined;
+    getProc.destroy !== undefined ? getProc.destroy() : undefined;
+    listProc.stop ? listProc.stop() : undefined;
+    listProc.running !== undefined ? listProc.running = false : undefined;
+    listProc.destroy !== undefined ? listProc.destroy() : undefined;
+    getTLPProc.stop ? getTLPProc.stop() : undefined;
+    getTLPProc.running !== undefined ? getTLPProc.running = false : undefined;
+    getTLPProc.destroy !== undefined ? getTLPProc.destroy() : undefined;
+    setProc.stop ? setProc.stop() : undefined;
+    setProc.running !== undefined ? setProc.running = false : undefined;
+    setProc.destroy !== undefined ? setProc.destroy() : undefined;
+}
 }

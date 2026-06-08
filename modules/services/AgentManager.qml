@@ -192,7 +192,10 @@ QtObject {
                 invokePath: c.invokePath
             });
         }
+        const wasPaused = Config.pauseAutoSave;
+        Config.pauseAutoSave = true;
         Config.ai.agents = cfg;
+        Config.pauseAutoSave = wasPaused;
     }
 
     function addConnection(config) {
@@ -209,7 +212,10 @@ QtObject {
             if (item) cfg.push(item);
         }
         cfg.push(config);
+        const wasPaused = Config.pauseAutoSave;
+        Config.pauseAutoSave = true;
         Config.ai.agents = cfg;
+        Config.pauseAutoSave = wasPaused;
         // configWatcher will trigger reloadFromConfig automatically
     }
 
@@ -222,7 +228,10 @@ QtObject {
             let item = currentAgents[i];
             if (item && item.id !== agentId) cfg.push(item);
         }
+        const wasPaused = Config.pauseAutoSave;
+        Config.pauseAutoSave = true;
         Config.ai.agents = cfg;
+        Config.pauseAutoSave = wasPaused;
         // configWatcher will trigger reloadFromConfig automatically
     }
 

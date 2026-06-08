@@ -294,4 +294,9 @@ PanelWindow {
 
         onClicked: triggered()
     }
+Component.onDestruction: {
+    copyOverlayProcess.stop ? copyOverlayProcess.stop() : undefined;
+    copyOverlayProcess.running !== undefined ? copyOverlayProcess.running = false : undefined;
+    copyOverlayProcess.destroy !== undefined ? copyOverlayProcess.destroy() : undefined;
+}
 }

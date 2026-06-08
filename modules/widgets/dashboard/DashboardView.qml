@@ -22,10 +22,5 @@ Item {
             }
         }
 
-        Component.onCompleted: {
-            Qt.callLater(() => {
-                forceActiveFocus();
-            });
-        }
     }
 }

@@ -135,4 +135,9 @@ Singleton {
             }
         }
     }
+Component.onDestruction: {
+    themeCheckTimer.stop ? themeCheckTimer.stop() : undefined;
+    themeCheckTimer.running !== undefined ? themeCheckTimer.running = false : undefined;
+    themeCheckTimer.destroy !== undefined ? themeCheckTimer.destroy() : undefined;
+}
 }

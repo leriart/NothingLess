@@ -87,15 +87,19 @@ Singleton {
 
         let finalCommand = ["axctl", "-c", root.configPath].concat(cmdArgs.filter(x => x !== "" && x !== undefined));
 
-        let proc = Qt.createQmlObject('import Quickshell.Io; Process { stderr: StdioCollector {} }', root);
-        proc.command = finalCommand;
-        proc.onExited.connect((code) => {
-            if (code !== 0 && proc.stderr.text) {
-                console.warn("AxctlService dispatch error:", finalCommand.join(' '), "→", proc.stderr.text);
-            }
-            proc.destroy();
-        });
-        proc.running = true;
+        try {
+            let proc = Qt.createQmlObject('import Quickshell.Io; Process { stderr: StdioCollector {} }', root);
+            proc.command = finalCommand;
+            proc.onExited.connect((code) => {
+                if (code !== 0 && proc.stderr.text) {
+                    console.warn("AxctlService dispatch error:", finalCommand.join(' '), "→", proc.stderr.text);
+                }
+                proc.destroy();
+            });
+            proc.running = true;
+        } catch (e) {
+            console.warn("AxctlService: failed to create dispatch process:", e);
+        }
     }
 
     function monitorFor(screen) {

@@ -34,21 +34,4 @@ Item {
             Visibilities.setActiveModule("")
         }
     }
-    
-    // Forzar foco cuando aparece la vista en el StackView
-    onVisibleChanged: {
-        if (visible) {
-            Qt.callLater(() => {
-                toolsMenu.forceActiveFocus();
-            });
-        }
-    }
-    
-    Component.onCompleted: {
-        if (visible) {
-            Qt.callLater(() => {
-                toolsMenu.forceActiveFocus();
-            });
-        }
-    }
 }

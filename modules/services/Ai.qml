@@ -719,25 +719,9 @@ Singleton {
     }
 
     function reloadHistory() {
-        let pyScript = `import os, json, glob
-chat_dir = "${chatDir}"
-os.makedirs(chat_dir, exist_ok=True)
-files = sorted(glob.glob(chat_dir + "/*.json"), key=os.path.getmtime, reverse=True)
-for f in files:
-    id = os.path.basename(f)[:-5]
-    title = "New Chat"
-    try:
-        with open(f, 'r') as fp:
-            data = json.load(fp)
-            for msg in data:
-                if msg.get("role") == "user":
-                    title = msg.get("content", "")[:40].replace("\\n", " ").strip()
-                    if len(msg.get("content", "")) > 40: title += "..."
-                    break
-    except: pass
-    print(f"{id}|{title}")
-`;
-        listHistoryProcess.command = ["python3", "-c", pyScript];
+        // Uses standalone scripts/list_chats.py instead of inline Python.
+        // The script outputs one line per chat: "<id>|<title>"
+        listHistoryProcess.command = ["python3", Qt.resolvedUrl("../../scripts/list_chats.py").toString().replace("file://", ""), chatDir];
         listHistoryProcess.running = true;
     }
 
@@ -818,321 +802,234 @@ for f in files:
     }
 
     // ============================================
-    // DYNAMIC MODEL FETCHING
+    // DYNAMIC MODEL FETCHING (unified single Process)
     // ============================================
 
     property bool fetchingModels: false
-    property int pendingFetches: 0
+    property var fetchQueue: []
+    property int fetchQueueIndex: 0
+    property string currentFetchProvider: ""
 
     function fetchAvailableModels() {
-        fetchingModels = false; // Force refresh
-        if (fetchingModels)
-            return;
-
+        if (fetchingModels) return;
         fetchingModels = true;
-        pendingFetches = 0;
 
-        // Gemini
-        let geminiKey = KeyStore.getKey("gemini");
-        if (geminiKey) {
-            pendingFetches++;
-            fetchProcessGemini.command = ["bash", "-c", "curl -s 'https://generativelanguage.googleapis.com/v1beta/models?key=" + geminiKey + "'"];
-            fetchProcessGemini.running = true;
-        }
+        fetchQueue = [];
+        if (KeyStore.getKey("gemini")) fetchQueue.push("gemini");
+        if (KeyStore.getKey("openai")) fetchQueue.push("openai");
+        if (KeyStore.getKey("anthropic")) fetchQueue.push("anthropic");
+        if (KeyStore.getKey("mistral")) fetchQueue.push("mistral");
+        if (KeyStore.getKey("groq")) fetchQueue.push("groq");
+        if (KeyStore.hasKey("ollama")) fetchQueue.push("ollama");
+        if (KeyStore.getKey("minimax")) fetchQueue.push("minimax");
+        if (KeyStore.getKey("deepseek")) fetchQueue.push("deepseek");
 
-        // OpenAI
-        let openaiKey = KeyStore.getKey("openai");
-        if (openaiKey) {
-            pendingFetches++;
-            fetchProcessOpenAI.command = ["bash", "-c", "curl -s https://api.openai.com/v1/models -H 'Authorization: Bearer " + openaiKey + "'"];
-            fetchProcessOpenAI.running = true;
-        }
-
-        // Anthropic
-        let anthropicKey = KeyStore.getKey("anthropic");
-        if (anthropicKey) {
-            pendingFetches++;
-            fetchProcessAnthropic.command = ["bash", "-c", "curl -s https://api.anthropic.com/v1/models -H 'x-api-key: " + anthropicKey + "' -H 'anthropic-version: 2023-06-01'"];
-            fetchProcessAnthropic.running = true;
-        }
-
-        // Mistral
-        let mistralKey = KeyStore.getKey("mistral");
-        if (mistralKey) {
-            pendingFetches++;
-            fetchProcessMistral.command = ["bash", "-c", "curl -s https://api.mistral.ai/v1/models -H 'Authorization: Bearer " + mistralKey + "'"];
-            fetchProcessMistral.running = true;
-        }
-
-        // Groq
-        let groqKey = KeyStore.getKey("groq");
-        if (groqKey) {
-            pendingFetches++;
-            fetchProcessGroq.command = ["bash", "-c", "curl -s https://api.groq.com/openai/v1/models -H 'Authorization: Bearer " + groqKey + "'"];
-            fetchProcessGroq.running = true;
-        }
-
-        // Ollama (local)
-        let ollamaEnabled = KeyStore.hasKey("ollama");
-        if (ollamaEnabled) {
-            pendingFetches++;
-            fetchProcessOllama.command = ["bash", "-c", "curl -s http://127.0.0.1:11434/api/tags"];
-            fetchProcessOllama.running = true;
-        }
-
-        // MiniMax
-        let minimaxKey = KeyStore.getKey("minimax");
-        if (minimaxKey) {
-            pendingFetches++;
-            fetchProcessMiniMax.command = ["bash", "-c", "echo 'done'"];
-            fetchProcessMiniMax.running = true;
-        }
-
-        // DeepSeek — only fetch when API key is configured (like other providers)
-        let deepseekKey = KeyStore.getKey("deepseek");
-        if (deepseekKey) {
-            pendingFetches++;
-            fetchProcessDeepSeek.command = ["bash", "-c", "curl -s https://api.deepseek.com/v1/models -H 'Authorization: Bearer " + deepseekKey + "'"];
-            fetchProcessDeepSeek.running = true;
-        }
-
-        if (pendingFetches === 0) {
+        if (fetchQueue.length === 0) {
             fetchingModels = false;
+            return;
+        }
+
+        fetchQueueIndex = 0;
+        _startNextFetch();
+    }
+
+    function _startNextFetch() {
+        if (fetchQueueIndex >= fetchQueue.length) {
+            _finishFetching();
+            return;
+        }
+
+        currentFetchProvider = fetchQueue[fetchQueueIndex];
+        let cmd = _buildFetchCommand(currentFetchProvider);
+        if (cmd.length > 0) {
+            fetchModelsProcess.command = cmd;
+            fetchModelsProcess.running = true;
+        } else {
+            // Static provider (e.g. MiniMax) — no HTTP request needed,
+            // process inline and advance via Qt.callLater to avoid recursion.
+            _parseFetchResponse(currentFetchProvider, "");
+            fetchQueueIndex++;
+            Qt.callLater(_startNextFetch);
         }
     }
 
-    Process {
-        id: fetchProcessGemini
-        stdout: StdioCollector {
-            id: fetchGeminiOut
+    function _buildFetchCommand(provider) {
+        switch (provider) {
+        case "gemini":
+            return ["bash", "-c", "curl -s 'https://generativelanguage.googleapis.com/v1beta/models?key=" + KeyStore.getKey("gemini") + "'"];
+        case "openai":
+            return ["bash", "-c", "curl -s https://api.openai.com/v1/models -H 'Authorization: Bearer " + KeyStore.getKey("openai") + "'"];
+        case "anthropic":
+            return ["bash", "-c", "curl -s https://api.anthropic.com/v1/models -H 'x-api-key: " + KeyStore.getKey("anthropic") + "' -H 'anthropic-version: 2023-06-01'"];
+        case "mistral":
+            return ["bash", "-c", "curl -s https://api.mistral.ai/v1/models -H 'Authorization: Bearer " + KeyStore.getKey("mistral") + "'"];
+        case "groq":
+            return ["bash", "-c", "curl -s https://api.groq.com/openai/v1/models -H 'Authorization: Bearer " + KeyStore.getKey("groq") + "'"];
+        case "ollama":
+            return ["bash", "-c", "curl -s http://127.0.0.1:11434/api/tags"];
+        case "minimax":
+            return []; // Static model list, no HTTP fetch needed
+        case "deepseek":
+            return ["bash", "-c", "curl -s https://api.deepseek.com/v1/models -H 'Authorization: Bearer " + KeyStore.getKey("deepseek") + "'"];
+        default:
+            return [];
         }
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                try {
-                    let data = JSON.parse(fetchGeminiOut.text);
-                    if (data.models) {
-                        let newModels = [];
-                        for (let i = 0; i < data.models.length; i++) {
-                            let item = data.models[i];
-                            let id = item.name.replace("models/", "");
-                            if (id.includes("gemini") || id.includes("flash") || id.includes("pro")) {
-                                let m = aiModelFactory.createObject(root, {
-                                    name: item.displayName || id,
-                                    icon: Qt.resolvedUrl("../../../assets/aiproviders/google.svg"),
-                                    description: item.description || "Google Gemini Model",
-                                    endpoint: "https://generativelanguage.googleapis.com/v1beta",
-                                    model: id,
-                                    provider: "gemini",
-                                    requires_key: true,
-                                    key_id: "GEMINI_API_KEY"
-                                });
-                                if (m) newModels.push(m);
+    }
+
+    function _parseFetchResponse(provider, text) {
+        let newModels = [];
+
+        switch (provider) {
+        case "gemini":
+            try {
+                let data = JSON.parse(text);
+                if (data.models) {
+                    for (let i = 0; i < data.models.length; i++) {
+                        let item = data.models[i];
+                        let id = item.name.replace("models/", "");
+                        if (id.includes("gemini") || id.includes("flash") || id.includes("pro")) {
+                            let m = aiModelFactory.createObject(root, {
+                                name: item.displayName || id,
+                                icon: Qt.resolvedUrl("../../../assets/aiproviders/google.svg"),
+                                description: item.description || "Google Gemini Model",
+                                endpoint: "https://generativelanguage.googleapis.com/v1beta",
+                                model: id,
+                                provider: "gemini",
+                                requires_key: true,
+                                key_id: "GEMINI_API_KEY"
+                            });
+                            if (m) newModels.push(m);
+                        }
+                    }
+                }
+            } catch (e) { console.log("Gemini fetch error: " + e); }
+            break;
+
+        case "openai":
+            try {
+                let data = JSON.parse(text);
+                if (data.data) {
+                    let allowed = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "o1", "o1-mini", "o1-preview", "o3-mini"];
+                    for (let i = 0; i < data.data.length; i++) {
+                        let item = data.data[i];
+                        let id = item.id;
+                        let isAllowed = false;
+                        for (let j = 0; j < allowed.length; j++) {
+                            if (id === allowed[j] || id.startsWith(allowed[j] + "-")) {
+                                isAllowed = true;
+                                break;
                             }
                         }
-                        mergeModels(newModels);
-                    }
-                } catch (e) {
-                    console.log("Gemini fetch error: " + e);
-                }
-            }
-            checkFetchCompletion();
-        }
-    }
-
-    Process {
-        id: fetchProcessOpenAI
-        stdout: StdioCollector {
-            id: fetchOpenAIOut
-        }
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                try {
-                    let data = JSON.parse(fetchOpenAIOut.text);
-                    if (data.data) {
-                        let newModels = [];
-                        let allowed = ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "o1", "o1-mini", "o1-preview", "o3-mini"];
-                        for (let i = 0; i < data.data.length; i++) {
-                            let item = data.data[i];
-                            let id = item.id;
-                            let isAllowed = false;
-                            for (let j = 0; j < allowed.length; j++) {
-                                if (id === allowed[j] || id.startsWith(allowed[j] + "-")) {
-                                    isAllowed = true;
-                                    break;
-                                }
-                            }
-                            if (isAllowed) {
-                                let m = aiModelFactory.createObject(root, {
-                                    name: id,
-                                    icon: Qt.resolvedUrl("../../../assets/aiproviders/openai.svg"),
-                                    description: "OpenAI Model",
-                                    endpoint: "https://api.openai.com",
-                                    model: id,
-                                    provider: "openai",
-                                    requires_key: true,
-                                    key_id: "OPENAI_API_KEY"
-                                });
-                                if (m) newModels.push(m);
-                            }
-                        }
-                        mergeModels(newModels);
-                    }
-                } catch (e) {
-                    console.log("OpenAI fetch error: " + e);
-                }
-            }
-            checkFetchCompletion();
-        }
-    }
-
-    Process {
-        id: fetchProcessMistral
-        stdout: StdioCollector {
-            id: fetchMistralOut
-        }
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                try {
-                    let data = JSON.parse(fetchMistralOut.text);
-                    if (data.data) {
-                        let newModels = [];
-                        for (let i = 0; i < data.data.length; i++) {
-                            let item = data.data[i];
-                            let id = item.id;
+                        if (isAllowed) {
                             let m = aiModelFactory.createObject(root, {
                                 name: id,
-                                icon: Qt.resolvedUrl("../../../assets/aiproviders/mistral.svg"),
-                                description: "Mistral Model",
-                                endpoint: "https://api.mistral.ai/v1",
+                                icon: Qt.resolvedUrl("../../../assets/aiproviders/openai.svg"),
+                                description: "OpenAI Model",
+                                endpoint: "https://api.openai.com",
                                 model: id,
-                                provider: "mistral",
+                                provider: "openai",
                                 requires_key: true,
-                                key_id: "MISTRAL_API_KEY"
+                                key_id: "OPENAI_API_KEY"
                             });
                             if (m) newModels.push(m);
                         }
-                        mergeModels(newModels);
                     }
-                } catch (e) {
-                    console.log("Mistral fetch error: " + e);
                 }
-            }
-            checkFetchCompletion();
-        }
-    }
+            } catch (e) { console.log("OpenAI fetch error: " + e); }
+            break;
 
-    Process {
-        id: fetchProcessGroq
-        stdout: StdioCollector {
-            id: fetchGroqOut
-        }
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                try {
-                    let data = JSON.parse(fetchGroqOut.text);
-                    if (data.data) {
-                        let newModels = [];
-                        for (let i = 0; i < data.data.length; i++) {
-                            let item = data.data[i];
-                            let id = item.id;
-                            let m = aiModelFactory.createObject(root, {
-                                name: id,
-                                icon: Qt.resolvedUrl("../../../assets/aiproviders/groq.svg"),
-                                description: "Groq Model",
-                                endpoint: "https://api.groq.com/openai/v1",
-                                model: id,
-                                provider: "groq",
-                                requires_key: true,
-                                key_id: "GROQ_API_KEY"
-                            });
-                            if (m) newModels.push(m);
-                        }
-                        mergeModels(newModels);
+        case "mistral":
+            try {
+                let data = JSON.parse(text);
+                if (data.data) {
+                    for (let i = 0; i < data.data.length; i++) {
+                        let item = data.data[i];
+                        let id = item.id;
+                        let m = aiModelFactory.createObject(root, {
+                            name: id,
+                            icon: Qt.resolvedUrl("../../../assets/aiproviders/mistral.svg"),
+                            description: "Mistral Model",
+                            endpoint: "https://api.mistral.ai/v1",
+                            model: id,
+                            provider: "mistral",
+                            requires_key: true,
+                            key_id: "MISTRAL_API_KEY"
+                        });
+                        if (m) newModels.push(m);
                     }
-                } catch (e) {
-                    console.log("Groq fetch error: " + e);
                 }
-            }
-            checkFetchCompletion();
-        }
-    }
+            } catch (e) { console.log("Mistral fetch error: " + e); }
+            break;
 
-    Process {
-        id: fetchProcessAnthropic
-        stdout: StdioCollector {
-            id: fetchAnthropicOut
-        }
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                try {
-                    let data = JSON.parse(fetchAnthropicOut.text);
-                    if (data.data) {
-                        let newModels = [];
-                        for (let i = 0; i < data.data.length; i++) {
-                            let item = data.data[i];
-                            let id = item.id;
-                            let m = aiModelFactory.createObject(root, {
-                                name: item.display_name || id,
-                                icon: Qt.resolvedUrl("../../../assets/aiproviders/anthropic.svg"),
-                                description: item.description || "Anthropic Model",
-                                endpoint: "https://api.anthropic.com/v1/messages",
-                                model: id,
-                                provider: "anthropic",
-                                requires_key: true,
-                                key_id: "ANTHROPIC_API_KEY"
-                            });
-                            if (m) newModels.push(m);
-                        }
-                        mergeModels(newModels);
+        case "groq":
+            try {
+                let data = JSON.parse(text);
+                if (data.data) {
+                    for (let i = 0; i < data.data.length; i++) {
+                        let item = data.data[i];
+                        let id = item.id;
+                        let m = aiModelFactory.createObject(root, {
+                            name: id,
+                            icon: Qt.resolvedUrl("../../../assets/aiproviders/groq.svg"),
+                            description: "Groq Model",
+                            endpoint: "https://api.groq.com/openai/v1",
+                            model: id,
+                            provider: "groq",
+                            requires_key: true,
+                            key_id: "GROQ_API_KEY"
+                        });
+                        if (m) newModels.push(m);
                     }
-                } catch (e) {
-                    console.log("Anthropic fetch error: " + e);
                 }
-            }
-            checkFetchCompletion();
-        }
-    }
+            } catch (e) { console.log("Groq fetch error: " + e); }
+            break;
 
-    Process {
-        id: fetchProcessOllama
-        stdout: StdioCollector {
-            id: fetchOllamaOut
-        }
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                try {
-                    let data = JSON.parse(fetchOllamaOut.text);
-                    if (data.models) {
-                        let newModels = [];
-                        for (let i = 0; i < data.models.length; i++) {
-                            let item = data.models[i];
-                            let m = aiModelFactory.createObject(root, {
-                                name: item.name,
-                                icon: Qt.resolvedUrl("../../../assets/aiproviders/ollama.svg"),
-                                description: "Local Ollama Model",
-                                endpoint: "http://127.0.0.1:11434",
-                                model: item.name,
-                                provider: "ollama",
-                                requires_key: false
-                            });
-                            if (m) newModels.push(m);
-                        }
-                        mergeModels(newModels);
+        case "anthropic":
+            try {
+                let data = JSON.parse(text);
+                if (data.data) {
+                    for (let i = 0; i < data.data.length; i++) {
+                        let item = data.data[i];
+                        let id = item.id;
+                        let m = aiModelFactory.createObject(root, {
+                            name: item.display_name || id,
+                            icon: Qt.resolvedUrl("../../../assets/aiproviders/anthropic.svg"),
+                            description: item.description || "Anthropic Model",
+                            endpoint: "https://api.anthropic.com/v1/messages",
+                            model: id,
+                            provider: "anthropic",
+                            requires_key: true,
+                            key_id: "ANTHROPIC_API_KEY"
+                        });
+                        if (m) newModels.push(m);
                     }
-                } catch (e) {
-                    console.log("Ollama fetch error: " + e);
                 }
-            }
-            checkFetchCompletion();
-        }
-    }
+            } catch (e) { console.log("Anthropic fetch error: " + e); }
+            break;
 
-    Process {
-        id: fetchProcessMiniMax
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                let newModels = [];
-                
+        case "ollama":
+            try {
+                let data = JSON.parse(text);
+                if (data.models) {
+                    for (let i = 0; i < data.models.length; i++) {
+                        let item = data.models[i];
+                        let m = aiModelFactory.createObject(root, {
+                            name: item.name,
+                            icon: Qt.resolvedUrl("../../../assets/aiproviders/ollama.svg"),
+                            description: "Local Ollama Model",
+                            endpoint: "http://127.0.0.1:11434",
+                            model: item.name,
+                            provider: "ollama",
+                            requires_key: false
+                        });
+                        if (m) newModels.push(m);
+                    }
+                }
+            } catch (e) { console.log("Ollama fetch error: " + e); }
+            break;
+
+        case "minimax":
+            {
                 let models = [
                     { name: "MiniMax-M2.7", model: "MiniMax-M2.7", description: "Latest model with recursive self-improvement, SOTA coding capabilities", endpoint: "https://api.minimax.io" },
                     { name: "MiniMax-M2.7-highspeed", model: "MiniMax-M2.7-highspeed", description: "Same performance as M2.7, faster inference (~100 tps)", endpoint: "https://api.minimax.io" },
@@ -1143,7 +1040,6 @@ for f in files:
                     { name: "MiniMax-M2", model: "MiniMax-M2", description: "Agentic capabilities, advanced reasoning, 200k context", endpoint: "https://api.minimax.io" },
                     { name: "M2-her", model: "M2-her", description: "Role-playing, multi-turn conversations, emotional expression", endpoint: "https://api.minimax.io" }
                 ];
-                
                 for (let i = 0; i < models.length; i++) {
                     let item = models[i];
                     let m = aiModelFactory.createObject(root, {
@@ -1158,22 +1054,14 @@ for f in files:
                     });
                     if (m) newModels.push(m);
                 }
-                
-                mergeModels(newModels);
             }
-            checkFetchCompletion();
-        }
-    }
+            break;
 
-    property Process fetchProcessDeepSeek: Process {
-        running: false
-        stdout: StdioCollector { id: fetchDeepSeekOut }
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                let newModels = [];
+        case "deepseek":
+            {
                 let hasApiData = false;
                 try {
-                    let data = JSON.parse(fetchDeepSeekOut.text);
+                    let data = JSON.parse(text);
                     if (data.data && data.data.length > 0) {
                         hasApiData = true;
                         for (let i = 0; i < data.data.length; i++) {
@@ -1192,9 +1080,7 @@ for f in files:
                             if (m) newModels.push(m);
                         }
                     }
-                } catch (e) {
-                    // Fall back to static list
-                }
+                } catch (e) { /* fall back to static list */ }
 
                 if (!hasApiData) {
                     let models = [
@@ -1216,28 +1102,37 @@ for f in files:
                         if (m) newModels.push(m);
                     }
                 }
-
-                mergeModels(newModels);
             }
-            checkFetchCompletion();
+            break;
+        }
+
+        mergeModels(newModels);
+    }
+
+    function _finishFetching() {
+        fetchingModels = false;
+
+        tryRestore();
+
+        if (!currentModel && models.length > 0) {
+            currentModel = models[0];
+            isRestored = true;
+        } else if (!isRestored && currentModel) {
+            isRestored = true;
         }
     }
 
-
-    function checkFetchCompletion() {
-        pendingFetches--;
-        if (pendingFetches <= 0) {
-            fetchingModels = false;
-            pendingFetches = 0;
-
-            tryRestore();
-
-            if (!currentModel && models.length > 0) {
-                currentModel = models[0];
-                isRestored = true;
-            } else if (!isRestored && currentModel) {
-                isRestored = true;
+    Process {
+        id: fetchModelsProcess
+        stdout: StdioCollector { id: fetchModelsStdout }
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                _parseFetchResponse(currentFetchProvider, fetchModelsStdout.text);
+            } else {
+                console.log(currentFetchProvider + " fetch failed with exit code " + exitCode);
             }
+            fetchQueueIndex++;
+            _startNextFetch();
         }
     }
 
@@ -1295,5 +1190,9 @@ for f in files:
     Component {
         id: aiModelFactory
         AiModel {}
+    }
+
+    Component.onDestruction: {
+        fetchModelsProcess.running = false;
     }
 }

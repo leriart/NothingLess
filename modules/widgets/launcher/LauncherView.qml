@@ -1343,4 +1343,21 @@ Rectangle {
             }
         }
     }
+Component.onDestruction: {
+    focusRetryTimer.stop ? focusRetryTimer.stop() : undefined;
+    focusRetryTimer.running !== undefined ? focusRetryTimer.running = false : undefined;
+    focusRetryTimer.destroy !== undefined ? focusRetryTimer.destroy() : undefined;
+    incrementalLoader.stop ? incrementalLoader.stop() : undefined;
+    incrementalLoader.running !== undefined ? incrementalLoader.running = false : undefined;
+    incrementalLoader.destroy !== undefined ? incrementalLoader.destroy() : undefined;
+    initialLoadTimer.stop ? initialLoadTimer.stop() : undefined;
+    initialLoadTimer.running !== undefined ? initialLoadTimer.running = false : undefined;
+    initialLoadTimer.destroy !== undefined ? initialLoadTimer.destroy() : undefined;
+    copyProcess.stop ? copyProcess.stop() : undefined;
+    copyProcess.running !== undefined ? copyProcess.running = false : undefined;
+    copyProcess.destroy !== undefined ? copyProcess.destroy() : undefined;
+    globalOpenProcess.stop ? globalOpenProcess.stop() : undefined;
+    globalOpenProcess.running !== undefined ? globalOpenProcess.running = false : undefined;
+    globalOpenProcess.destroy !== undefined ? globalOpenProcess.destroy() : undefined;
+}
 }

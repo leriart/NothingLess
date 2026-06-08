@@ -129,6 +129,7 @@ install_dependencies() {
       tesseract-langpack-chi_sim tesseract-langpack-chi_tra tesseract-langpack-kor tesseract-langpack-lat
       google-roboto-fonts google-roboto-mono-fonts dejavu-sans-fonts liberation-fonts
       google-noto-fonts-common google-noto-cjk-fonts google-noto-emoji-fonts
+      translate-shell songrec libqalculate
     )
 
     log_info "Installing dependencies..."
@@ -141,7 +142,8 @@ install_dependencies() {
 
     install_phosphor_fonts
     install_ndot_font
-install_color_presets
+    install_color_presets
+    install_material_symbols_font
     ;;
 
   arch)
@@ -194,42 +196,6 @@ install_color_presets
     fi
     install_color_presets
 
-    install_ndot_font
-    install_material_symbols_font
-    ;;
-
-  fedora)
-    log_info "Enabling COPR repositories..."
-    sudo dnf install -y --best --allowerasing --setopt=install_weak_deps=False dnf-plugins-core
-    yes | sudo dnf copr enable errornointernet/quickshell
-    yes | sudo dnf copr enable solopasha/hyprland
-    yes | sudo dnf copr enable zirconium/packages
-    yes | sudo dnf copr enable iucar/cran
-
-    local PKGS=(
-      kitty tmux fuzzel network-manager-applet blueman
-      pipewire wireplumber easyeffects playerctl
-      qt6-qtbase qt6-qtdeclarative qt6-qtwayland qt6-qtsvg qt6-qttools
-      qt6-qtimageformats qt6-qtmultimedia qt6-qtshadertools
-      kf6-syntax-highlighting kf6-breeze-icons hicolor-icon-theme
-      brightnessctl ddcutil fontconfig grim slurp ImageMagick jq sqlite upower
-      wl-clipboard wlsunset wtype zbar glib2 pipx zenity power-profiles-daemon
-      python3.12 libnotify flatpak
-      tesseract tesseract-langpack-eng tesseract-langpack-spa tesseract-langpack-jpn
-      tesseract-langpack-chi_sim tesseract-langpack-chi_tra tesseract-langpack-kor tesseract-langpack-lat
-      google-roboto-fonts google-roboto-mono-fonts dejavu-sans-fonts liberation-fonts
-      google-noto-fonts-common google-noto-cjk-fonts google-noto-emoji-fonts
-      translate-shell songrec libqalculate
-    )
-
-    log_info "Installing dependencies..."
-    sudo dnf install -y --best --allowerasing --setopt=install_weak_deps=False $(filter_packages "${PKGS[@]}")
-
-    log_info "Installing Gradia (Flatpak)..."
-    flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-    flatpak install -y flathub be.alexandervanhee.gradia 2>/dev/null || true
-
-    install_phosphor_fonts
     install_ndot_font
     install_material_symbols_font
     ;;

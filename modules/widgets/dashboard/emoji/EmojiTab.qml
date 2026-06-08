@@ -481,6 +481,7 @@ Rectangle {
                 activeFocusOnTab: true
 
                 Behavior on width {
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardNormal
                         easing.type: Anim.easing("standard").type
@@ -534,6 +535,7 @@ Rectangle {
                         visible: opacity > 0
                         verticalAlignment: Text.AlignVCenter
                         Behavior on opacity {
+                            enabled: Anim.animationsEnabled
                             NumberAnimation {
                                 duration: Anim.standardSmall
                                 easing.type: Anim.easing("standard").type
@@ -575,6 +577,7 @@ Rectangle {
             model: emojisModel
             currentIndex: root.selectedIndex
             spacing: 0
+            cacheBuffer: 200
             property bool enableScrollAnimation: true
 
             Behavior on contentY {
@@ -799,6 +802,7 @@ Rectangle {
                             visible: index === root.expandedItemIndex && emojiData.skin_tone_support
                             opacity: visible ? 1 : 0
                             Behavior on opacity {
+                                enabled: Anim.animationsEnabled
                                 NumberAnimation {
                                     duration: Anim.standardNormal
                                     easing.type: Anim.easing("standard").type
@@ -898,6 +902,7 @@ Rectangle {
                     }
                 }
                 Behavior on y {
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardSmall
                         easing.type: Anim.easing("standard").type
@@ -905,6 +910,7 @@ Rectangle {
                     }
                 }
                 Behavior on width {
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardSmall
                         easing.type: Anim.easing("standard").type
@@ -912,6 +918,7 @@ Rectangle {
                     }
                 }
                 Behavior on height {
+                    enabled: Anim.animationsEnabled
                     NumberAnimation {
                         duration: Anim.standardNormal
                         easing.type: Anim.easing("standard").type
@@ -941,4 +948,15 @@ Rectangle {
         z: -1
         onClicked: focusSearchInput()
     }
+Component.onDestruction: {
+    emojiProcess.stop ? emojiProcess.stop() : undefined;
+    emojiProcess.running !== undefined ? emojiProcess.running = false : undefined;
+    emojiProcess.destroy !== undefined ? emojiProcess.destroy() : undefined;
+    recentProcess.stop ? recentProcess.stop() : undefined;
+    recentProcess.running !== undefined ? recentProcess.running = false : undefined;
+    recentProcess.destroy !== undefined ? recentProcess.destroy() : undefined;
+    saveProcess.stop ? saveProcess.stop() : undefined;
+    saveProcess.running !== undefined ? saveProcess.running = false : undefined;
+    saveProcess.destroy !== undefined ? saveProcess.destroy() : undefined;
+}
 }
