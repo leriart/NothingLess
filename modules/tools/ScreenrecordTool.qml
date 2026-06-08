@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import qs.modules.theme
 import qs.modules.components
 import qs.modules.services
+import qs.modules.globals
 import qs.config
 
 PanelWindow {
@@ -23,7 +24,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
 
-    visible: state !== "idle" || controlsPopup.visible
+    visible: state !== "idle"
     exclusionMode: ExclusionMode.Ignore
 
     property string state: "idle" // idle, loading, active, processing
@@ -100,6 +101,16 @@ PanelWindow {
 
     function close() {
         screenrecordPopup.state = "idle";
+        GlobalStates.screenRecordToolVisible = false;
+        // Release the focus grab requested in open() — without this,
+        // FocusGrabManager.hasActiveGrab stays true and the full-screen
+        // input mask in UnifiedShellPanel blocks all clicks permanently.
+        if (modeGrid) FocusGrabManager.releaseGrab(modeGrid);
+        // Safety net: ensure the notch tools module is cleared so
+        // needsFullScreenInput (which depends on screenNotchOpen)
+        // becomes false and the transparent click-blocking backdrop
+        // is removed.
+        Visibilities.setActiveModule("");
     }
 
     function executeCapture() {
@@ -186,6 +197,11 @@ PanelWindow {
         Item {
             anchors.fill: parent
             visible: screenrecordPopup.state === "active" && screenrecordPopup.currentMode === "window"
+
+            // Close when clicking outside any window
+            TapHandler {
+                onTapped: screenrecordPopup.close()
+            }
 
             Repeater {
                 model: screenrecordPopup.activeWindows
@@ -289,6 +305,9 @@ PanelWindow {
 
                     ScreenRecorder.startRecording(screenrecordPopup.recordAudioOutput, screenrecordPopup.recordAudioInput, "region", regionStr);
                     screenrecordPopup.close();
+                } else {
+                    // If the user clicked without dragging enough, close the tool
+                    screenrecordPopup.close();
                 }
             }
         }
@@ -364,5 +383,11 @@ PanelWindow {
                 }
             }
         }
+
+    }
+
+    // Safety net: release grab if the tool is destroyed without close()
+    Component.onDestruction: {
+        if (modeGrid) FocusGrabManager.releaseGrab(modeGrid);
     }
 }

@@ -84,6 +84,10 @@ Item {
             Component.onCompleted: {
                 FocusGrabManager.requestGrab(this);
             }
+
+            Component.onDestruction: {
+                FocusGrabManager.releaseGrab(this);
+            }
         }
     }
 
@@ -102,6 +106,10 @@ Item {
 
             Component.onCompleted: {
                 FocusGrabManager.requestGrab(this);
+            }
+
+            Component.onDestruction: {
+                FocusGrabManager.releaseGrab(this);
             }
         }
     }

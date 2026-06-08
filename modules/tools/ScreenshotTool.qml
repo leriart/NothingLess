@@ -29,7 +29,7 @@ PanelWindow {
     WlrLayershell.keyboardFocus: screenshotPopup.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // Visible only when explicitly opened
-    visible: state !== "idle" || controlsPopup.visible
+    visible: state !== "idle"
     exclusionMode: ExclusionMode.Ignore
 
     property string state: "idle" // idle, loading, active, processing
@@ -107,6 +107,15 @@ PanelWindow {
     function close() {
         screenshotPopup.state = "idle";
         GlobalStates.screenshotToolVisible = false;
+        // Release the focus grab requested in open() — without this,
+        // FocusGrabManager.hasActiveGrab stays true and the full-screen
+        // input mask in UnifiedShellPanel blocks all clicks permanently.
+        if (modeGrid) FocusGrabManager.releaseGrab(modeGrid);
+        // Safety net: ensure the notch tools module is cleared so
+        // needsFullScreenInput (which depends on screenNotchOpen)
+        // becomes false and the transparent click-blocking backdrop
+        // is removed.
+        Visibilities.setActiveModule("");
     }
 
     function executeCapture() {
@@ -220,6 +229,11 @@ PanelWindow {
             anchors.fill: parent
             visible: screenshotPopup.state === "active" && screenshotPopup.currentMode === "window"
 
+            // Close when clicking outside any window
+            TapHandler {
+                onTapped: close()
+            }
+
             Repeater {
                 model: screenshotPopup.activeWindows
                 delegate: Rectangle {
@@ -313,6 +327,9 @@ PanelWindow {
                 if (Screenshot.selectionW > 5 && Screenshot.selectionH > 5) {
                     Screenshot.processRegion(Screenshot.selectionX, Screenshot.selectionY, Screenshot.selectionW, Screenshot.selectionH);
                     close();
+                } else {
+                    // If the user clicked without dragging enough, close the tool
+                    close();
                 }
             }
         }
@@ -383,5 +400,11 @@ PanelWindow {
                 }
             }
         }
+
+    }
+
+    // Safety net: release grab if the tool is destroyed without close()
+    Component.onDestruction: {
+        if (modeGrid) FocusGrabManager.releaseGrab(modeGrid);
     }
 }

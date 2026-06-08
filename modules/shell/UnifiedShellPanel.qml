@@ -44,10 +44,14 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     exclusionMode: ExclusionMode.Ignore
 
-    // Whether we need to capture full-screen input for click-outside detection.
-    // True when notch modules are open, a FocusGrab-managed popup is active,
-    // or the sidebar needs focus.
-    readonly property bool needsFullScreenInput: notchContent.screenNotchOpen || FocusGrabManager.hasActiveGrab || (assistantSidebar.active && assistantSidebar.wantsFocus)
+    // Full-screen input mask: only active for FocusGrab-managed popups
+    // (BarPopup dropdowns, context menus, screenshot/recording overlays)
+    // and the AI sidebar.
+    //
+    // NOT triggered by notch menus (launcher/dashboard/powermenu/tools)
+    // because those are contained within the notch area — they should not
+    // block clicks on real windows behind the shell.
+    readonly property bool needsFullScreenInput: FocusGrabManager.hasActiveGrab || (assistantSidebar.active && assistantSidebar.wantsFocus)
 
     readonly property bool barEnabled: {
         if (!Config.barReady) return false;
@@ -241,43 +245,57 @@ PanelWindow {
     // ═══════════════════════════════════════════════════════════════
     // CLICK-OUTSIDE BACKDROP
     // ═══════════════════════════════════════════════════════════════
-
-    // Transparent backdrop that captures clicks on empty areas when modules/popups are open.
-    // z: -1 ensures it's below all visual content (bar, notch, dock).
     //
-    // On click-outside, the backdrop:
-    // 1. Dismisses the active popup/module via FocusGrabManager
-    // 2. Dispatches a hyprctl focuswindow command to focus whichever
-    //    real window is under the cursor, so the user can interact
-    //    with it immediately after the notch closes.
-    MouseArea {
-        id: backdropArea
-        anchors.fill: parent
-        visible: unifiedPanel.needsFullScreenInput
-        z: -1
-
-        onClicked: {
-            FocusGrabManager.clearTopGrab();
-            if (assistantSidebar.active && assistantSidebar.wantsFocus) {
-                assistantSidebar.wantsFocus = false;
-            }
-            // If the notch was open, dismiss it AND focus the window under cursor.
-            // The click event is consumed by the Wayland overlay (cannot pass through),
-            // so we programmatically focus the real window via hyprctl.
-            if (notchContent.screenNotchOpen) {
-                Visibilities.setActiveModule("");
-                // Focus the real window under the mouse cursor
-                focusWindowUnderCursor.running = true;
-            }
-        }
-    }
+    // Placed as the LAST child of PanelWindow so it renders on top of
+    // all visual content.  Uses propagateComposedEvents so clicks on
+    // bar/notch/dock widgets still reach their own MouseAreas.
+    // Clicks on empty screen areas trigger a full state cleanup.
 
     // One-shot Process that focuses the real window under the mouse cursor.
-    // Used by the backdrop to restore window focus after dismissing the notch.
     Process {
         id: focusWindowUnderCursor
         command: ["hyprctl", "dispatch", "focuswindow", "mouse"]
         running: false
+    }
+
+    MouseArea {
+        id: backdropArea
+        anchors.fill: parent
+        visible: unifiedPanel.needsFullScreenInput
+        propagateComposedEvents: true
+
+        onClicked: {
+            // Force-clear everything that could be blocking the screen
+            FocusGrabManager.clearTopGrab();
+            Visibilities.setActiveModule("");
+            if (assistantSidebar.active && assistantSidebar.wantsFocus) {
+                assistantSidebar.wantsFocus = false;
+            }
+            // Focus the real window under cursor
+            focusWindowUnderCursor.running = true;
+        }
+    }
+
+    // Safety net: if needsFullScreenInput stays true for more than 10 seconds
+    // without any visible popup/tool, force-clear it. This catches any edge
+    // case where a destroyed component failed to release its focus grab.
+    Timer {
+        id: backdropSafetyTimer
+        interval: 10000
+        repeat: false
+        running: unifiedPanel.needsFullScreenInput
+        onTriggered: {
+            if (!unifiedPanel.notchOpen && !GlobalStates.screenshotToolVisible && !GlobalStates.screenRecordToolVisible && !GlobalStates.settingsWindowVisible && !GlobalStates.mirrorWindowVisible && !GlobalStates.assistantVisible) {
+                console.warn("UnifiedShellPanel: backdrop safety net triggered — forcing grab cleanup.");
+                while (FocusGrabManager.hasActiveGrab) {
+                    FocusGrabManager.clearTopGrab();
+                }
+                Visibilities.setActiveModule("");
+                if (assistantSidebar.active && assistantSidebar.wantsFocus) {
+                    assistantSidebar.wantsFocus = false;
+                }
+            }
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -288,9 +306,6 @@ PanelWindow {
         id: visualContent
         anchors.fill: parent
 
-        // ⚡ Only enable the offscreen layer when something is actually visible.
-        // When bar/dock/notch/frame are all hidden, no shadow is needed.
-        // This saves a full-screen render-to-texture pass every frame.
         readonly property bool needLayer: 
             (unifiedPanel.barEnabled && unifiedPanel.barReveal) ||
             (unifiedPanel.dockEnabled && unifiedPanel.dockReveal) ||

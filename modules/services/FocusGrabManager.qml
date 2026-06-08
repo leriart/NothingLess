@@ -11,7 +11,9 @@ Singleton {
 
     // Whether any focus grab is currently active
     property int _activeCount: 0
-    readonly property bool hasActiveGrab: _activeCount > 0
+    // Derive directly from _grabs so any desync in _activeCount cannot
+    // permanently lock the screen.
+    readonly property bool hasActiveGrab: Object.keys(_grabs).length > 0
 
     // Internal storage: grabId -> callback
     property var _grabs: ({})
@@ -27,6 +29,7 @@ Singleton {
         Object.keys(_grabs).forEach(k => { updated[k] = _grabs[k]; });
         updated[grabId] = clearCallback;
         _grabs = updated;
+        sanityCheck();
     }
 
     function releaseGrab(grabId) {
@@ -39,6 +42,17 @@ Singleton {
             _grabOrder = _grabOrder.filter(id => id !== grabId);
             _activeCount = Math.max(0, _activeCount - 1);
         }
+        sanityCheck();
+    }
+
+    // Defensive: recalculate _activeCount from _grabOrder to recover from
+    // any desync caused by orphan grabs.
+    function sanityCheck() {
+        const expected = _grabOrder.length;
+        if (_activeCount !== expected) {
+            console.warn("FocusGrabManager: count desync detected (" + _activeCount + " vs " + expected + "), correcting.");
+            _activeCount = expected;
+        }
     }
 
     // Clear the most recent (top) grab — typically called by a backdrop MouseArea
@@ -50,5 +64,14 @@ Singleton {
         if (callback) {
             Qt.callLater(callback);
         }
+    }
+
+    // Periodic safety net: recover from orphan grabs left by destroyed
+    // components that missed their destruction handler.
+    Timer {
+        interval: 5000
+        repeat: true
+        running: true
+        onTriggered: root.sanityCheck()
     }
 }

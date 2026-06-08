@@ -24,8 +24,9 @@ Item {
     }
 
     Component.onDestruction: {
-        if (active) {
-            FocusGrabManager.releaseGrab(_grabId);
-        }
+        // Always release — during destruction the active binding has already
+        // broken and reverted to false, so checking active here would skip
+        // the release and leave a permanent orphan grab in FocusGrabManager.
+        FocusGrabManager.releaseGrab(_grabId);
     }
 }

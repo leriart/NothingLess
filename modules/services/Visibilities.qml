@@ -136,13 +136,18 @@ Singleton {
     }
 
     function setActiveModule(moduleName) {
+        // Always clear all modules first — even if we don't know which
+        // screen is focused (e.g. during tool transitions where Exclusive
+        // keyboard focus temporarily makes focusedMonitor null).
+        clearAll();
+
         const focusedMonitor = AxctlService.focusedMonitor;
-        if (!focusedMonitor)
+        if (!focusedMonitor) {
+            currentActiveModule = "";
             return;
+        }
 
         const focusedScreenName = focusedMonitor.name;
-
-        clearAll();
 
         if (moduleName) {
             currentActiveModule = moduleName;

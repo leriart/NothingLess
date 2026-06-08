@@ -49,7 +49,16 @@ PanelWindow {
     property bool _wallpaperDirInitialized: false
     property string currentMatugenScheme: wallpaperConfig.adapter.matugenScheme
     property var perScreenWallpapers: wallpaperConfig.adapter.perScreenWallpapers || {}
-    property string effectiveWallpaper: perScreenWallpapers[currentScreenName] || currentWallpaper
+    property string effectiveWallpaper: {
+        var perScreen = perScreenWallpapers[currentScreenName];
+        if (perScreen && wallpaperPaths.indexOf(perScreen) !== -1) {
+            return perScreen;
+        }
+        if (perScreen && wallpaperPaths.indexOf(perScreen) === -1) {
+            console.warn("Per-screen wallpaper not found in current list, falling back:", perScreen);
+        }
+        return currentWallpaper;
+    }
     property string currentScreenName: wallpaper.screen ? wallpaper.screen.name : ""
     property alias tintEnabled: wallpaperAdapter.tintEnabled
     property alias interpolationEnabled: wallpaperAdapter.interpolationEnabled
@@ -947,6 +956,10 @@ PanelWindow {
                 mipmap: true
                 visible: true
 
+                Component.onCompleted: {
+                    console.log("rawImage source URL:", source);
+                }
+
                 // Layer effect for palette tinting
                 layer.enabled: staticImageRoot.tint && wallpaper.effectivePaletteSize > 0
                 layer.effect: PaletteShaderEffect {
@@ -963,7 +976,12 @@ PanelWindow {
 
                 onStatusChanged: {
                     if (status === Image.Ready) {
-                        console.log("rawImage ready");
+                        console.log("rawImage ready:", source);
+                    } else if (status === Image.Error) {
+                        console.error("❌ rawImage FAILED to load:", source,
+                                      "| naturalSize:", paintedWidth, "x", paintedHeight);
+                    } else if (status === Image.Loading) {
+                        console.log("rawImage loading:", source);
                     }
                 }
             }
@@ -1452,6 +1470,12 @@ PanelWindow {
                         transitionAnimation.restart();
                     }
                     wallImageContainer.previousSource = wallImageContainer.source;
+                }
+
+                onStatusChanged: {
+                    if (status === Loader.Error) {
+                        console.error("❌ wallImageLoader FAILED for source:", wallImageContainer.source);
+                    }
                 }
 
                 // Bind sourceFile directly to wallImageContainer.source

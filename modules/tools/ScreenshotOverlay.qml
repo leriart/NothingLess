@@ -35,6 +35,12 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
+    // Restrict input to the actual content area so we never accidentally
+    // capture clicks outside the preview region.
+    mask: Region {
+        item: mainRow
+    }
+
     property Process copyOverlayProcess: Process {
         id: copyOverlayProcess
         command: ["bash", "-c", "cat \"" + root.imagePath + "\" | wl-copy --type image/png"]
@@ -52,13 +58,9 @@ PanelWindow {
         onTriggered: root.imagePath = ""
     }
 
-    // MouseArea to detect hover and prevent auto-hide
-    MouseArea {
+    // HoverHandler to detect hover without capturing any clicks
+    HoverHandler {
         id: mouseAreaHover
-        anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.NoButton // Pass clicks through
-        propagateComposedEvents: true
     }
 
     // Listen for the saved signal from Screenshot service
