@@ -44,14 +44,9 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     exclusionMode: ExclusionMode.Ignore
 
-    // Full-screen input mask: only active for FocusGrab-managed popups
-    // (BarPopup dropdowns, context menus, screenshot/recording overlays)
-    // and the AI sidebar.
-    //
-    // NOT triggered by notch menus (launcher/dashboard/powermenu/tools)
-    // because those are contained within the notch area — they should not
-    // block clicks on real windows behind the shell.
-    readonly property bool needsFullScreenInput: FocusGrabManager.hasActiveGrab || (assistantSidebar.active && assistantSidebar.wantsFocus)
+    // Full-screen input mask: active for notch menus (click-outside-to-dismiss),
+    // FocusGrab-managed popups, and the AI sidebar.
+    readonly property bool needsFullScreenInput: notchContent.screenNotchOpen || FocusGrabManager.hasActiveGrab || (assistantSidebar.active && assistantSidebar.wantsFocus)
 
     readonly property bool barEnabled: {
         if (!Config.barReady) return false;
@@ -295,10 +290,25 @@ PanelWindow {
         enabled: unifiedPanel.needsFullScreenInput
         propagateComposedEvents: true
 
-        onClicked: {
-            // Force-clear everything that could be blocking the screen
-            FocusGrabManager.clearTopGrab();
-            Visibilities.setActiveModule("");
+        onClicked: mouse => {
+            // If clicking inside the notch content area, let the notch
+            // handle it (search, select, etc.) — don't dismiss.
+            if (notchContent.screenNotchOpen) {
+                var notchItem = notchContent.notchHitbox;
+                if (notchItem) {
+                    var localPos = mapToItem(notchItem, mouse.x, mouse.y);
+                    if (localPos.x >= 0 && localPos.x <= notchItem.width &&
+                        localPos.y >= 0 && localPos.y <= notchItem.height) {
+                        mouse.accepted = false;
+                        return;
+                    }
+                }
+                // Click outside notch → dismiss the notch menu
+                Visibilities.setActiveModule("");
+            }
+
+            // Clear any remaining grabs
+            FocusGrabManager.clearAllGrabs();
             if (assistantSidebar.active && assistantSidebar.wantsFocus) {
                 assistantSidebar.wantsFocus = false;
             }
@@ -329,10 +339,8 @@ PanelWindow {
             // the grab is almost certainly orphaned — wipe it.
             if (FocusGrabManager.hasActiveGrab) {
                 if (!unifiedPanel.notchOpen && !GlobalStates.screenshotToolVisible && !GlobalStates.screenRecordToolVisible && !GlobalStates.settingsWindowVisible && !GlobalStates.mirrorWindowVisible && !GlobalStates.assistantVisible) {
-                    console.warn("UnifiedShellPanel: safety net triggered — clearing orphaned grabs.");
-                    while (FocusGrabManager.hasActiveGrab) {
-                        FocusGrabManager.clearTopGrab();
-                    }
+                    console.warn("UnifiedShellPanel: safety net — clearing orphaned grabs");
+                    FocusGrabManager.clearAllGrabs();
                 }
             }
 

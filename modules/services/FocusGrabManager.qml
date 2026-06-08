@@ -66,12 +66,38 @@ Singleton {
         }
     }
 
-    // Periodic safety net: recover from orphan grabs left by destroyed
-    // components that missed their destruction handler.
+    // Nuclear option: clear ALL grabs unconditionally.
+    // Used by the backdrop when the user explicitly clicks the transparent
+    // overlay to unblock the screen, and by the periodic safety timer to
+    // clean up orphaned grabs from destroyed components.
+    function clearAllGrabs() {
+        if (_grabOrder.length === 0) return;
+        // Save callbacks before clearing so we can invoke them
+        const savedGrabs = {};
+        Object.keys(_grabs).forEach(k => { savedGrabs[k] = _grabs[k]; });
+        const savedOrder = [..._grabOrder];
+        _grabs = {};
+        _grabOrder = [];
+        _activeCount = 0;
+        // Notify components that their grabs were force-cleared
+        for (let i = savedOrder.length - 1; i >= 0; i--) {
+            const cb = savedGrabs[savedOrder[i]];
+            if (cb) Qt.callLater(cb);
+        }
+    }
+
+    // Periodic safety net: clear orphaned grabs from destroyed components
+    // that missed their destruction handler.
     Timer {
         interval: 5000
         repeat: true
         running: true
-        onTriggered: root.sanityCheck()
+        onTriggered: {
+            root.sanityCheck();
+            if (Object.keys(_grabs).length > 0 && _activeCount === 0) {
+                console.warn("FocusGrabManager: orphan grabs detected, force-clearing");
+                root.clearAllGrabs();
+            }
+        }
     }
 }
