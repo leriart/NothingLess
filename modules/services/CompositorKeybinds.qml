@@ -69,7 +69,8 @@ QtObject {
                 screenrecord: cloneKeybind(nothingless.system.screenrecord),
                 lens: cloneKeybind(nothingless.system.lens),
                 reload: nothingless.system.reload ? cloneKeybind(nothingless.system.reload) : null,
-                quit: nothingless.system.quit ? cloneKeybind(nothingless.system.quit) : null
+                quit: nothingless.system.quit ? cloneKeybind(nothingless.system.quit) : null,
+                "toggle-metrics": nothingless.system["toggle-metrics"] ? cloneKeybind(nothingless.system["toggle-metrics"]) : null
             }
         };
 
@@ -186,6 +187,7 @@ QtObject {
                 payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system.lens));
                 if (previousNothinglessBinds.system.reload) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system.reload));
                 if (previousNothinglessBinds.system.quit) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system.quit));
+                if (previousNothinglessBinds.system["toggle-metrics"]) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system["toggle-metrics"]));
             }
 
             // Unbind previous custom keybinds

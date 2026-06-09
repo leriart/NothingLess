@@ -275,7 +275,11 @@ run)
 	if [ "$CMD" = "toggle-metrics" ]; then
 		# Debounce: prevent double-fire from Hyprland key repeat
 		LOCK_FILE="/tmp/nothingless_toggle_metrics.lock"
-		# Atomic lock via mkdir; if it already exists, check debounce timestamp
+		# Atomic lock via mkdir; if it already exists, check debounce timestamp.
+		# Clean up stale regular file left over from the old file-based lock.
+		if [ -f "$LOCK_FILE" ] && [ ! -d "$LOCK_FILE" ]; then
+			rm -f "$LOCK_FILE"
+		fi
 		if ! mkdir "$LOCK_FILE" 2>/dev/null; then
 			last_run=$(cat "$LOCK_FILE/timestamp" 2>/dev/null || echo 0)
 			now=$(date +%s%N)
