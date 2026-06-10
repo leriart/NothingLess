@@ -6,7 +6,8 @@ import qs.config
 
 StyledRect {
     id: root
-    variant: "pane"
+    variant: "common"
+    enableBorder: true
 
     property alias text: textField.text
     property alias placeholderText: textField.placeholderText
@@ -47,8 +48,8 @@ StyledRect {
         textField.text = "";
     }
 
-    implicitHeight: 48
-    radius: Styling.radius(4)
+    implicitHeight: 46
+    radius: Styling.radius(6)
 
     RowLayout {
         anchors.fill: parent
@@ -85,9 +86,10 @@ StyledRect {
         TextField {
             id: textField
             Layout.fillWidth: true
-            placeholderTextColor: Colors.outline
+            placeholderTextColor: Qt.rgba(Colors.overBackground.r, Colors.overBackground.g, Colors.overBackground.b, 0.35)
             font.family: Config.theme.font
             font.pixelSize: Config.theme.fontSize
+            font.letterSpacing: 0.1
             color: Colors.overBackground
             background: null
             echoMode: root.passwordMode ? TextInput.Password : TextInput.Normal

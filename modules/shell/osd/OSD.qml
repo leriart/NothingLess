@@ -43,9 +43,9 @@ PanelWindow {
             variant: "popup"
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
-            implicitWidth: 220
-            implicitHeight: 52
-            radius: Styling.radius(16)
+            implicitWidth: 240
+            implicitHeight: 56
+            radius: Styling.radius(12)
 
             opacity: GlobalStates.osdVisible ? 1 : 0
             scale: GlobalStates.osdVisible ? 1 : 0.92
@@ -123,17 +123,18 @@ PanelWindow {
                         Text {
                             text: {
                                 if (GlobalStates.osdIndicator === "volume")
-                                    return "Volume";
+                                    return "VOLUME";
                                 if (GlobalStates.osdIndicator === "mic")
-                                    return "Microphone";
+                                    return "MICROPHONE";
                                 if (GlobalStates.osdIndicator === "brightness")
-                                    return "Brightness";
+                                    return "BRIGHTNESS";
                                 return "";
                             }
-                            font.family: Config.theme.font
-                            font.pixelSize: 15
-                            font.bold: false
-                            color: Colors.overBackground
+                            font.family: Config.theme.monoFont
+                            font.pixelSize: 10
+                            font.bold: true
+                            font.letterSpacing: 3
+                            color: Qt.rgba(Colors.overBackground.r, Colors.overBackground.g, Colors.overBackground.b, 0.55)
                             Layout.alignment: Qt.AlignBottom
                         }
 
@@ -143,9 +144,10 @@ PanelWindow {
 
                         Text {
                             text: Math.round(root.osdValue * 100)
-                            font.family: Config.theme.font
-                            font.pixelSize: 15
-                            font.bold: false
+                            font.family: Config.theme.monoFont
+                            font.pixelSize: 11
+                            font.bold: true
+                            font.letterSpacing: 0.5
                             color: Colors.overBackground
                             Layout.alignment: Qt.AlignBottom
                         }

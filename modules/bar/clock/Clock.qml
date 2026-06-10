@@ -76,10 +76,11 @@ Item {
             Text {
                 id: dayDisplay
                 text: root.weatherAvailable ? WeatherService.weatherSymbol : root.currentDayAbbrev
-                color: root.popupOpen ? buttonBg.item : Colors.overBackground
+                color: root.popupOpen ? buttonBg.item : Colors.outline
                 font.pixelSize: root.weatherAvailable ? 16 : Config.theme.fontSize
                 font.family: root.weatherAvailable ? Config.theme.font : Config.theme.font
                 font.bold: !root.weatherAvailable
+                font.letterSpacing: root.weatherAvailable ? 0 : 2
             }
 
             Separator {
@@ -94,6 +95,7 @@ Item {
                 font.pixelSize: Config.theme.fontSize
                 font.family: Config.theme.font
                 font.bold: true
+                font.letterSpacing: 1
             }
         }
 
@@ -107,10 +109,11 @@ Item {
             Text {
                 id: dayDisplayV
                 text: root.weatherAvailable ? WeatherService.weatherSymbol : root.currentDayAbbrev
-                color: root.popupOpen ? buttonBg.item : Colors.overBackground
+                color: root.popupOpen ? buttonBg.item : Colors.outline
                 font.pixelSize: root.weatherAvailable ? 16 : Config.theme.fontSize
                 font.family: Config.theme.font
                 font.bold: !root.weatherAvailable
+                font.letterSpacing: root.weatherAvailable ? 0 : 2
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.NoWrap
                 Layout.alignment: Qt.AlignHCenter
@@ -129,6 +132,7 @@ Item {
                 font.pixelSize: Config.theme.fontSize
                 font.family: Config.theme.font
                 font.bold: true
+                font.letterSpacing: 1
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.NoWrap
                 Layout.alignment: Qt.AlignHCenter
@@ -141,6 +145,7 @@ Item {
                 font.pixelSize: Config.theme.fontSize
                 font.family: Config.theme.font
                 font.bold: true
+                font.letterSpacing: 1
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.NoWrap
                 Layout.alignment: Qt.AlignHCenter

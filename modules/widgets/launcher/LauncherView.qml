@@ -761,8 +761,12 @@ Rectangle {
                         }
                         return baseHeight;
                     }
-                    color: "transparent"
-                    radius: 16
+                    color: {
+                        if (isExpanded) return Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.08);
+                        if (appLauncher.selectedIndex === index) return Qt.rgba(1, 1, 1, 0.04);
+                        return "transparent";
+                    }
+                    radius: 10
 
                     Behavior on height {
                         enabled: Anim.animationsEnabled
@@ -816,6 +820,15 @@ Rectangle {
                                     appLauncher.keyboardNavigation = false;
                                 }
                             }
+                        }
+                    }
+
+                    Behavior on color {
+                        enabled: Anim.animationsEnabled
+                        ColorAnimation {
+                            duration: Anim.standardSmall
+                            easing.type: Anim.easing("standard").type
+                            easing.bezierCurve: Anim.easing("standard").bezierCurve
                         }
                     }
 

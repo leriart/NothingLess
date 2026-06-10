@@ -338,7 +338,7 @@ PanelWindow {
             // If the reason was a focus grab and no tool/popup is visibly open,
             // the grab is almost certainly orphaned — wipe it.
             if (FocusGrabManager.hasActiveGrab) {
-                if (!unifiedPanel.notchOpen && !GlobalStates.screenshotToolVisible && !GlobalStates.screenRecordToolVisible && !GlobalStates.settingsWindowVisible && !GlobalStates.mirrorWindowVisible && !GlobalStates.assistantVisible) {
+                if (!unifiedPanel.notchOpen && !GlobalStates.screenshotToolVisible && !GlobalStates.screenRecordToolVisible && !GlobalStates.settingsWindowVisible && !GlobalStates.mirrorWindowVisible && !GlobalStates.assistantVisible && !GlobalStates.presetsOpen && !GlobalStates.overviewOpen) {
                     console.warn("UnifiedShellPanel: safety net — clearing orphaned grabs");
                     FocusGrabManager.clearAllGrabs();
                 }

@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
 import Quickshell
 import Quickshell.Services.SystemTray
 import Quickshell.Widgets
@@ -22,42 +21,13 @@ MouseArea {
     implicitWidth: trayItemSize
     implicitHeight: trayItemSize
 
-    // Popup de prueba para verificar clicks
-    Popup {
-        id: testPopup
-        x: popupX; y: popupY
-        width: 200; height: 150
-
-        background: Rectangle {
-            color: Colors.background
-            border.color: Colors.surfaceBright
-            border.width: 2
-            radius: 8
-        }
-
-        Column {
-            anchors.centerIn: parent
-            spacing: 10
-            Text { text: "RIGHT CLICK WORKS!"; color: Colors.overPrimary; font.bold: true }
-            Button {
-                text: "Cerrar"
-                onClicked: testPopup.close()
-            }
-        }
-    }
-
-    property real popupX: 0
-    property real popupY: 0
-
     onClicked: event => {
         switch (event.button) {
         case Qt.LeftButton:
             item.activate();
             break;
         case Qt.RightButton:
-            popupX = event.x;
-            popupY = event.y;
-            testPopup.open();
+            item.secondaryActivate();
             break;
         }
         event.accepted = true;
@@ -79,17 +49,16 @@ MouseArea {
     }
 
     Tinted {
-        sourceItem: trayIcon
         anchors.fill: trayIcon
-    }
-
-    StyledToolTip {
-        show: root.isHovered
-        tooltipText: root.item.tooltipTitle || root.item.title
-        desciription: root.item.tooltipDescription || ""
+        sourceItem: trayIcon
     }
 
     HoverHandler {
         onHoveredChanged: root.isHovered = hovered
+    }
+
+    StyledToolTip {
+        visible: root.isHovered
+        tooltipText: root.item.tooltipTitle || root.item.id || ""
     }
 }

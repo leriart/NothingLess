@@ -306,29 +306,29 @@ Item {
     }
 
     // Persistent views to avoid creation lag when opening the notch
+    // Pre-warmed persistent loaders: active at boot to eliminate first-open lag.
+    // Components remain invisible until pushed onto the notch StackView.
     Loader {
         id: persistentLauncherViewLoader
-        active: false
+        active: true
         sourceComponent: Component { LauncherView { visible: false } }
     }
 
     Loader {
         id: persistentDashboardViewLoader
-        active: false
+        active: true
         sourceComponent: Component { DashboardView { visible: false } }
     }
 
-    // Persistent power menu view
     Loader {
         id: persistentPowerMenuViewLoader
-        active: false
+        active: true
         sourceComponent: Component { PowerMenuView { visible: false } }
     }
 
-    // Persistent tools menu view
     Loader {
         id: persistentToolsMenuViewLoader
-        active: false
+        active: true
         sourceComponent: Component { ToolsMenuView { visible: false } }
     }
 

@@ -1,21 +1,22 @@
 {
   "oledMode": false,
   "lightMode": false,
-  "roundness": 16,
-  "font": "Ndot",
+  "roundness": 14,
+  "font": "Inter",
   "fontSize": 13,
-  "monoFont": "Ndot",
-  "monoFontSize": 13,
-  "tintIcons": true,
+  "monoFont": "JetBrains Mono",
+  "monoFontSize": 12,
+  "tintIcons": false,
   "enableCorners": true,
-  "animDuration": 300,
+  "animDuration": 250,
+  "dynamicColor": false,
+  "animStyle": "m3",
   "animScale": 1.0,
-  "dynamicColor": true,
-  "shadowOpacity": 0.35,
+  "shadowOpacity": 0.2,
   "shadowColor": "shadow",
   "shadowXOffset": 0,
-  "shadowYOffset": 4,
-  "shadowBlur": 3,
+  "shadowYOffset": 2,
+  "shadowBlur": 2,
   "srBg": {
     "label": "Background",
     "gradient": [
@@ -100,7 +101,7 @@
     "gradient": [
       [
         "surfaceDim",
-        0.85
+        0.92
       ]
     ],
     "gradientType": "linear",
@@ -115,10 +116,10 @@
     "halftoneBackgroundColor": "surfaceDim",
     "border": [
       "surfaceVariant",
-      0
+      1
     ],
     "itemColor": "overBackground",
-    "opacity": 0.85
+    "opacity": 0.92
   },
   "srPane": {
     "label": "Pane",

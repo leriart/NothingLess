@@ -5,7 +5,7 @@
   "workspaceSpacing": 8,
   "windowSpacing": 4,
   "animEnabled": true,
-  "animDuration": 300,
+  "animDuration": 250,
   "showActiveIndicator": true,
   "searchEnabled": true,
   "dragEnabled": true,

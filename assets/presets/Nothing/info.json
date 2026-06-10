@@ -2,6 +2,6 @@
   "name": "Nothing",
   "author": "Leriart",
   "authorUrl": "https://github.com/Leriart",
-  "description": "Nothing Phone (3a) aesthetic × Material 3. Dot-matrix typography, glyph-style bar, dynamic color from wallpaper, M3 motion system, and translucent M3 surfaces. The flagship NothingLess experience.",
-  "version": "2.0.0"
+  "description": "Nothing Phone aesthetic × Nothing OS Desktop. Unified deep-black palette (#0B0B0C), pure red accent (#FF2D2D), Inter + JetBrains Mono typography, dot-matrix clock, floating bar with subtle borders, snappy M3 motion, and Nothing OS-style launcher rows. The definitive NothingLess experience.",
+  "version": "3.0.0"
 }

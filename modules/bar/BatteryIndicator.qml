@@ -23,20 +23,17 @@ Item {
     // Popup visibility state
     property bool popupOpen: batteryPopup.isOpen
 
-    // Function to interpolate color between green and red based on battery percentage
+    // Nothing OS style: monochrome + red accent only for low/critical
     function getBatteryColor() {
         if (!Battery.available)
             return Colors.overBackground;
 
         const pct = Battery.percentage;
-        if (pct <= 15)
-            return Colors.red;
-        if (pct >= 85)
-            return Colors.green;
-
-        // Linear interpolation between red (15%) and green (85%)
-        const ratio = (pct - 15) / (85 - 15);
-        return Qt.rgba(Colors.red.r + (Colors.green.r - Colors.red.r) * ratio, Colors.red.g + (Colors.green.g - Colors.red.g) * ratio, Colors.red.b + (Colors.green.b - Colors.red.b) * ratio, 1);
+        if (pct <= 20)
+            return Colors.primary;
+        if (pct <= 40)
+            return Colors.error;
+        return Colors.outline;
     }
 
     Layout.preferredWidth: 36

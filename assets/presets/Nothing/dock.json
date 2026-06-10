@@ -1,11 +1,11 @@
 {
   "enabled": true,
-  "theme": "default",
+  "theme": "floating",
   "position": "bottom",
   "height": 48,
   "iconSize": 24,
   "spacing": 4,
-  "margin": 4,
+  "margin": 8,
   "hoverRegionHeight": 8,
   "pinnedOnStartup": false,
   "hoverToReveal": true,

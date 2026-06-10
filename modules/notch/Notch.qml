@@ -276,22 +276,35 @@ Item {
 
         property int defaultRadius: Config.roundness > 0 ? (screenNotchOpen || hasActiveNotifications ? Config.roundness + 20 : Config.roundness + 4) : 0
         property int islandRadius: Config.roundness > 0 ? (screenNotchOpen || hasActiveNotifications ? Config.roundness + 20 : Config.roundness + 4) : 0
+        property int smallRadius: Config.roundness > 0 ? Config.roundness + 4 : 0
 
-        // Helper function to check if we're actually showing the DefaultView
-        function isActuallyShowingDefault() {
+        // Helper: are we showing the DefaultView (stack depth === 1)?
+        function isActuallyShowingDefault(): bool {
             return stackViewInternal.currentItem && stackViewInternal.depth === 1;
         }
 
-        property int topLeftRadius: Config.notchTheme === "default" ? (notchContainer.position === "bottom" ? defaultRadius : 0) : (Config.notchTheme === "island" && hasActiveNotifications && isActuallyShowingDefault() && notchContainer.position === "top" ? (Config.roundness > 0 ? Config.roundness + 4 : 0)  // Small radius only when in DefaultView with notifications at top
-            : islandRadius)  // Otherwise use dynamic islandRadius
-        property int topRightRadius: Config.notchTheme === "default" ? (notchContainer.position === "bottom" ? defaultRadius : 0) : (Config.notchTheme === "island" && hasActiveNotifications && isActuallyShowingDefault() && notchContainer.position === "top" ? (Config.roundness > 0 ? Config.roundness + 4 : 0)  // Small radius only when in DefaultView with notifications at top
-            : islandRadius)  // Otherwise use dynamic islandRadius
-        property int bottomLeftRadius: Config.notchTheme === "island" ? (hasActiveNotifications && isActuallyShowingDefault() && notchContainer.position === "bottom" ? (Config.roundness > 0 ? Config.roundness + 4 : 0)  // Small radius only when in DefaultView with notifications at bottom
-            : islandRadius)  // Otherwise use dynamic islandRadius
-        : (notchContainer.position === "top" ? defaultRadius : 0)
-        property int bottomRightRadius: Config.notchTheme === "island" ? (hasActiveNotifications && isActuallyShowingDefault() && notchContainer.position === "bottom" ? (Config.roundness > 0 ? Config.roundness + 4 : 0)  // Small radius only when in DefaultView with notifications at bottom
-            : islandRadius)  // Otherwise use dynamic islandRadius
-        : (notchContainer.position === "top" ? defaultRadius : 0)
+        // Single source of truth for corner radii.
+        //  - default theme: only the edge AWAY from screen gets radius.
+        //  - island theme: all corners normally share islandRadius;
+        //    screen-edge corners shrink to smallRadius when notifications
+        //    are visible over the DefaultView.
+        function computeCornerRadius(isTopEdge: bool): int {
+            if (Config.notchTheme === "default") {
+                const awayFromScreen = (position === "top") ? !isTopEdge : isTopEdge;
+                return awayFromScreen ? defaultRadius : 0;
+            }
+            // island theme
+            const isScreenEdge = (position === "top" && isTopEdge) || (position === "bottom" && !isTopEdge);
+            if (isScreenEdge && hasActiveNotifications && isActuallyShowingDefault()) {
+                return smallRadius;
+            }
+            return islandRadius;
+        }
+
+        property int topLeftRadius: computeCornerRadius(true)
+        property int topRightRadius: computeCornerRadius(true)
+        property int bottomLeftRadius: computeCornerRadius(false)
+        property int bottomRightRadius: computeCornerRadius(false)
 
         // Fondo del notch solo para theme "island"
         StyledRect {

@@ -1,7 +1,7 @@
 {
   "position": "top",
-  "launcherIconTint": true,
-  "launcherIconFullTint": true,
+  "launcherIconTint": false,
+  "launcherIconFullTint": false,
   "launcherIconSize": 22,
   "pillStyle": "default",
   "enableFirefoxPlayer": true,
@@ -9,7 +9,7 @@
   "barColor": [
     [
       "surfaceDim",
-      0.85
+      0.92
     ]
   ],
   "frameEnabled": false,
@@ -18,12 +18,12 @@
   "showPinButton": false,
   "availableOnFullscreen": true,
   "use12hFormat": true,
-  "containBar": false,
+  "containBar": true,
   "keepBarShadow": false,
-  "keepBarBorder": false,
+  "keepBarBorder": true,
   "iconSpacing": 6,
   "widgetSpacing": 4,
-  "barPadding": 4,
+  "barPadding": 6,
   "clockFormat": "hh:mm",
   "showDate": false,
   "showBattery": true,

@@ -432,7 +432,6 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        console.log("Workspace click:", button.workspaceValue);
                         AxctlService.dispatch("workspace " + String(button.workspaceValue));
                     }
                 }
