@@ -402,15 +402,30 @@ Item {
                 }
             }
 
-            PositionSlider {
-                id: positionSlider
+            Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 4
                 Layout.leftMargin: compactPlayer.notchHovered ? 0 : 8
                 Layout.rightMargin: compactPlayer.notchHovered ? 0 : 8
-                player: compactPlayer.player
                 visible: compactPlayer.notchHovered
-                hasArtwork: compactPlayer.hasArtwork || compactPlayer.wallpaperPath !== ""
+
+                PositionSlider {
+                    id: positionSlider
+                    anchors.fill: parent
+                    player: compactPlayer.player
+                    hasArtwork: compactPlayer.hasArtwork || compactPlayer.wallpaperPath !== ""
+                }
+
+                // Brainx: Cava bars overlaid on the progress bar
+                CavaVisualizer {
+                    anchors.fill: parent
+                    barCount: 32; barWidth: 1; maxHeight: 4; spacing: 1
+                    fillWidth: true
+                    visible: compactPlayer.isPlaying
+                    demoMode: true
+                    accentColor: Styling.srItem("overprimary")
+                    opacity: 0.7
+                }
             }
 
             Text {

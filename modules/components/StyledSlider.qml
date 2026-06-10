@@ -175,13 +175,15 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 height: hSliderItem.height * root.heightMultiplier
                 z: 1
-                sourceComponent: CarouselProgress {
+                sourceComponent: CavaVisualizer {
                     anchors.fill: parent
-                    frequency: root.wavyFrequency
-                    color: root.progressColor
-                    amplitudeMultiplier: root.wavyAmplitude
-                    lineWidth: root.thickness
-                    fullLength: hSliderItem.width
+                    barCount: 64
+                    barWidth: 1
+                    maxHeight: parent.height
+                    spacing: 1
+                    fillWidth: true
+                    demoMode: true
+                    accentColor: root.progressColor
                     active: root.playing
                 }
             }
@@ -275,21 +277,17 @@ Item {
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
                 width: parent.width * heightMultiplier
-                sourceComponent: Item {
+                sourceComponent: CavaVisualizer {
                     anchors.fill: parent
-                    CarouselProgress {
-                        anchors.centerIn: parent
-                        rotation: -90
-                        frequency: root.wavyFrequency
-                        color: root.progressColor
-                        amplitudeMultiplier: root.wavyAmplitude
-                        height: parent.width
-                        width: parent.height
-                        lineWidth: root.thickness
-                        fullLength: vSliderItem.height
-                        z: 1
-                        active: root.playing
-                    }
+                    barCount: 64
+                    barWidth: 1
+                    maxHeight: parent.width
+                    spacing: 1
+                    fillWidth: true
+                    demoMode: true
+                    accentColor: root.progressColor
+                    active: root.playing
+                    rotation: -90
                 }
             }
             Rectangle {

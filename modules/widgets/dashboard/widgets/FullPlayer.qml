@@ -205,8 +205,8 @@ StyledRect {
                 accentColor: Colors.primary
                 trackColor: Colors.outline
                 lineWidth: 6
-                wavy: false
-                waveAmplitude: player.isPlaying ? 3 : 0
+                wavy: player.isPlaying
+                waveAmplitude: player.isPlaying ? 4 : 0
                 waveFrequency: 24
                 handleSpacing: 20
 
@@ -522,6 +522,20 @@ StyledRect {
             font.pixelSize: Config.theme.fontSize - 2
             font.family: Config.theme.font
             opacity: 0.5
+        }
+
+        // Brainx: Cava audio visualizer — full width
+        CavaVisualizer {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 20
+            barCount: 32
+            barWidth: 1
+            maxHeight: 20
+            spacing: 1
+            fillWidth: true
+            visible: player.hasActivePlayer
+            demoMode: true
+            accentColor: Colors.primary
         }
     }
 

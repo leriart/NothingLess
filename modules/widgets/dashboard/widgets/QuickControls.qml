@@ -125,6 +125,16 @@ StyledRect {
                     tooltipText: GameModeService.toggled ? "Game Mode: On" : "Game Mode: Off"
                     onClicked: GameModeService.toggle()
                 }
+
+                // Brainx: Focus Mode toggle
+                ControlButton {
+                    Layout.preferredWidth: 48
+                    Layout.preferredHeight: 48
+                    iconName: Icons.aperture
+                    isActive: FocusModeService.enabled
+                    tooltipText: FocusModeService.enabled ? "Focus Mode: On" : "Focus Mode: Off"
+                    onClicked: FocusModeService.toggle()
+                }
             }
         }
         

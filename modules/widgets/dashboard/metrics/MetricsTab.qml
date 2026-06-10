@@ -21,6 +21,7 @@ Rectangle {
     property string osIcon: ""
     property var linuxLogos: null
     property real chartZoom: 1.0
+    property bool speedometerView: true  // Brainx: toggle between speedometers and list
 
     // Adjust history points based on zoom and repaint chart
     onChartZoomChanged: {
@@ -360,12 +361,66 @@ Rectangle {
                     onVisibleChanged: { if (visible) metricsConfig.loadFromState() }
                 }
 
+                // Brainx: Speedometer gauges row with toggle
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 16
+                    Layout.rightMargin: 16
+                    visible: !root.configMode
+                    spacing: 4
+
+                    // Toggle button
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Rectangle {
+                            Layout.preferredWidth: 28; Layout.preferredHeight: 28
+                            radius: Styling.radius(0)
+                            color: root.speedometerView ? Colors.primary : Colors.surfaceContainerHigh
+                            border.color: Colors.outlineVariant; border.width: 1
+                            Text {
+                                anchors.centerIn: parent
+                                text: Icons.heartbeat
+                                font.family: Icons.font
+                                font.pixelSize: 14
+                                color: root.speedometerView ? Colors.overPrimary : Colors.overBackground
+                            }
+                            MouseArea {
+                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                onClicked: root.speedometerView = true
+                            }
+                        }
+                        Rectangle {
+                            Layout.preferredWidth: 28; Layout.preferredHeight: 28
+                            radius: Styling.radius(0)
+                            color: !root.speedometerView ? Colors.primary : Colors.surfaceContainerHigh
+                            border.color: Colors.outlineVariant; border.width: 1
+                            Text {
+                                anchors.centerIn: parent
+                                text: Icons.list
+                                font.family: Icons.font
+                                font.pixelSize: 14
+                                color: !root.speedometerView ? Colors.overPrimary : Colors.overBackground
+                            }
+                            MouseArea {
+                                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                onClicked: root.speedometerView = false
+                            }
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
+
+                    BrainxStatsRow {
+                        Layout.fillWidth: true
+                        visible: root.speedometerView
+                    }
+                }
+
                 Flickable {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.leftMargin: 16
                     Layout.rightMargin: 16
-                    visible: !root.configMode
+                    visible: !root.configMode && !root.speedometerView
                     contentHeight: resourcesColumn.height
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
