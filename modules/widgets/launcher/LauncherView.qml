@@ -43,6 +43,32 @@ Rectangle {
         }
     }
 
+    // Reload apps when DesktopEntries finishes loading
+    Connections {
+        target: AppSearch
+        function onListChanged() {
+            if (appLauncher.visible) {
+                appLauncher.updateFilteredApps();
+            }
+        }
+    }
+
+    // Reload apps when launcher becomes visible (e.g. opening on another screen)
+    Connections {
+        target: root
+        function onVisibleChanged() {
+            if (root.visible && currentTab === 0) {
+                appLauncher.updateFilteredApps();
+            }
+        }
+    }
+
+    function refreshApps() {
+        if (currentTab === 0) {
+            appLauncher.updateFilteredApps();
+        }
+    }
+
     // Force focus on start and tab change
     Timer {
         id: focusRetryTimer

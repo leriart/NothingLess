@@ -17,6 +17,7 @@ ToggleButton {
             Visibilities.setActiveModule("");
         } else {
             GlobalStates.clearLauncherState();
+            GlobalStates.widgetsTabCurrentIndex = 0;
             Visibilities.setActiveModule("launcher");
         }
     }

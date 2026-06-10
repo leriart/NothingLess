@@ -34,7 +34,8 @@ Item {
             if (Visibilities.currentActiveModule === "dashboard") {
                 Visibilities.setActiveModule("overview");
             } else if (Visibilities.currentActiveModule === "overview") {
-                GlobalStates.launcherCurrentTab = 0;
+                GlobalStates.clearLauncherState();
+                GlobalStates.widgetsTabCurrentIndex = 0;
                 Visibilities.setActiveModule("launcher");
             } else if (Visibilities.currentActiveModule === "launcher") {
                 Visibilities.setActiveModule("");

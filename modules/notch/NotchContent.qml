@@ -821,6 +821,7 @@ Item {
                 persistentLauncherViewLoader.active = true;
                 Qt.callLater(() => {
                     if (persistentLauncherViewLoader.item) {
+                        persistentLauncherViewLoader.item.refreshApps();
                         notchContainer.stackView.push(persistentLauncherViewLoader.item);
                         Qt.callLater(() => {
                             if (notchContainer.stackView.currentItem) {
