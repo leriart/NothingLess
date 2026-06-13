@@ -23,6 +23,17 @@ QtObject {
         applyTimer.restart();
     }
 
+    // Force an immediate, thorough reapply: resets all stored previous-bind
+    // state and runs applyKeybindsInternal() NOW (no debounce). This cleans
+    // up any orphaned binds that may be lingering in the compositor.
+    function forceReloadBinds() {
+        applyTimer.stop();
+        hasPreviousBinds = false;
+        previousCustomBinds = [];
+        previousNothinglessBinds = ({});
+        applyKeybindsInternal();
+    }
+
     // Helper function to check if an action is compatible with the current layout
     function isActionCompatibleWithLayout(action) {
         // If no layouts specified or empty array, action works in all layouts

@@ -891,6 +891,7 @@ PanelWindow {
             anchors.fill: parent
             property string sourceFile
             property bool tint: wallpaper.tintEnabled
+            signal contentReady()
 
             onSourceFileChanged: console.log("staticImageComponent: sourceFile =", sourceFile)
             onTintChanged: console.log("staticImageComponent: tint =", tint)
@@ -977,6 +978,7 @@ PanelWindow {
                 onStatusChanged: {
                     if (status === Image.Ready) {
                         console.log("rawImage ready:", source);
+                        staticImageRoot.contentReady();
                     } else if (status === Image.Error) {
                         console.error("❌ rawImage FAILED to load:", source,
                                       "| naturalSize:", paintedWidth, "x", paintedHeight);
@@ -1000,6 +1002,7 @@ PanelWindow {
             property bool interpolate: wallpaper.interpolationEnabled
             property int multiplier: wallpaper.interpolationMultiplier
             property real targetInputFps: 24.0
+            signal contentReady()
 
             // Frame control properties
             property real originalFps: 30
@@ -1131,6 +1134,11 @@ PanelWindow {
                 }
 
                 onPlaybackStateChanged: {
+                    // Signal the wallpaper is ready to display (first frame)
+                    if (playbackState === MediaPlayer.PlayingState
+                        || playbackState === MediaPlayer.Loaded) {
+                        videoRoot.contentReady();
+                    }
                     if (playbackState === MediaPlayer.PlayingState && videoRoot.interpolate) {
                         captureTimer.restart()
                         frameAnimation.running = true
@@ -1395,9 +1403,138 @@ PanelWindow {
             }
         }
     }
-    // -------------------------------------------------------------------
-    // Main wallpaper display area
-    // -------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  CROSSFADE WALLPAPER DISPLAY  (two-layer, signal-driven)
+    //
+    //  layerA / layerB alternate. The inactive layer loads the next wallpaper
+    //  hidden (opacity 0). Once the inner media signals contentReady(), a short
+    //  stabilization delay allows the GPU to paint the first frame. Then:
+    //    - Old layer fades out + subtle scale down
+    //    - New layer fades in + gentle zoom (0.97→1.0)
+    //  After the crossfade, the old layer's Loader is deactivated to free GPU.
+    // ═══════════════════════════════════════════════════════════════════════════
+    property int  _activeLayer: 0       // 0 = layerA, 1 = layerB
+    property bool _swapping:    false
+    property string _lastSource: ""
+
+    onEffectiveWallpaperChanged: {
+        if (!wallpaper.effectiveWallpaper) return;
+        if (wallpaper.effectiveWallpaper === wallpaper._lastSource) return;
+        wallpaper._lastSource = wallpaper.effectiveWallpaper;
+        wallpaper._beginSwap();
+    }
+
+    function _beginSwap() {
+        if (_swapping) return;
+        var nextLoader = (_activeLayer === 0) ? layerBLoader : layerALoader;
+        var currLayer  = (_activeLayer === 0) ? layerALayer : layerBLayer;
+        var nextLayer  = (_activeLayer === 0) ? layerBLayer : layerALayer;
+        var currLoader = (_activeLayer === 0) ? layerALoader : layerBLoader;
+        var isInitial  = !currLoader.item || currLoader._wallSource === "";
+
+        // Fast path: same source already loaded in the inactive loader
+        if (!isInitial && nextLoader._wallSource === wallpaper.effectiveWallpaper && nextLoader.item) {
+            _swapping = true;
+            _stabilizeAndFade(currLayer, nextLayer);
+            return;
+        }
+
+        _swapping = true;
+        if (wallpaper.effectiveWallpaper) wallpaper.loadCustomPalette(wallpaper.effectiveWallpaper);
+        nextLoader._wallSource = wallpaper.effectiveWallpaper;
+        nextLoader.active = true;
+
+        _stabilizeTimer._currLayer = currLayer;
+        _stabilizeTimer._nextLayer = nextLayer;
+        _stabilizeTimer._isInitial = isInitial;
+
+        // Safety timeout in case contentReady never fires
+        _readyTimeoutTimer.restart();
+    }
+
+    function _onLayerContentReady() {
+        if (!_swapping) return;
+        _readyTimeoutTimer.stop();
+        _stabilizeTimer.restart();
+    }
+
+    Timer {
+        id: _readyTimeoutTimer
+        interval: 3000
+        onTriggered: {
+            if (_swapping) {
+                console.warn("[Wallpaper] contentReady timeout — forcing crossfade");
+                _stabilizeTimer.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: _stabilizeTimer
+        interval: 80
+        property var _currLayer: null
+        property var _nextLayer: null
+        property bool _isInitial: false
+        onTriggered: _stabilizeAndFade(_currLayer, _nextLayer);
+    }
+
+    function _stabilizeAndFade(currLayer, nextLayer) {
+        if (currLayer) {
+            crossfadeAnim.currLayer = currLayer;
+            crossfadeAnim.nextLayer = nextLayer;
+            nextLayer.scale = 0.97;
+            crossfadeAnim.restart();
+        } else {
+            nextLayer.opacity = 0.0;
+            nextLayer.scale = 1.0;
+            fadeInOnlyAnim.targetLayer = nextLayer;
+            fadeInOnlyAnim.restart();
+        }
+    }
+
+    // ── Full crossfade: fade + subtle zoom reveal ────────────────────────
+    ParallelAnimation {
+        id: crossfadeAnim
+        property var currLayer: null
+        property var nextLayer: null
+
+        // Old layer fades out
+        NumberAnimation {
+            target: crossfadeAnim.currLayer; property: "opacity"
+            to: 0.0; duration: Anim.standardLarge; easing.type: Easing.InOutCubic
+        }
+        // New layer fades in + zooms in
+        ParallelAnimation {
+            NumberAnimation {
+                target: crossfadeAnim.nextLayer; property: "opacity"
+                to: 1.0; duration: Anim.standardLarge; easing.type: Easing.OutCubic
+            }
+            NumberAnimation {
+                target: crossfadeAnim.nextLayer; property: "scale"
+                to: 1.0; duration: Anim.standardLarge + 40; easing.type: Easing.OutBack
+            }
+        }
+        onStopped: _finishSwap();
+    }
+
+    // ── Initial load: fade in only ───────────────────────────────────────
+    NumberAnimation {
+        id: fadeInOnlyAnim
+        property var targetLayer: null
+        target: fadeInOnlyAnim.targetLayer; property: "opacity"
+        to: 1.0; duration: Anim.standardNormal; easing.type: Easing.OutCubic
+        onStopped: _finishSwap();
+    }
+
+    function _finishSwap() {
+        _activeLayer = (_activeLayer === 0) ? 1 : 0;
+        var oldLoader = (_activeLayer === 0) ? layerBLoader : layerALoader;
+        oldLoader.active = false;
+        oldLoader._wallSource = "";
+        _swapping = false;
+    }
+
+    // Keyboard shortcuts for wallpaper navigation
     Rectangle {
         id: background
         anchors.fill: parent
@@ -1407,95 +1544,92 @@ PanelWindow {
         Keys.onLeftPressed: {
             if (wallpaper.wallpaperPaths.length > 0) wallpaper.previousWallpaper();
         }
-
         Keys.onRightPressed: {
             if (wallpaper.wallpaperPaths.length > 0) wallpaper.nextWallpaper();
         }
 
-        // Container that handles source changes, transitions, and palette loading
+        // ═══════════════════════════════════════════════════════════════════
+        //  LAYER A
+        // ═══════════════════════════════════════════════════════════════════
         Item {
-            id: wallImageContainer
+            id: layerALayer
             anchors.fill: parent
-            property string source: wallpaper.effectiveWallpaper
-            property string previousSource: ""
-
-            onSourceChanged: {
-                console.log("wallImageContainer source changed to:", source);
-                if (source) wallpaper.loadCustomPalette(source);
-                // Animation will be triggered after loader finishes loading
-            }
-
-            SequentialAnimation {
-                id: transitionAnimation
-                ParallelAnimation {
-                    NumberAnimation { target: wallImageContainer; property: "scale"; to: 1.01; duration: Anim.standardNormal; easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                    easing.overshoot: Anim.springSnappy().overshoot || 0 }
-                    NumberAnimation { target: wallImageContainer; property: "opacity"; to: 0.5; duration: Anim.standardNormal; easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                    easing.overshoot: Anim.springSnappy().overshoot || 0 }
-                }
-                ParallelAnimation {
-                    NumberAnimation { target: wallImageContainer; property: "scale"; to: 1.0; duration: Anim.standardNormal; easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                    easing.overshoot: Anim.springSnappy().overshoot || 0 }
-                    NumberAnimation { target: wallImageContainer; property: "opacity"; to: 1.0; duration: Anim.standardNormal; easing.type: Anim.springSnappy().type
-                        easing.bezierCurve: Anim.springSnappy().bezierCurve || []
-                    easing.overshoot: Anim.springSnappy().overshoot || 0 }
-                }
-            }
+            opacity: _activeLayer === 0 ? 1.0 : 0.0
+            scale: 1.0
+            Behavior on opacity { enabled: false }
+            Behavior on scale   { enabled: false }
 
             Loader {
-                id: wallImageLoader
+                id: layerALoader
                 anchors.fill: parent
                 asynchronous: true
+                active: _activeLayer === 0
+                property string _wallSource: ""
+
                 sourceComponent: {
-                    if (!wallImageContainer.source) return null;
-                    var fileType = wallpaper.getFileType(wallImageContainer.source);
-                    console.log("Loader: fileType =", fileType, "source =", wallImageContainer.source);
-                    if (fileType === 'image') return staticImageComponent;
-                    else if (fileType === 'gif' || fileType === 'video') return videoComponent;
+                    if (!_wallSource) return null;
+                    var ft = wallpaper.getFileType(_wallSource);
+                    if (ft === 'image') return staticImageComponent;
+                    if (ft === 'gif' || ft === 'video') return videoComponent;
                     return staticImageComponent;
                 }
-
                 onLoaded: {
-                    console.log("Loader: item loaded, assigning sourceFile =", wallImageContainer.source);
                     if (item) {
-                        item.sourceFile = wallImageContainer.source;
+                        if (item.contentReady) item.contentReady.connect(wallpaper._onLayerContentReady);
+                        item.sourceFile = _wallSource;
                     }
-                    // Trigger animation after new content is loaded
-                    if (wallImageContainer.previousSource !== "" && 
-                        wallImageContainer.source !== wallImageContainer.previousSource &&
-                        Anim.animationsEnabled) {
-                        transitionAnimation.restart();
-                    }
-                    wallImageContainer.previousSource = wallImageContainer.source;
                 }
-
                 onStatusChanged: {
-                    if (status === Loader.Error) {
-                        console.error("❌ wallImageLoader FAILED for source:", wallImageContainer.source);
-                    }
+                    if (status === Loader.Error)
+                        console.error("❌ layerALoader FAILED for source:", _wallSource);
                 }
-
-                // Bind sourceFile directly to wallImageContainer.source
                 Binding {
-                    target: wallImageLoader.item
-                    property: "sourceFile"
-                    value: wallImageContainer.source
-                    when: wallImageLoader.item !== null
+                    target: layerALoader.item; property: "sourceFile"
+                    value: layerALoader._wallSource
+                    when: layerALoader.item !== null && layerALoader._wallSource !== ""
                 }
             }
+        }
 
-            // Fallback in case Binding doesn't trigger — only used when item is replaced
-            // NOTE: Binding above already handles sourceFile sync; this catches
-            // the edge case where the Loader re-creates the item before Binding activates.
-            Connections {
-                target: wallImageContainer
-                function onSourceChanged() {
-                    if (wallImageLoader.item && wallImageLoader.item.sourceFile !== wallImageContainer.source) {
-                        wallImageLoader.item.sourceFile = wallImageContainer.source;
+        // ═══════════════════════════════════════════════════════════════════
+        //  LAYER B
+        // ═══════════════════════════════════════════════════════════════════
+        Item {
+            id: layerBLayer
+            anchors.fill: parent
+            opacity: _activeLayer === 1 ? 1.0 : 0.0
+            scale: 1.0
+            Behavior on opacity { enabled: false }
+            Behavior on scale   { enabled: false }
+
+            Loader {
+                id: layerBLoader
+                anchors.fill: parent
+                asynchronous: true
+                active: _activeLayer === 1
+                property string _wallSource: ""
+
+                sourceComponent: {
+                    if (!_wallSource) return null;
+                    var ft = wallpaper.getFileType(_wallSource);
+                    if (ft === 'image') return staticImageComponent;
+                    if (ft === 'gif' || ft === 'video') return videoComponent;
+                    return staticImageComponent;
+                }
+                onLoaded: {
+                    if (item) {
+                        if (item.contentReady) item.contentReady.connect(wallpaper._onLayerContentReady);
+                        item.sourceFile = _wallSource;
                     }
+                }
+                onStatusChanged: {
+                    if (status === Loader.Error)
+                        console.error("❌ layerBLoader FAILED for source:", _wallSource);
+                }
+                Binding {
+                    target: layerBLoader.item; property: "sourceFile"
+                    value: layerBLoader._wallSource
+                    when: layerBLoader.item !== null && layerBLoader._wallSource !== ""
                 }
             }
         }

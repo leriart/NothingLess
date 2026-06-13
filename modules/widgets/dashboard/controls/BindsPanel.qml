@@ -24,31 +24,48 @@ Item {
         id: unbindProcess
     }
 
-    // Function to unbind a specific keybind (supports both old and new format)
+    // ── Lightweight keybind-only sync to persistent config files ─────────
+    // Only regenerates the keybinds section in .conf/.lua/.toml — does NOT
+    // touch compositor settings, gestures, or trigger any reload. This avoids
+    // the flickering and perf drops of a full sync-hyprland.py run.
+    Process {
+        id: bindsSyncProcess
+    }
+
+    function syncBindsToFiles() {
+        const scriptPath = Qt.resolvedUrl("../../../../scripts/sync-hyprland.py").toString().replace("file://", "");
+        bindsSyncProcess.command = ["python3", scriptPath, "--binds-only"];
+        bindsSyncProcess.running = true;
+    }
+
+    // Function to unbind a specific keybind (supports both old and new format).
+    // Uses axctl keybinds-batch — the same format as CompositorKeybinds.qml —
+    // for guaranteed consistency with the compositor.
     function unbindKeybind(bind) {
         if (!bind)
             return;
 
-        // Check if new format with keys[]
+        let payload = { binds: [], unbinds: [] };
+
         if (bind.keys && bind.keys.length > 0) {
             for (let k = 0; k < bind.keys.length; k++) {
-                const keyObj = bind.keys[k];
-                const mods = keyObj.modifiers && keyObj.modifiers.length > 0 ? keyObj.modifiers.join(" ") : "";
-                const key = keyObj.key || "";
-                const command = `axctl config unbind-key ${mods},${key}`;
-                console.log("BindsPanel: Unbinding keybind:", command);
-                unbindProcess.command = ["sh", "-c", command];
-                unbindProcess.running = true;
+                payload.unbinds.push({
+                    modifiers: bind.keys[k].modifiers || [],
+                    key: bind.keys[k].key || ""
+                });
             }
+        } else if (bind.modifiers || bind.key) {
+            payload.unbinds.push({
+                modifiers: bind.modifiers || [],
+                key: bind.key || ""
+            });
         } else {
-            // Old format fallback
-            const mods = bind.modifiers && bind.modifiers.length > 0 ? bind.modifiers.join(" ") : "";
-            const key = bind.key || "";
-            const command = `axctl config unbind-key ${mods},${key}`;
-            console.log("BindsPanel: Unbinding keybind:", command);
-            unbindProcess.command = ["sh", "-c", command];
-            unbindProcess.running = true;
+            return;
         }
+
+        console.log("BindsPanel: Unbinding via keybinds-batch:", JSON.stringify(payload));
+        unbindProcess.command = ["axctl", "config", "keybinds-batch", JSON.stringify(payload)];
+        unbindProcess.running = true;
     }
 
     // Edit mode state
@@ -387,6 +404,9 @@ Item {
             }
         }
 
+        // Sync only the keybinds section to persistent files
+        root.syncBindsToFiles();
+
         root.editMode = false;
         root.isCreatingNew = false;
         root.currentKeyPage = 0;
@@ -523,8 +543,28 @@ Item {
 
         // Get the bind to delete and unbind it first
         const bindToDelete = customBinds[index];
-        unbindKeybind(bindToDelete);
 
+        // Build the full unbind+bind payload: unbind the deleted keys,
+        // then rebind all remaining enabled custom binds so the compositor
+        // state is immediately consistent.
+        let payload = { binds: [], unbinds: [] };
+
+        // Unbind the deleted bind's keys
+        if (bindToDelete.keys && bindToDelete.keys.length > 0) {
+            for (let k = 0; k < bindToDelete.keys.length; k++) {
+                payload.unbinds.push({
+                    modifiers: bindToDelete.keys[k].modifiers || [],
+                    key: bindToDelete.keys[k].key || ""
+                });
+            }
+        } else if (bindToDelete.modifiers || bindToDelete.key) {
+            payload.unbinds.push({
+                modifiers: bindToDelete.modifiers || [],
+                key: bindToDelete.key || ""
+            });
+        }
+
+        // Remove from the array
         let newBinds = [];
         for (let i = 0; i < customBinds.length; i++) {
             if (i !== index) {
@@ -532,6 +572,29 @@ Item {
             }
         }
         Config.keybindsLoader.adapter.custom = newBinds;
+
+        // Re-bind the remaining enabled binds in the same batch
+        for (let i = 0; i < newBinds.length; i++) {
+            const bind = newBinds[i];
+            if (bind.enabled === false) continue;
+            if (bind.keys && bind.actions) {
+                for (let k = 0; k < bind.keys.length; k++) {
+                    for (let a = 0; a < bind.actions.length; a++) {
+                        payload.binds.push({
+                            modifiers: bind.keys[k].modifiers || [],
+                            key: bind.keys[k].key || "",
+                            action: bind.actions[a]
+                        });
+                    }
+                }
+            }
+        }
+
+        console.log("BindsPanel: Deleting bind, applying keybinds-batch:", JSON.stringify(payload).substring(0, 200));
+        unbindProcess.command = ["axctl", "config", "keybinds-batch", JSON.stringify(payload)];
+        unbindProcess.running = true;
+
+        root.syncBindsToFiles();
         root.editMode = false;
     }
 
@@ -598,9 +661,16 @@ Item {
                     },
                     {
                         icon: Icons.sync,
-                        tooltip: "Reload binds",
+                        tooltip: "Reload binds — unbinds everything and reapplies from config",
                         onClicked: function () {
+                            // Force a full clean rebuild: reload config from disk,
+                            // then immediately unbind ALL managed keys and rebind
+                            // only what's currently configured. This cleans up any
+                            // orphaned binds left over from failed deletions.
                             Config.keybindsLoader.reload();
+                            // reload() triggers applyKeybinds() via onFileChanged,
+                            // which already does a full unbind+rebind cycle.
+                            root.syncBindsToFiles();
                         }
                     }
                 ]
@@ -794,6 +864,16 @@ Item {
                                 }
                             }
                             Config.keybindsLoader.adapter.custom = newBinds;
+
+                            // Immediately unbind if disabling, so the bind stops
+                            // working right away. (applyKeybinds will also do this,
+                            // but it's debounced and may take ~100ms.)
+                            if (isEnabled) {
+                                root.unbindKeybind(customBinds[index]);
+                            }
+
+                            // Sync only the keybinds section to persistent files
+                            root.syncBindsToFiles();
                         }
                     }
 
@@ -1953,6 +2033,13 @@ Item {
                         }
                     }
                 }
+
+                // ── Click handler for the enable/disable checkbox ──────
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bindItem.toggleEnabled()
+                }
             }
 
             // Info column - what the bind does
@@ -2049,7 +2136,7 @@ Item {
             }
         }
 
-        // Click anywhere to edit (but not on checkbox)
+        // Click anywhere to edit (but not on the enable/disable checkbox)
         MouseArea {
             id: editClickArea
             anchors.fill: parent
@@ -2057,7 +2144,11 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onEntered: bindItem.isHovered = true
             onExited: bindItem.isHovered = false
-            onClicked: bindItem.editRequested()
+            onClicked: mouse => {
+                // Ignore clicks on the checkbox area (first ~44px: 32px width + 12px spacing)
+                if (checkboxItem.visible && mouse.x < 44) return;
+                bindItem.editRequested();
+            }
         }
 
         // Checkbox MouseArea needs to be on top

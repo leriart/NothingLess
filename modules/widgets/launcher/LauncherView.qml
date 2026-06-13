@@ -181,8 +181,7 @@ Rectangle {
             onTriggered: {
                 if (appLauncher.loadedCount >= appLauncher.pendingApps.length || appLauncher.batchSize <= 0) {
                     running = false;
-                    // Re-enable list transitions after all batches are loaded
-                    appLauncher.modelRebuilding = false;
+                    appLauncher._reEnableTransitions();
                     return;
                 }
 
@@ -233,17 +232,29 @@ Rectangle {
         }
 
         function updateAppsModel() {
-            // Stop any existing loading and suppress animations during rebuild
+            // Stop any in-progress incremental loading
             incrementalLoader.stop();
+
+            // Cancel if filtered apps are empty AND we already have items
+            // (prevents accidental clearing from race conditions)
+            if (filteredApps.length === 0 && appsModel.count > 0) {
+                appLauncher.modelRebuilding = false;
+                return;
+            }
+
+            // Explicitly disable remove transitions before clearing the model.
+            // The property binding (enableRemoveTransition: !modelRebuilding)
+            // is lazy in QML and may not re-evaluate in time.
+            resultsList.enableRemoveTransition = false;
+            resultsList.enableAddTransition = false;
+
             appLauncher.modelRebuilding = true;
-            
-            let newApps = filteredApps;
-            appLauncher.pendingApps = newApps;
+            appLauncher.pendingApps = filteredApps;
 
             // Build apps by ID map for execution
             appsById = {};
-            for (let i = 0; i < newApps.length; i++) {
-                appsById[newApps[i].id] = newApps[i];
+            for (let i = 0; i < filteredApps.length; i++) {
+                appsById[filteredApps[i].id] = filteredApps[i];
             }
 
             // Save intended selection before clearing (clear resets currentIndex to -1)
@@ -258,9 +269,9 @@ Rectangle {
             resultsList.currentIndex = targetIndex;
             
             // Load first batch immediately for instant feedback
-            let initialBatch = Math.min(appLauncher.batchSize, newApps.length);
+            let initialBatch = Math.min(appLauncher.batchSize, filteredApps.length);
             for (let i = 0; i < initialBatch; i++) {
-                let app = newApps[i];
+                let app = filteredApps[i];
                 appsModel.append({
                     appId: app.id,
                     appName: app.name,
@@ -282,11 +293,21 @@ Rectangle {
             });
             
             // Schedule rest if needed, or re-enable transitions immediately
-            if (appLauncher.loadedCount < newApps.length) {
+            if (appLauncher.loadedCount < filteredApps.length) {
                 incrementalLoader.start();
             } else {
-                appLauncher.modelRebuilding = false;
+                _reEnableTransitions();
             }
+        }
+
+        // Re-enable list transitions after model is fully loaded
+        function _reEnableTransitions() {
+            appLauncher.modelRebuilding = false;
+            // Delay re-enabling to let the scene graph settle
+            Qt.callLater(() => {
+                resultsList.enableAddTransition = true;
+                resultsList.enableRemoveTransition = true;
+            });
         }
 
         function executeApp(appId) {

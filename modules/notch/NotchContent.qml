@@ -822,7 +822,11 @@ Item {
                 Qt.callLater(() => {
                     if (persistentLauncherViewLoader.item) {
                         persistentLauncherViewLoader.item.refreshApps();
-                        notchContainer.stackView.push(persistentLauncherViewLoader.item);
+                        // Only push if not already the top item (prevents rapid
+                        // push/pop cycles from clashing with AnimatedListView transitions)
+                        if (notchContainer.stackView.currentItem !== persistentLauncherViewLoader.item) {
+                            notchContainer.stackView.push(persistentLauncherViewLoader.item);
+                        }
                         Qt.callLater(() => {
                             if (notchContainer.stackView.currentItem) {
                                 notchContainer.stackView.currentItem.forceActiveFocus();

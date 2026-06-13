@@ -377,6 +377,10 @@ def process_binds(bind_section, seen_conf, seen_lua, seen_toml):
         if not bind:
             continue
 
+        # Skip disabled custom binds — they must not appear in conf/lua output
+        if bind.get("enabled") is False:
+            continue
+
         keys   = bind.get("keys", [bind])  # support both {keys:[...]} and flat
         actions = bind.get("actions", [bind.get("action", {})])
 
@@ -1350,15 +1354,18 @@ def live_apply():
 
 def main():
     do_apply = "--apply" in sys.argv
+    binds_only = "--binds-only" in sys.argv
 
     os.makedirs(DATA_DIR, exist_ok=True)
 
     # ── Generate all blocks ──
-    conf_compositor = build_conf_compositor()
-    lua_compositor  = build_lua_compositor()
-    toml_compositor = build_toml_compositor()
+    conf_compositor = "" if binds_only else build_conf_compositor()
+    lua_compositor  = "" if binds_only else build_lua_compositor()
+    toml_compositor = "" if binds_only else build_toml_compositor()
     binds_conf, binds_lua, binds_toml = build_all_binds()
-    gestures_conf, gestures_lua, gestures_toml = build_gesture_binds()
+    gestures_conf = gestures_lua = gestures_toml = ""
+    if not binds_only:
+        gestures_conf, gestures_lua, gestures_toml = build_gesture_binds()
 
     # ── hyprland.conf ──
     try:
@@ -1367,19 +1374,28 @@ def main():
     except FileNotFoundError:
         content = "# NothingLess Hyprland config\n"
 
-    content = _inject_block(content,
-        "# === NOTHINGLESS COMPOSITOR ===", "# === END COMPOSITOR ===",
-        conf_compositor)
-    content = _inject_block(content,
-        "# === NOTHINGLESS KEYBINDS ===", "# === END KEYBINDS ===",
-        binds_conf)
-    content = _inject_block(content,
-        "# === NOTHINGLESS GESTURES ===", "# === END GESTURES ===",
-        gestures_conf)
+    if binds_only:
+        # Only touch the keybinds block — preserve compositor and gestures as-is
+        content = _inject_block(content,
+            "# === NOTHINGLESS KEYBINDS ===", "# === END KEYBINDS ===",
+            binds_conf)
+    else:
+        content = _inject_block(content,
+            "# === NOTHINGLESS COMPOSITOR ===", "# === END COMPOSITOR ===",
+            conf_compositor)
+        content = _inject_block(content,
+            "# === NOTHINGLESS KEYBINDS ===", "# === END KEYBINDS ===",
+            binds_conf)
+        content = _inject_block(content,
+            "# === NOTHINGLESS GESTURES ===", "# === END GESTURES ===",
+            gestures_conf)
 
     with open(CONF_PATH, "w") as f:
         f.write(content)
-    print(f"hyprland.conf: {len(conf_compositor)}c compositor + {len(binds_conf)}c keybinds + {len(gestures_conf)}c gestures")
+    if binds_only:
+        print(f"hyprland.conf: keybinds-only sync ({len(binds_conf)}c keybinds)")
+    else:
+        print(f"hyprland.conf: {len(conf_compositor)}c compositor + {len(binds_conf)}c keybinds + {len(gestures_conf)}c gestures")
 
     # ── hyprland.lua ──
     try:
@@ -1395,19 +1411,27 @@ def main():
     )
     content = re.sub(r'\n{3,}', '\n\n', content).strip()
 
-    content = _inject_block(content,
-        "-- === NOTHINGLESS COMPOSITOR ===", "-- === END COMPOSITOR ===",
-        lua_compositor)
-    content = _inject_block(content,
-        "-- === NOTHINGLESS KEYBINDS ===", "-- === END KEYBINDS ===",
-        binds_lua)
-    content = _inject_block(content,
-        "-- === NOTHINGLESS GESTURES ===", "-- === END GESTURES ===",
-        gestures_lua)
+    if binds_only:
+        content = _inject_block(content,
+            "-- === NOTHINGLESS KEYBINDS ===", "-- === END KEYBINDS ===",
+            binds_lua)
+    else:
+        content = _inject_block(content,
+            "-- === NOTHINGLESS COMPOSITOR ===", "-- === END COMPOSITOR ===",
+            lua_compositor)
+        content = _inject_block(content,
+            "-- === NOTHINGLESS KEYBINDS ===", "-- === END KEYBINDS ===",
+            binds_lua)
+        content = _inject_block(content,
+            "-- === NOTHINGLESS GESTURES ===", "-- === END GESTURES ===",
+            gestures_lua)
 
     with open(LUA_PATH, "w") as f:
         f.write(content)
-    print(f"hyprland.lua: {len(lua_compositor)}c compositor + {len(binds_lua)}c keybinds + {len(gestures_lua)}c gestures")
+    if binds_only:
+        print(f"hyprland.lua: keybinds-only sync ({len(binds_lua)}c keybinds)")
+    else:
+        print(f"hyprland.lua: {len(lua_compositor)}c compositor + {len(binds_lua)}c keybinds + {len(gestures_lua)}c gestures")
 
     # ── axctl.toml ──
     try:
@@ -1441,7 +1465,9 @@ def main():
                 cleaned.append(line)
         toml_content = '\n'.join(cleaned).strip()
 
-        toml_content = toml_content.rstrip() + "\n\n" + toml_compositor.strip() + "\n"
+        toml_content = toml_content.rstrip() + "\n\n"
+        if toml_compositor:
+            toml_content += toml_compositor.strip() + "\n"
         if binds_toml:
             toml_content += "\n" + binds_toml.strip() + "\n"
         if gestures_toml:
@@ -1449,26 +1475,35 @@ def main():
 
         with open(TOML_PATH, "w") as f:
             f.write(toml_content)
-        print(f"axctl.toml: {len(toml_compositor)}c compositor + {len(binds_toml)}c keybinds + {len(gestures_toml)}c gestures")
+        if binds_only:
+            print(f"axctl.toml: keybinds-only sync ({len(binds_toml)}c keybinds)")
+        else:
+            print(f"axctl.toml: {len(toml_compositor)}c compositor + {len(binds_toml)}c keybinds + {len(gestures_toml)}c gestures")
 
     except FileNotFoundError:
+        lines = []
+        if toml_compositor:
+            lines.append(toml_compositor)
+        if binds_toml:
+            lines.append(binds_toml.strip())
+        if gestures_toml:
+            lines.append(gestures_toml.strip())
         with open(TOML_PATH, "w") as f:
-            f.write(toml_compositor)
-            if binds_toml:
-                f.write("\n\n" + binds_toml.strip() + "\n")
-            if gestures_toml:
-                f.write("\n\n" + gestures_toml.strip() + "\n")
+            f.write("\n\n".join(lines) + "\n")
         print(f"axctl.toml: CREATED ({len(toml_compositor)}c compositor)")
 
-    # ── Re-inject monitors after compositor sync (they get overwritten) ──
-    monitors_writer = os.path.join(SCRIPT_DIR, "monitors_writer.py")
-    if os.path.isfile(monitors_writer):
-        subprocess.run(["python3", monitors_writer, "sync", "--no-apply"],
-                       capture_output=True, timeout=10)
+    # ── Re-inject monitors after compositor sync (skip in binds-only mode) ──
+    if not binds_only:
+        monitors_writer = os.path.join(SCRIPT_DIR, "monitors_writer.py")
+        if os.path.isfile(monitors_writer):
+            subprocess.run(["python3", monitors_writer, "sync", "--no-apply"],
+                           capture_output=True, timeout=10)
 
     if do_apply:
         live_apply()
         print("Done — compositor config applied")
+    elif binds_only:
+        print("Done — keybinds synced to persistent files")
     else:
         print("Done — hyprctl reload & axctl config reload recommended")
 
