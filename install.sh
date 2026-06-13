@@ -180,7 +180,7 @@ install_dependencies() {
       ttf-roboto ttf-roboto-mono ttf-dejavu ttf-liberation noto-fonts noto-fonts-cjk noto-fonts-emoji
       ttf-nerd-fonts-symbols
       quickshell ttf-phosphor-icons ttf-league-gothic adw-gtk-theme
-      ttf-material-symbols-variable-git translate-shell songrec libqalculate
+      translate-shell songrec libqalculate
       json-c wayland
     )
 
@@ -278,7 +278,7 @@ install_material_symbols_font() {
     cp "$SRC_DIR/assets/fonts/MaterialSymbolsRounded-Variable.ttf" "$FONT_DIR/"
     log_success "Material Symbols font installed from repo"
   elif has_cmd pacman; then
-    log_info "Material Symbols not in repo. Install via: yay -S ttf-material-symbols-variable-git"
+    log_info "Material Symbols font not found in repo assets. Skipping."
     return
   fi
 
