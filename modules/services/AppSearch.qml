@@ -234,7 +234,7 @@ Singleton {
     }
 
     function getAllApps() {
-        if (allAppsCache) return allAppsCache;
+        if (allAppsCache !== null) return allAppsCache;
 
         const results = [];
         

@@ -1,6 +1,9 @@
 {
     "disks": ["/"],
-    "updateServiceEnabled": true,
+    "updateService": {
+        "enabled": true,
+        "checkIntervalMs": 3600000
+    },
     "idle": {
         "general": {
             "lock_cmd": "nothingless lock",

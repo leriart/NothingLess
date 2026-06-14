@@ -1208,7 +1208,10 @@ Singleton {
 
         adapter: JsonAdapter {
             property list<string> disks: ["/"]
-            property bool updateServiceEnabled: true
+            property JsonObject updateService: JsonObject {
+                property bool enabled: true
+                property int checkIntervalMs: 3600000
+            }
             property JsonObject batteryNotifications: JsonObject {
                 property bool enabled: true
                 property int lowThreshold: 20

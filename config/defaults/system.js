@@ -2,7 +2,10 @@
 
 var data = {
     "disks": ["/"],
-    "updateServiceEnabled": true,
+    "updateService": {
+        "enabled": true,
+        "checkIntervalMs": 3600000
+    },
     "batteryNotifications": {
         "enabled": true,
         "lowThreshold": 20,

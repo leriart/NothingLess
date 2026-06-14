@@ -1938,11 +1938,140 @@ Item {
 
                         ToggleRow {
                             label: "Update Service"
-                            checked: Config.system.updateServiceEnabled ?? true
+                            checked: Config.system.updateService.enabled ?? true
                             onToggled: value => {
-                                if (value !== Config.system.updateServiceEnabled) {
+                                if (value !== Config.system.updateService.enabled) {
                                     GlobalStates.markShellChanged();
-                                    Config.system.updateServiceEnabled = value;
+                                    Config.system.updateService.enabled = value;
+                                }
+                            }
+                        }
+
+                        ActionButton {
+                            id: checkUpdatesBtn
+                            text: UpdateService.checking ? "Checking..."
+                                : (UpdateService.updateAvailable ? "Update available!"
+                                : "Check for Updates")
+                            icon: UpdateService.checking ? Icons.spinnerGap
+                                : (UpdateService.updateAvailable ? Icons.arrowFatLinesDown
+                                : Icons.sync)
+                            onClicked: {
+                                if (!UpdateService.checking) {
+                                    UpdateService.checkNow();
+                                }
+                            }
+                        }
+
+                        StyledRect {
+                            id: updateCard
+                            visible: UpdateService.updateAvailable
+                            variant: "popup"
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: updateCardContent.implicitHeight + 32
+                            radius: Styling.radius(0)
+
+                            ColumnLayout {
+                                id: updateCardContent
+                                anchors.fill: parent
+                                anchors.margins: 16
+                                spacing: 10
+
+                                Text {
+                                    text: "New commit available"
+                                    font.family: Config.theme.font
+                                    font.pixelSize: Styling.fontSize(0)
+                                    font.weight: Font.Medium
+                                    color: Colors.overBackground
+                                }
+
+                                Text {
+                                    text: UpdateService.remoteCommitHash.substring(0, 7)
+                                    font.family: Config.theme.monoFont
+                                    font.pixelSize: Styling.fontSize(-1)
+                                    font.weight: Font.Medium
+                                    color: Colors.primary
+                                }
+
+                                Text {
+                                    text: UpdateService.remoteCommitMessage
+                                    font.family: Config.theme.font
+                                    font.pixelSize: Styling.fontSize(-1)
+                                    color: Colors.overSurfaceVariant
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                    maximumLineCount: 12
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    text: "Current: " + UpdateService.currentLocalHash.substring(0, 7)
+                                    font.family: Config.theme.monoFont
+                                    font.pixelSize: Styling.fontSize(-3)
+                                    color: Colors.overSurfaceVariant
+                                    Layout.topMargin: 4
+                                }
+
+                                RowLayout {
+                                    Layout.topMargin: 4
+                                    spacing: 8
+
+                                    StyledRect {
+                                        id: updateNowBtn
+                                        Layout.preferredWidth: 130
+                                        Layout.preferredHeight: 36
+                                        radius: Styling.radius(-1)
+
+                                        property bool isHovered: false
+                                        variant: isHovered ? "primaryfocus" : "primary"
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "Update Now"
+                                            font.family: Config.theme.font
+                                            font.pixelSize: Styling.fontSize(-1)
+                                            font.weight: Font.Medium
+                                            color: Colors.overPrimary
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onEntered: updateNowBtn.isHovered = true
+                                            onExited: updateNowBtn.isHovered = false
+                                            onClicked: {
+                                                UpdateService.performUpdate();
+                                                UpdateService.updateAvailable = false;
+                                            }
+                                        }
+                                    }
+
+                                    StyledRect {
+                                        id: changelogBtn
+                                        Layout.preferredWidth: 110
+                                        Layout.preferredHeight: 36
+                                        radius: Styling.radius(-1)
+
+                                        property bool isHovered: false
+                                        variant: isHovered ? "focus" : "pane"
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "Changelog"
+                                            font.family: Config.theme.font
+                                            font.pixelSize: Styling.fontSize(-1)
+                                            color: Colors.overBackground
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onEntered: changelogBtn.isHovered = true
+                                            onExited: changelogBtn.isHovered = false
+                                            onClicked: Quickshell.execDetached(["xdg-open", UpdateService.changelogUrl])
+                                        }
+                                    }
                                 }
                             }
                         }

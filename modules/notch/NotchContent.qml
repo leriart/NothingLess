@@ -819,93 +819,81 @@ Item {
         function onLauncherChanged() {
             if (screenVisibilities.launcher) {
                 persistentLauncherViewLoader.active = true;
-                Qt.callLater(() => {
-                    if (persistentLauncherViewLoader.item) {
-                        persistentLauncherViewLoader.item.refreshApps();
-                        // Only push if not already the top item (prevents rapid
-                        // push/pop cycles from clashing with AnimatedListView transitions)
-                        if (notchContainer.stackView.currentItem !== persistentLauncherViewLoader.item) {
-                            notchContainer.stackView.push(persistentLauncherViewLoader.item);
+                if (persistentLauncherViewLoader.item) {
+                    persistentLauncherViewLoader.item.refreshApps();
+                    notchContainer.stackView.push(persistentLauncherViewLoader.item);
+                    Qt.callLater(() => {
+                        if (notchContainer.stackView.currentItem) {
+                            notchContainer.stackView.currentItem.forceActiveFocus();
                         }
-                        Qt.callLater(() => {
-                            if (notchContainer.stackView.currentItem) {
-                                notchContainer.stackView.currentItem.forceActiveFocus();
-                            }
-                        });
-                    }
-                });
+                    });
+                }
             } else {
                 if (notchContainer.stackView.depth > 1) {
                     notchContainer.stackView.pop();
-                    notchContainer.isShowingDefault = true;
-                    notchContainer.isShowingNotifications = false;
                 }
+                notchContainer.isShowingDefault = true;
+                notchContainer.isShowingNotifications = false;
             }
         }
 
         function onDashboardChanged() {
             if (screenVisibilities.dashboard) {
                 persistentDashboardViewLoader.active = true;
-                Qt.callLater(() => {
-                    if (persistentDashboardViewLoader.item) {
-                        notchContainer.stackView.push(persistentDashboardViewLoader.item);
-                        Qt.callLater(() => {
-                            if (notchContainer.stackView.currentItem) {
-                                notchContainer.stackView.currentItem.forceActiveFocus();
-                            }
-                        });
-                    }
-                });
+                if (persistentDashboardViewLoader.item) {
+                    notchContainer.stackView.push(persistentDashboardViewLoader.item);
+                    Qt.callLater(() => {
+                        if (notchContainer.stackView.currentItem) {
+                            notchContainer.stackView.currentItem.forceActiveFocus();
+                        }
+                    });
+                }
             } else {
                 if (notchContainer.stackView.depth > 1) {
                     notchContainer.stackView.pop();
-                    notchContainer.isShowingDefault = true;
-                    notchContainer.isShowingNotifications = false;
                 }
+                notchContainer.isShowingDefault = true;
+                notchContainer.isShowingNotifications = false;
             }
         }
 
         function onPowermenuChanged() {
             if (screenVisibilities.powermenu) {
                 persistentPowerMenuViewLoader.active = true;
-                Qt.callLater(() => {
-                    if (persistentPowerMenuViewLoader.item) {
-                        notchContainer.stackView.push(persistentPowerMenuViewLoader.item);
-                        Qt.callLater(() => {
-                            if (notchContainer.stackView.currentItem) {
-                                notchContainer.stackView.currentItem.forceActiveFocus();
-                            }
-                        });
-                    }
-                });
+                if (persistentPowerMenuViewLoader.item) {
+                    notchContainer.stackView.push(persistentPowerMenuViewLoader.item);
+                    Qt.callLater(() => {
+                        if (notchContainer.stackView.currentItem) {
+                            notchContainer.stackView.currentItem.forceActiveFocus();
+                        }
+                    });
+                }
             } else {
                 if (notchContainer.stackView.depth > 1) {
                     notchContainer.stackView.pop();
-                    notchContainer.isShowingDefault = true;
-                    notchContainer.isShowingNotifications = false;
                 }
+                notchContainer.isShowingDefault = true;
+                notchContainer.isShowingNotifications = false;
             }
         }
 
         function onToolsChanged() {
             if (screenVisibilities.tools) {
                 persistentToolsMenuViewLoader.active = true;
-                Qt.callLater(() => {
-                    if (persistentToolsMenuViewLoader.item) {
-                        notchContainer.stackView.push(persistentToolsMenuViewLoader.item);
-                        Qt.callLater(() => {
-                            if (notchContainer.stackView.currentItem) {
-                                notchContainer.stackView.currentItem.forceActiveFocus();
-                            }
-                        });
-                    }
-                });
+                if (persistentToolsMenuViewLoader.item) {
+                    notchContainer.stackView.push(persistentToolsMenuViewLoader.item);
+                    Qt.callLater(() => {
+                        if (notchContainer.stackView.currentItem) {
+                            notchContainer.stackView.currentItem.forceActiveFocus();
+                        }
+                    });
+                }
             } else {
                 if (notchContainer.stackView.depth > 1) {
                     notchContainer.stackView.pop();
-                    notchContainer.isShowingDefault = true;
-                    notchContainer.isShowingNotifications = false;
                 }
+                notchContainer.isShowingDefault = true;
+                notchContainer.isShowingNotifications = false;
             }
         }
     }

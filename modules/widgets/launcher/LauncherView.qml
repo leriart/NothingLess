@@ -47,7 +47,7 @@ Rectangle {
     Connections {
         target: AppSearch
         function onListChanged() {
-            if (appLauncher.visible) {
+            if (root.visible && currentTab === 0) {
                 appLauncher.updateFilteredApps();
             }
         }
@@ -172,16 +172,22 @@ Rectangle {
         property int batchSize: 10
 
         property bool modelRebuilding: false
+        property int rebuildGeneration: 0
 
         Timer {
             id: incrementalLoader
             interval: 50
             repeat: true
             running: false
+            property int _currentGen: 0
             onTriggered: {
+                if (appLauncher.rebuildGeneration !== incrementalLoader._currentGen) {
+                    running = false;
+                    return;
+                }
                 if (appLauncher.loadedCount >= appLauncher.pendingApps.length || appLauncher.batchSize <= 0) {
                     running = false;
-                    appLauncher._reEnableTransitions();
+                    appLauncher._reEnableTransitions(incrementalLoader._currentGen);
                     return;
                 }
 
@@ -217,6 +223,7 @@ Rectangle {
                 filteredApps = AppSearch.getAllApps();
                 root.calcResult = "";
             }
+            updateAppsModel();
         }
 
         onFilteredAppsChanged: {
@@ -225,7 +232,6 @@ Rectangle {
             resultsList.contentY = 0;
             appLauncher.expandedItemIndex = -1;
             appLauncher.selectedOptionIndex = 0;
-            updateAppsModel();
             Qt.callLater(() => {
                 resultsList.enableScrollAnimation = true;
             });
@@ -241,6 +247,10 @@ Rectangle {
                 appLauncher.modelRebuilding = false;
                 return;
             }
+
+            appLauncher.rebuildGeneration++;
+            let myGen = appLauncher.rebuildGeneration;
+            incrementalLoader._currentGen = myGen;
 
             // Explicitly disable remove transitions before clearing the model.
             // The property binding (enableRemoveTransition: !modelRebuilding)
@@ -296,15 +306,16 @@ Rectangle {
             if (appLauncher.loadedCount < filteredApps.length) {
                 incrementalLoader.start();
             } else {
-                _reEnableTransitions();
+                _reEnableTransitions(myGen);
             }
         }
 
         // Re-enable list transitions after model is fully loaded
-        function _reEnableTransitions() {
+        function _reEnableTransitions(generation) {
             appLauncher.modelRebuilding = false;
             // Delay re-enabling to let the scene graph settle
             Qt.callLater(() => {
+                if (appLauncher.rebuildGeneration !== generation) return;
                 resultsList.enableAddTransition = true;
                 resultsList.enableRemoveTransition = true;
             });
@@ -407,6 +418,7 @@ Rectangle {
         }
 
         onSearchTextChanged: {
+            if (!root.visible) return;
             updateFilteredApps();
             // Detect prefix and switch tab if needed
             let detectedTab = detectPrefix(searchText);
@@ -632,6 +644,7 @@ Rectangle {
                         appLauncher.selectedOptionIndex = 0;
                         appLauncher.keyboardNavigation = false;
                     } else {
+                        GlobalStates.clearLauncherState();
                         Visibilities.setActiveModule("");
                     }
                 }
