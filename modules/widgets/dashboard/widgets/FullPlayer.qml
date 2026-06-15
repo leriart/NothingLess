@@ -186,7 +186,8 @@ StyledRect {
     // Playback Controls
 
     ColumnLayout {
-        anchors.centerIn: parent
+        anchors.fill: parent
+        anchors.margins: 10
         spacing: 8
 
         // Disc Area (SeekBar + Cover Art)

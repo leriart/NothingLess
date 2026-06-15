@@ -11,7 +11,7 @@ import qs.modules.widgets.dashboard.widgets
 import qs.modules.widgets.dashboard.controls
 import qs.modules.widgets.dashboard.wallpapers
 import qs.modules.widgets.dashboard.metrics
-import qs.modules.widgets.dashboard.kanban
+import qs.modules.widgets.dashboard.todo
 import qs.config
 
 NotchAnimationBehavior {
@@ -19,16 +19,14 @@ NotchAnimationBehavior {
 
     property int leftPanelWidth
 
-    property var state: QtObject {
-        property int currentTab: GlobalStates.dashboardCurrentTab
-    }
+    property int currentTab: GlobalStates.dashboardCurrentTab
 
-    readonly property var tabModel: [Icons.widgets, Icons.wallpapers, Icons.heartbeat, Icons.kanban]
+    readonly property var tabModel: [Icons.widgets, Icons.wallpapers, Icons.heartbeat, Icons.todo]
     readonly property int tabCount: tabModel.length
     readonly property int tabSpacing: 8
 
     readonly property int tabWidth: 48
-    readonly property real nonAnimWidth: (state.currentTab === 0 ? 600 : 400) + tabWidth + 16 // unified launcher tab is wider
+    readonly property real nonAnimWidth: (currentTab === 0 ? 600 : 400) + tabWidth + 16 // unified launcher tab is wider
 
     implicitWidth: nonAnimWidth
     implicitHeight: 430
@@ -60,7 +58,7 @@ NotchAnimationBehavior {
         newLoadedTabs[0] = true;
         
         // Always load current tab
-        newLoadedTabs[root.state.currentTab] = true;
+        newLoadedTabs[root.currentTab] = true;
 
         if (Config.performance.dashboardPersistTabs) {
             // Load up to maxPersistentTabs most recent tabs
@@ -82,7 +80,7 @@ NotchAnimationBehavior {
             return lruTabsLoaded[tabIndex] === true;
         } else {
             // Without persistence, only load current tab
-            return root.state.currentTab === tabIndex;
+            return root.currentTab === tabIndex;
         }
     }
 
@@ -93,7 +91,7 @@ NotchAnimationBehavior {
 
     // Navegar a la pestaña seleccionada cuando se abre el dashboard
     Component.onCompleted: {
-        root.state.currentTab = GlobalStates.dashboardCurrentTab;
+        root.currentTab = GlobalStates.dashboardCurrentTab;
     }
 
     // Focus search input when dashboard opens to different tabs
@@ -128,7 +126,7 @@ NotchAnimationBehavior {
     Connections {
         target: GlobalStates
         function onDashboardCurrentTabChanged() {
-            if (GlobalStates.dashboardCurrentTab !== root.state.currentTab) {
+            if (GlobalStates.dashboardCurrentTab !== root.currentTab) {
                 stack.navigateToTab(GlobalStates.dashboardCurrentTab);
             }
         }
@@ -160,7 +158,7 @@ NotchAnimationBehavior {
                 onWheel: event => {
                     // Determinar dirección del scroll
                     let scrollUp = event.angleDelta.y > 0;
-                    let newIndex = root.state.currentTab;
+                    let newIndex = root.currentTab;
 
                     if (scrollUp && newIndex > 0) {
                         // Scroll hacia arriba = pestaña anterior
@@ -171,7 +169,7 @@ NotchAnimationBehavior {
                     }
 
                     // Navegar solo si cambió el índice
-                    if (newIndex !== root.state.currentTab) {
+                    if (newIndex !== root.currentTab) {
                         stack.navigateToTab(newIndex);
                     }
                 }
@@ -185,15 +183,15 @@ NotchAnimationBehavior {
                 radius: Styling.radius(4)
                 z: 0
 
-                property real idx1: root.state.currentTab
-                property real idx2: root.state.currentTab
+                property real idx1: root.currentTab
+                property real idx2: root.currentTab
 
                 // Calcular posición Y para un índice dado
                 function getYForIndex(idx) {
-                    if (idx <= 2) {
+                    if (idx < root.tabCount) {
                         return idx * (width + root.tabSpacing);
                     } else {
-                        // Controls button at the bottom
+                        // Controls button at the bottom (for fallback)
                         return controlsButtonContainer.y;
                     }
                 }
@@ -241,15 +239,11 @@ NotchAnimationBehavior {
                 Repeater {
                     model: root.tabModel
 
-                    Button {
-                        required property int index
-                        required property string modelData
-
+                    delegate: Button {
                         text: modelData
                         flat: true
                         width: tabsContainer.width
                         height: width
-                        // implicitHeight: (tabsContainer.height - root.tabSpacing * (root.tabCount - 1)) / root.tabCount
 
                         background: Rectangle {
                             color: "transparent"
@@ -259,10 +253,8 @@ NotchAnimationBehavior {
                         contentItem: Text {
                             text: parent.text
                             textFormat: Text.RichText
-                            color: root.state.currentTab === index ? Styling.srItem("primary") : Colors.overBackground
-                            // font.family: Config.theme.font
+                            color: root.currentTab === index ? Styling.srItem("primary") : Colors.overBackground
                             font.family: Icons.font
-                            // font.pixelSize: Config.theme.fontSize
                             font.pixelSize: 20
                             font.weight: Font.Medium
                             horizontalAlignment: Text.AlignHCenter
@@ -367,23 +359,15 @@ NotchAnimationBehavior {
 
                 property int currentIndex: GlobalStates.dashboardCurrentTab
 
-                // Update internal index when global changes
-                Connections {
-                    target: GlobalStates
-                    function onDashboardCurrentTabChanged() {
-                        stack.navigateToTab(GlobalStates.dashboardCurrentTab);
-                    }
-                }
-
                 // Function to navigate to a specific tab
                 function navigateToTab(index) {
-                    if (index >= 0 && index < root.tabCount && index !== root.state.currentTab) {
+                    if (index >= 0 && index < root.tabCount && index !== root.currentTab) {
                         // Reset launcher state when leaving unified launcher tab (tab 0)
-                        if (root.state.currentTab === 0 && index !== 0) {
+                        if (root.currentTab === 0 && index !== 0) {
                             GlobalStates.clearLauncherState();
                         }
 
-                        root.state.currentTab = index;
+                        root.currentTab = index;
                         GlobalStates.dashboardCurrentTab = index;
                         
                         // Update LRU when tab is accessed
@@ -401,15 +385,15 @@ NotchAnimationBehavior {
                     anchors.fill: parent
                     asynchronous: true
                     // Load based on LRU strategy or if currently active
-                    active: root.shouldTabBeLoaded(index) || root.state.currentTab === index
+                    active: root.shouldTabBeLoaded(index) || root.currentTab === index
                     
                     // Visibility handles the "switching"
-                    visible: root.state.currentTab === index
+                    visible: root.currentTab === index
                     
                     // Transitions
                     opacity: visible ? 1 : 0
                     transform: Translate {
-                        y: visible ? 0 : (root.state.currentTab > index ? -20 : 20)
+                        y: visible ? 0 : (root.currentTab > index ? -20 : 20)
                         Behavior on y {
                              enabled: Anim.animationsEnabled
                              NumberAnimation {
@@ -465,16 +449,16 @@ NotchAnimationBehavior {
                     z: visible ? 1 : 0
                 }
 
-                // Tab 3: Kanban
+                // Tab 3: TODO
                 TabLoader {
                     property int index: 3
-                    sourceComponent: kanbanComponent
+                    sourceComponent: todoComponent
                     z: visible ? 1 : 0
                 }
                 
                 // Helper to access current item for focus
                 property var currentItem: {
-                    switch(root.state.currentTab) {
+                    switch(root.currentTab) {
                         case 0: return children[0].item;
                         case 1: return children[1].item;
                         case 2: return children[2].item;
@@ -516,12 +500,12 @@ NotchAnimationBehavior {
                         if (swiping) {
                             let deltaY = mouse.y - startY;
 
-                            if (deltaY < -swipeThreshold && root.state.currentTab < root.tabCount - 1) {
+                            if (deltaY < -swipeThreshold && root.currentTab < root.tabCount - 1) {
                                 // Swipe hacia arriba - siguiente tab
-                                stack.navigateToTab(root.state.currentTab + 1);
-                            } else if (deltaY > swipeThreshold && root.state.currentTab > 0) {
+                                stack.navigateToTab(root.currentTab + 1);
+                            } else if (deltaY > swipeThreshold && root.currentTab > 0) {
                                 // Swipe hacia abajo - tab anterior
-                                stack.navigateToTab(root.state.currentTab - 1);
+                                stack.navigateToTab(root.currentTab - 1);
                             }
                         }
                         swiping = false;
@@ -539,7 +523,7 @@ NotchAnimationBehavior {
         enabled: GlobalStates.dashboardOpen
 
         onActivated: {
-            let nextIndex = (root.state.currentTab + 1) % root.tabCount;
+            let nextIndex = (root.currentTab + 1) % root.tabCount;
             stack.navigateToTab(nextIndex);
         }
     }
@@ -550,7 +534,7 @@ NotchAnimationBehavior {
         enabled: GlobalStates.dashboardOpen
 
         onActivated: {
-            let prevIndex = root.state.currentTab - 1;
+            let prevIndex = root.currentTab - 1;
             if (prevIndex < 0) {
                 prevIndex = root.tabCount - 1;
             }
@@ -606,8 +590,8 @@ NotchAnimationBehavior {
     }
 
     Component {
-        id: kanbanComponent
-        KanbanTab {}
+        id: todoComponent
+        TodoTab {}
     }
 Component.onDestruction: {
     focusUnifiedLauncherTimer.stop ? focusUnifiedLauncherTimer.stop() : undefined;

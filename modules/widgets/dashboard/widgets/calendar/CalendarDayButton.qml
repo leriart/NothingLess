@@ -11,6 +11,7 @@ Rectangle {
     required property int isToday
     property bool bold: false
     property bool isCurrentDayOfWeek: false
+    property bool outOfMonth: false
 
     Layout.fillWidth: true
     Layout.fillHeight: false
@@ -38,6 +39,8 @@ Rectangle {
             color: {
                 if (isToday === 1)
                     return Styling.srItem("primary");
+                if (outOfMonth)
+                    return Colors.surfaceVariant;
                 if (bold) {
                     return isCurrentDayOfWeek ? Colors.overBackground : Colors.outline;
                 }

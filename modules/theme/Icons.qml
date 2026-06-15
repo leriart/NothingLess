@@ -42,7 +42,7 @@ QtObject {
 
     // Dashboard
     readonly property string widgets: ""
-    readonly property string kanban: ""
+    readonly property string todo: ""  // format list bulleted (U+E2F0)
     readonly property string wallpapers: ""
     readonly property string assistant: ""
     readonly property string apps: ""
@@ -127,6 +127,7 @@ QtObject {
 
     // Clock
     readonly property string clock: ""
+    readonly property string calendar: ""
     readonly property string alarm: ""
     readonly property string timer: ""
 

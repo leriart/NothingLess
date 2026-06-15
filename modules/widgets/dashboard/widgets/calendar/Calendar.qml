@@ -20,6 +20,13 @@ Item {
         return (now.getDay() + 6) % 7;
     }
 
+    // Range selection (optional). Leave both empty to disable.
+    property string selectedStartDate: ""
+    property string selectedEndDate: ""
+
+    // Emitted when the user clicks a day in the current month
+    signal dayClicked(int year, int month, int day)
+
     // Helper function to get localized day abbreviation
     function getDayAbbrev(dayIndex) {
         // Create a date for a known Monday (e.g., 2024-01-01 was a Monday)
@@ -27,6 +34,26 @@ Item {
         var dayName = d.toLocaleDateString(Qt.locale(), "ddd");
         // Capitalize first letter and limit to 2 chars
         return (dayName.charAt(0).toUpperCase() + dayName.slice(1, 2)).replace(".", "");
+    }
+
+    function isInRange(year, month, day) {
+        if (selectedStartDate === "" || selectedEndDate === "") return false
+        var s = new Date(selectedStartDate)
+        var e = new Date(selectedEndDate)
+        var d = new Date(year, month, day)
+        return d >= s && d <= e
+    }
+
+    function isStartDay(year, month, day) {
+        if (selectedStartDate === "") return false
+        var s = new Date(selectedStartDate)
+        return s.getFullYear() === year && s.getMonth() === month && s.getDate() === day
+    }
+
+    function isEndDay(year, month, day) {
+        if (selectedEndDate === "") return false
+        var e = new Date(selectedEndDate)
+        return e.getFullYear() === year && e.getMonth() === month && e.getDate() === day
     }
 
     ColumnLayout {
@@ -175,10 +202,56 @@ Item {
 
                                     Repeater {
                                         model: 7
-                                        delegate: CalendarDayButton {
+                                        delegate: Item {
+                                            id: cell
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: 28
+
                                             required property int index
-                                            day: calendarLayout[rowIndex][index].day
-                                            isToday: calendarLayout[rowIndex][index].today
+                                            property int colIndex: index
+                                            property var cellData: calendarLayout[rowIndex] && calendarLayout[rowIndex][colIndex]
+                                                ? calendarLayout[rowIndex][colIndex] : null
+                                            property bool isCurrent: cellData && cellData.today === 1
+                                            property bool isStart: cellData && cellData.today === 0
+                                                && root.isStartDay(viewingDate.getFullYear(), viewingDate.getMonth(), cellData.day)
+                                            property bool isEnd: cellData && cellData.today === 0
+                                                && root.isEndDay(viewingDate.getFullYear(), viewingDate.getMonth(), cellData.day)
+                                            property bool inRange: cellData && cellData.today === 0
+                                                && root.isInRange(viewingDate.getFullYear(), viewingDate.getMonth(), cellData.day)
+
+                                            // Middle of range: tinted background
+                                            Rectangle {
+                                                anchors.fill: parent
+                                                visible: cell.inRange && !cell.isStart && !cell.isEnd
+                                                color: Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.18)
+                                                radius: Styling.radius(-2)
+                                            }
+
+                                            // The day "pill" (uses CalendarDayButton for styling parity)
+                                            CalendarDayButton {
+                                                anchors.centerIn: parent
+                                                width: Math.min(parent.width, parent.height)
+                                                height: width
+                                                day: cell.cellData ? cell.cellData.day : ""
+                                                isToday: (cell.isStart || cell.isEnd || cell.isCurrent) ? 1 : 0
+                                                bold: cell.isStart || cell.isEnd
+                                                outOfMonth: cell.cellData && cell.cellData.today === -1
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: (cell.cellData && cell.cellData.today !== -1)
+                                                    ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                                enabled: cell.cellData && cell.cellData.today !== -1
+                                                onClicked: {
+                                                    if (!cell.cellData) return
+                                                    root.dayClicked(
+                                                        viewingDate.getFullYear(),
+                                                        viewingDate.getMonth(),
+                                                        cell.cellData.day
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }

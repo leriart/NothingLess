@@ -16,7 +16,7 @@ Central interactive hub of NothingLess. Tabbed interface with LRU-based lazy-loa
   - `emoji/`: `EmojiTab` (934 lines) — Emoji picker with search.
   - `metrics/`: `MetricsTab` (987 lines) — Real-time CPU/RAM/GPU/disk monitoring.
   - `wallpapers/`: `WallpapersTab` / `Wallpaper.qml` — Wallpaper browser and manager.
-  - `kanban/`: Kanban board for task management.
+  - `todo/`: `TodoTab` — Task list with priority, due dates, reminders.
 
 ## WHERE TO LOOK
 | Task | Location | Notes |
