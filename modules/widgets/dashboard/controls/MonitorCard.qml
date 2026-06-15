@@ -7,73 +7,55 @@ import Quickshell
 import Quickshell.Io
 import qs.modules.theme
 import qs.modules.components
-import qs.modules.services
-import qs.modules.globals
 import qs.config
 
 // ─────────────────────────────────────────────────────────────
-// MonitorCard — Per-monitor settings with polished visuals
-// Primary source: Quickshell.screens (always available)
-// Enriched with: AxctlService data + hyprctl monitors -j
+// MonitorCard — Per-monitor editor inspired by nwg-displays
+// Used inside MonitorsPanel. Edits are emitted through
+// settingChanged(); the parent batches and applies them.
 // ─────────────────────────────────────────────────────────────
 StyledRect {
     id: root
 
     required property int monitorIndex
-    required property var screen
+    property var monitor: null
+    property var monitorList: []
+    property bool isPrimary: false
 
-    property var axctlData: null
+    property bool isCollapsed: false
     property var detailedInfo: null
     property var availableModes: []
-    property var validScales: []
-    property int currentModeIndex: 0
+    property var resolutionList: []
+    property var refreshMap: ({})
     property bool isFetchingModes: false
-    property string displayName: ""
-    property int displayWidth: 0
-    property int displayHeight: 0
-    property int displayX: 0
-    property int displayY: 0
-    property real displayScale: 1.0
-    property real displayRefreshRate: 60
-    property bool isCollapsed: false
+
+    signal settingChanged(string key, var value)
+    signal requestPrimary(bool makePrimary)
 
     variant: "pane"
     Layout.fillWidth: true
-    Layout.preferredHeight: cardLayout.implicitHeight + 20
+    Layout.preferredHeight: cardLayout.implicitHeight + 28
     radius: Styling.radius(0)
     enableShadow: true
 
-    Component.onCompleted: {
-        refreshBasicData();
-        updateAxctlMatch();
-        fetchDetailedInfo();
-    }
+    readonly property string displayName: root.monitor ? (root.monitor.name || "") : ""
+    readonly property bool enabled: root.monitor ? (root.monitor.enabled !== false) : false
+    readonly property int monitorWidth: root.monitor ? (root.monitor.width || 0) : 0
+    readonly property int monitorHeight: root.monitor ? (root.monitor.height || 0) : 0
+    readonly property int monitorX: root.monitor ? (root.monitor.x || 0) : 0
+    readonly property int monitorY: root.monitor ? (root.monitor.y || 0) : 0
+    readonly property real monitorScale: root.monitor ? (root.monitor.scale || 1.0) : 1.0
+    readonly property real monitorRefresh: root.monitor ? (root.monitor.refreshRate || root.monitor.refresh_rate || 60) : 60
+    readonly property int monitorTransform: root.monitor ? (root.monitor.transform || 0) : 0
+    readonly property int monitorVrr: root.monitor ? (root.monitor.vrr || 0) : 0
+    readonly property bool monitorHdr: root.monitor ? (root.monitor.hdr || false) : false
+    readonly property bool hdrSupported: root.detailedInfo ? (root.detailedInfo.hdrSupported || root.detailedInfo.hdr_supported || false)
+                                                          : (root.monitor ? (root.monitor.hdrSupported || root.monitor.hdr_supported || false) : false)
 
-    function refreshBasicData() {
-        if (!root.screen) return;
-        root.displayName = root.screen.name || ("Monitor " + (root.monitorIndex + 1));
-        root.displayWidth = root.screen.width || 0;
-        root.displayHeight = root.screen.height || 0;
-        root.displayX = root.screen.x || 0;
-        root.displayY = root.screen.y || 0;
-    }
-
-    function updateAxctlMatch() {
-        if (!root.screen || !root.screen.name) return;
-        var monitors = AxctlService.monitors.values;
-        if (!monitors || monitors.length === 0) return;
-        for (var i = 0; i < monitors.length; i++) {
-            if (monitors[i].name === root.screen.name) {
-                root.axctlData = monitors[i];
-                root.displayRefreshRate = monitors[i].refreshRate || 60;
-                root.displayScale = monitors[i].scale || 1.0;
-                return;
-            }
-        }
-    }
+    onDisplayNameChanged: if (displayName) Qt.callLater(root.fetchDetailedInfo)
 
     function fetchDetailedInfo() {
-        if (isFetchingModes || !root.displayName) return;
+        if (isFetchingModes || !displayName) return;
         isFetchingModes = true;
         modeFetcherHyprctl.running = true;
     }
@@ -85,7 +67,7 @@ StyledRect {
         onExited: exitCode => {
             if (exitCode === 0) {
                 try {
-                    parseMonitorList(JSON.parse(modeFetcherHyprctl.stdout.text));
+                    root.parseMonitorList(JSON.parse(modeFetcherHyprctl.stdout.text));
                     return;
                 } catch (e) { console.warn("MonitorCard: hyprctl parse failed:", e); }
             }
@@ -100,132 +82,284 @@ StyledRect {
         onExited: exitCode => {
             root.isFetchingModes = false;
             if (exitCode === 0) {
-                try { parseMonitorList(JSON.parse(modeFetcherAxctl.stdout.text)); }
-                catch (e) { console.warn("MonitorCard: axctl parse failed:", e); setFallbackModes(); }
-            } else { setFallbackModes(); }
+                try { root.parseMonitorList(JSON.parse(modeFetcherAxctl.stdout.text)); }
+                catch (e) { console.warn("MonitorCard: axctl parse failed:", e); root.useFallbackModes(); }
+            } else { root.useFallbackModes(); }
         }
+    }
+
+    function parseModeString(s) {
+        var clean = (s + "").replace(/Hz/gi, "").trim();
+        var at = clean.lastIndexOf("@");
+        var wh = (at >= 0 ? clean.substring(0, at) : clean).split("x");
+        var rate = at >= 0 ? parseFloat(clean.substring(at + 1)) : root.monitorRefresh;
+        return { w: parseInt(wh[0]) || 0, h: parseInt(wh[1]) || 0, rate: isNaN(rate) ? root.monitorRefresh : rate };
     }
 
     function parseMonitorList(allMonitors) {
         root.isFetchingModes = false;
-        if (!allMonitors || !Array.isArray(allMonitors)) { setFallbackModes(); return; }
+        if (!allMonitors || !Array.isArray(allMonitors)) { root.useFallbackModes(); return; }
         var found = null;
         for (var i = 0; i < allMonitors.length; i++) {
             if (allMonitors[i].name === root.displayName) { found = allMonitors[i]; break; }
         }
-        if (!found) { setFallbackModes(); return; }
+        if (!found) { root.useFallbackModes(); return; }
         root.detailedInfo = found;
-        if (found.width) root.displayWidth = found.width;
-        if (found.height) root.displayHeight = found.height;
-        if (found.x !== undefined) root.displayX = found.x;
-        if (found.y !== undefined) root.displayY = found.y;
-        root.displayScale = found.scale || root.displayScale;
-        root.displayRefreshRate = found.refreshRate || found.refresh_rate || root.displayRefreshRate;
-        var modes = found.availableModes || found.available_modes || [];
+
+        var modes = found.availableModes || found.available_modes || found.modes || [];
         if (modes.length === 0 && found.width && found.height) {
-            modes = [found.width + "x" + found.height + "@" + root.displayRefreshRate.toFixed(2) + "Hz"];
+            modes = [found.width + "x" + found.height + "@" + (found.refreshRate || found.refresh_rate || root.monitorRefresh).toFixed(2) + "Hz"];
         }
         root.availableModes = modes;
-        root.currentModeIndex = 0;
-        for (var j = 0; j < modes.length; j++) {
-            var modeStr = (modes[j] + "").replace("Hz", "").replace("hz", "").trim();
-            if (modeStr.indexOf(found.width + "x" + found.height) === 0) {
-                root.currentModeIndex = j;
-                if (modeStr.indexOf(Math.round(root.displayRefreshRate).toString()) !== -1) break;
+        root.buildResolutionMap();
+    }
+
+    function useFallbackModes() {
+        root.isFetchingModes = false;
+        if (root.monitorWidth > 0 && root.monitorHeight > 0) {
+            root.availableModes = [root.monitorWidth + "x" + root.monitorHeight + "@" + root.monitorRefresh.toFixed(2) + "Hz"];
+        } else {
+            root.availableModes = [];
+        }
+        root.buildResolutionMap();
+    }
+
+    function buildResolutionMap() {
+        var map = {};
+        var list = [];
+        for (var i = 0; i < root.availableModes.length; i++) {
+            var p = root.parseModeString(root.availableModes[i]);
+            if (p.w <= 0 || p.h <= 0) continue;
+            var key = p.w + "x" + p.h;
+            if (!map[key]) { map[key] = []; list.push(key); }
+            if (map[key].indexOf(p.rate) === -1) map[key].push(p.rate);
+        }
+        for (var k in map) map[k].sort(function(a, b){ return b - a; });
+        root.refreshMap = map;
+        root.resolutionList = list;
+    }
+
+    function resolutionIndex() {
+        var target = root.monitorWidth + "x" + root.monitorHeight;
+        for (var i = 0; i < root.resolutionList.length; i++) {
+            if (root.resolutionList[i] === target) return i;
+        }
+        return 0;
+    }
+
+    function refreshIndex() {
+        var key = root.monitorWidth + "x" + root.monitorHeight;
+        var rates = root.refreshMap[key] || [];
+        var best = 0, bestDiff = Infinity;
+        for (var i = 0; i < rates.length; i++) {
+            var diff = Math.abs(rates[i] - root.monitorRefresh);
+            if (diff < bestDiff) { bestDiff = diff; best = i; }
+        }
+        return best;
+    }
+
+    function refreshRateStrings() {
+        var key = root.monitorWidth + "x" + root.monitorHeight;
+        var rates = root.refreshMap[key] || [];
+        return rates.map(function(r) { return r.toFixed(2) + " Hz"; });
+    }
+
+    function refreshDisplayIndex() {
+        var key = root.monitorWidth + "x" + root.monitorHeight;
+        var rates = root.refreshMap[key] || [];
+        var best = 0, bestDiff = Infinity;
+        for (var i = 0; i < rates.length; i++) {
+            var diff = Math.abs(rates[i] - root.monitorRefresh);
+            if (diff < bestDiff) { bestDiff = diff; best = i; }
+        }
+        return best;
+    }
+
+    function transformLabel(idx) {
+        var labels = ["0° Normal", "90°", "180°", "270°", "Flipped", "90° Flipped", "180° Flipped", "270° Flipped"];
+        return labels[idx] || labels[0];
+    }
+
+    function duplicateFrom(sourceName) {
+        if (!root.monitorList || !sourceName) return;
+        for (var i = 0; i < root.monitorList.length; i++) {
+            var s = root.monitorList[i];
+            if (s && s.name === sourceName) {
+                root.settingChanged("width", s.width || 0);
+                root.settingChanged("height", s.height || 0);
+                root.settingChanged("refreshRate", s.refreshRate || s.refresh_rate || 60);
+                root.settingChanged("scale", s.scale || 1.0);
+                root.settingChanged("x", s.x || 0);
+                root.settingChanged("y", s.y || 0);
+                root.settingChanged("transform", s.transform || 0);
+                root.settingChanged("vrr", s.vrr || 0);
+                return;
             }
         }
-        root.validScales = computeScales(root.displayWidth, root.displayHeight);
     }
 
-    function setFallbackModes() {
-        root.isFetchingModes = false;
-        if (root.displayWidth > 0 && root.displayHeight > 0) {
-            root.availableModes = [root.displayWidth + "x" + root.displayHeight + "@" + root.displayRefreshRate.toFixed(2) + "Hz"];
-            root.currentModeIndex = 0;
-            root.validScales = computeScales(root.displayWidth, root.displayHeight);
+    // ─── Shared controls ───
+    component NLCombo: ComboBox {
+        id: nlCombo
+        Layout.preferredWidth: 140
+        Layout.preferredHeight: 28
+        textRole: "modelData"
+        font.family: Config.theme.font
+        font.pixelSize: Styling.fontSize(-1)
+
+        background: Rectangle {
+            color: nlCombo.hovered ? Colors.surfaceContainerHigh : Colors.surfaceContainer
+            radius: Styling.radius(-2)
+            border.color: Colors.surfaceBright; border.width: 1
+        }
+        contentItem: Text {
+            leftPadding: 8; rightPadding: 8
+            text: nlCombo.displayText
+            color: Colors.overBackground
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+        }
+        indicator: Text {
+            x: nlCombo.width - width - 8
+            y: (nlCombo.height - height) / 2
+            text: Icons.caretDown
+            font.family: Icons.font; font.pixelSize: 10
+            color: Colors.overSurfaceVariant
+        }
+        popup: Popup {
+            y: nlCombo.height + 2
+            width: nlCombo.width
+            implicitHeight: Math.min(contentItem.implicitHeight + 12, 260)
+            padding: 4
+            background: Rectangle {
+                color: Colors.surfaceContainer
+                radius: Styling.radius(-2)
+                border.color: Colors.surfaceBright; border.width: 1
+            }
+            contentItem: ListView {
+                clip: true
+                implicitHeight: contentHeight
+                model: nlCombo.delegateModel
+                currentIndex: nlCombo.currentIndex
+                interactive: contentHeight > 240
+                spacing: 2
+            }
+        }
+        delegate: ItemDelegate {
+            required property var modelData
+            width: nlCombo.width - 8
+            height: 28
+            font.family: Config.theme.font
+            font.pixelSize: Styling.fontSize(-1)
+            leftPadding: 10
+            contentItem: Text {
+                text: modelData && modelData.text !== undefined ? modelData.text : (typeof modelData === "string" ? modelData : "")
+                font: parent.font
+                color: parent.highlighted ? Styling.srItem("primary") : Colors.overBackground
+                opacity: parent.highlighted ? 1.0 : 0.85
+                elide: Text.ElideRight
+                verticalAlignment: Text.AlignVCenter
+            }
+            background: Rectangle {
+                color: {
+                    if (parent.highlighted) return Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.35);
+                    if (parent.hovered) return Qt.rgba(Colors.overBackground.r, Colors.overBackground.g, Colors.overBackground.b, 0.08);
+                    return "transparent";
+                }
+                radius: Styling.radius(-4)
+            }
         }
     }
 
-    function computeScales(w, h) {
-        var scales = [];
-        if (w <= 0 || h <= 0) { return [1.0, 1.25, 1.5, 1.75, 2.0]; }
-        var base = Math.max(1.0, Math.min(w / 640, h / 480));
-        for (var step = 0; step <= 120; step++) {
-            var s = base + step / 120.0;
-            if (s > 10.0) break;
-            scales.push(s);
+    component NLToggle: RowLayout {
+        property string label: ""
+        property bool checked: false
+        property bool enabled: true
+        signal toggled(bool value)
+        spacing: 8
+        Layout.fillWidth: true
+        Text {
+            text: parent.label
+            font.family: Config.theme.font
+            font.pixelSize: Styling.fontSize(-1)
+            color: Colors.overBackground
+            Layout.fillWidth: true
+            visible: parent.label !== ""
         }
-        if (scales.length === 0) scales = [1.0];
-        return scales;
+        Switch {
+            id: toggleSwitch
+            checked: parent.checked
+            enabled: parent.enabled
+            onToggled: parent.toggled(checked)
+            indicator: Rectangle {
+                implicitWidth: 36; implicitHeight: 20; radius: 10
+                color: toggleSwitch.checked ? Colors.primary : Qt.rgba(Colors.outline.r, Colors.outline.g, Colors.outline.b, 0.3)
+                border.color: toggleSwitch.checked ? Colors.primary : Colors.outline; border.width: 1
+                Rectangle {
+                    x: toggleSwitch.checked ? parent.width - width - 3 : 3
+                    y: (parent.height - height) / 2
+                    width: 14; height: 14; radius: 7
+                    color: toggleSwitch.checked ? "#ffffff" : Colors.outline
+                    Behavior on x {
+                        enabled: Anim.animationsEnabled
+                        NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve }
+                    }
+                }
+                Behavior on color {
+                    enabled: Anim.animationsEnabled
+                    ColorAnimation { duration: Anim.standardSmall }
+                }
+            }
+        }
     }
 
-    function findScaleIndex(targetScale) {
-        if (!root.validScales || root.validScales.length === 0) return 0;
-        var bestIdx = 0, bestDiff = Infinity;
-        for (var i = 0; i < root.validScales.length; i++) {
-            var diff = Math.abs(root.validScales[i] - targetScale);
-            if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
-        }
-        return bestIdx;
-    }
-
-    function applyMonitorSetting(key, value) {
-        var monName = root.displayName;
-        if (!monName) return;
-        GlobalStates.markCompositorChanged();
-        var cmd = "";
-        if (key === "resolution") cmd = "monitor " + monName + "," + value + ",auto,auto";
-        else if (key === "position") cmd = "monitor " + monName + ",preferred," + value.x + "x" + value.y + ",auto";
-        else if (key === "scale") cmd = "monitor " + monName + ",preferred,auto," + value;
-        else if (key === "transform") cmd = "monitor " + monName + ",preferred,auto,auto,transform," + value;
-        else if (key === "vrr") cmd = "monitor " + monName + ",preferred,auto,auto,vrr," + value;
-        else if (key === "disabled") cmd = "monitor " + monName + "," + (value ? "disable" : "preferred,auto,auto");
-        if (cmd) {
-            AxctlService.dispatch(cmd);
-            // Persist to disk (debounced)
-            monitorSyncDebounce.restart();
-        }
-    }
-
-    // ──────────────────────────────────────────
-    // UI — Clean, modern design
-    // ──────────────────────────────────────────
+    // ─── UI ───
     ColumnLayout {
         id: cardLayout
-        anchors.fill: parent
-        anchors.margins: 14
-        spacing: 10
+        anchors.fill: parent; anchors.margins: 14; spacing: 12
 
-        // ── Header row ──
+        // Header
         RowLayout {
-            Layout.fillWidth: true
-            spacing: 10
+            Layout.fillWidth: true; spacing: 10
 
             Rectangle {
                 width: 10; height: 10; radius: 5
-                color: (AxctlService.focusedMonitor && AxctlService.focusedMonitor.name === root.displayName)
-                    ? Styling.srItem("primary") : Colors.outline
+                color: root.isPrimary ? Colors.primary : (root.enabled ? Colors.outline : Colors.outlineVariant)
                 Layout.alignment: Qt.AlignVCenter
             }
 
             ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 1
-
-                Text {
-                    text: root.displayName
-                    font.family: Config.theme.font
-                    font.pixelSize: Styling.fontSize(1)
-                    font.bold: true
-                    color: Colors.overBackground
+                Layout.fillWidth: true; spacing: 1
+                RowLayout {
+                    spacing: 6
+                    Text {
+                        text: root.displayName || "Monitor"
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(1)
+                        font.bold: true
+                        color: root.enabled ? Colors.overBackground : Colors.outline
+                    }
+                    Text {
+                        visible: root.isPrimary
+                        text: Icons.pin
+                        font.family: Icons.font; font.pixelSize: 12
+                        color: Colors.primary
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+                    Text {
+                        visible: !root.enabled
+                        text: "Disabled"
+                        font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-3)
+                        color: Colors.outline
+                        Layout.alignment: Qt.AlignVCenter
+                    }
                 }
-
                 Text {
                     text: {
                         var p = [];
                         if (root.detailedInfo && root.detailedInfo.make) p.push(root.detailedInfo.make);
                         if (root.detailedInfo && root.detailedInfo.model) p.push(root.detailedInfo.model);
-                        if (root.displayWidth > 0) p.push(root.displayWidth + "×" + root.displayHeight + " @ " + Math.round(root.displayRefreshRate) + "Hz");
+                        if (root.monitorWidth > 0) p.push(root.monitorWidth + "×" + root.monitorHeight + " @ " + Math.round(root.monitorRefresh) + "Hz");
                         return p.join("  ·  ");
                     }
                     font.family: Config.theme.font
@@ -237,88 +371,47 @@ StyledRect {
 
             Button {
                 flat: true
-                Layout.preferredWidth: 32; Layout.preferredHeight: 32
+                Layout.preferredWidth: 30; Layout.preferredHeight: 30
                 Layout.alignment: Qt.AlignVCenter
-
                 contentItem: Text {
                     text: root.isCollapsed ? Icons.caretDown : Icons.caretUp
-                    font.family: Icons.font; font.pixelSize: 16
+                    font.family: Icons.font; font.pixelSize: 14
                     color: Colors.outline
                     anchors.centerIn: parent
                 }
-
-                background: StyledRect {
-                    variant: "common"
-                    radius: Styling.radius(-6)
-                }
+                background: StyledRect { variant: "common"; radius: Styling.radius(-6) }
                 onClicked: root.isCollapsed = !root.isCollapsed
             }
         }
 
-        // ── Quick info chips (always visible) ──
+        // Quick chips
         RowLayout {
-            Layout.fillWidth: true
-            spacing: 6
+            Layout.fillWidth: true; spacing: 6
+            visible: root.enabled
 
-            StyledRect {
-                variant: "internalbg"
-                Layout.preferredHeight: 22
-                radius: Styling.radius(-6)
-                implicitWidth: posChipRow.implicitWidth + 12
-                RowLayout {
-                    id: posChipRow; anchors.centerIn: parent; spacing: 3
-                    Text { text: Icons.arrowsOutCardinal; font.family: Icons.font; font.pixelSize: 10; color: Colors.outline }
-                    Text { text: root.displayX + ", " + root.displayY; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-3); color: Colors.outline }
-                }
-            }
-
-            StyledRect {
-                variant: "internalbg"
-                Layout.preferredHeight: 22
-                radius: Styling.radius(-6)
-                implicitWidth: scaleChipRow.implicitWidth + 12
-                RowLayout {
-                    id: scaleChipRow; anchors.centerIn: parent; spacing: 3
-                    Text { text: Icons.arrowsOut; font.family: Icons.font; font.pixelSize: 10; color: Colors.outline }
-                    Text { text: root.displayScale.toFixed(2) + "x"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-3); color: Colors.outline }
-                }
-            }
-
-            StyledRect {
-                variant: "internalbg"
-                Layout.preferredHeight: 22
-                radius: Styling.radius(-6)
-                implicitWidth: rrChipRow.implicitWidth + 12
-                RowLayout {
-                    id: rrChipRow; anchors.centerIn: parent; spacing: 3
-                    Text { text: Icons.arrowCounterClockwise; font.family: Icons.font; font.pixelSize: 10; color: Colors.outline }
-                    Text { text: Math.round(root.displayRefreshRate) + "Hz"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-3); color: Colors.outline }
-                }
-            }
+            MonitorChip { icon: Icons.arrowsOutCardinal; text: root.monitorX + ", " + root.monitorY }
+            MonitorChip { icon: Icons.arrowsOut; text: root.monitorScale.toFixed(2) + "×" }
+            MonitorChip { icon: Icons.arrowCounterClockwise; text: Math.round(root.monitorRefresh) + "Hz" }
+            MonitorChip { icon: Icons.arrowCounterClockwise; text: root.transformLabel(root.monitorTransform) }
 
             Item { Layout.fillWidth: true }
 
-            Switch {
-                id: enabledSwitch; checked: true; Layout.alignment: Qt.AlignVCenter
-                onToggled: root.applyMonitorSetting("disabled", !checked)
-                indicator: Rectangle {
-                    implicitWidth: 36; implicitHeight: 20; radius: 10
-                    color: enabledSwitch.checked ? Styling.srItem("primary") : Qt.rgba(Colors.outline.r, Colors.outline.g, Colors.outline.b, 0.3)
-                    border.color: enabledSwitch.checked ? Styling.srItem("primary") : Colors.outline; border.width: 1
-                    Rectangle {
-                        x: enabledSwitch.checked ? parent.width - width - 3 : 3
-                        y: (parent.height - height) / 2
-                        width: 14; height: 14; radius: 7
-                        color: enabledSwitch.checked ? "#ffffff" : Colors.outline
-                        Behavior on x { enabled: Anim.animationsEnabled; NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve } }
-                    }
-                    Behavior on color { enabled: Anim.animationsEnabled; ColorAnimation { duration: Anim.standardSmall } }
+            Button {
+                flat: true; enabled: !root.isPrimary
+                Layout.preferredHeight: 26
+                visible: !root.isPrimary
+                contentItem: Text {
+                    text: Icons.pin + " Primary"
+                    font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-2)
+                    color: parent.enabled ? Colors.primary : Colors.outline
+                    anchors.centerIn: parent
                 }
+                background: StyledRect { variant: "common"; radius: Styling.radius(-4) }
+                onClicked: root.requestPrimary(true)
             }
         }
 
-        // ── Expandable settings ──
+        // Expandable settings
         Item {
             Layout.fillWidth: true
             Layout.preferredHeight: root.isCollapsed ? 0 : settingsColumn.implicitHeight
@@ -326,162 +419,201 @@ StyledRect {
             visible: !root.isCollapsed
             Behavior on Layout.preferredHeight {
                 enabled: Anim.animationsEnabled
-                NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
+                NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve }
             }
 
             ColumnLayout {
-                id: settingsColumn; width: parent.width; spacing: 6
+                id: settingsColumn; width: parent.width; spacing: 10
+                opacity: root.enabled ? 1.0 : 0.5
 
-                SettingsRow {
-                    icon: Icons.layout; label: "Resolution"; Layout.fillWidth: true
-                    ComboBox {
-                        id: modeCombo
-                        model: root.availableModes.length > 0 ? root.availableModes.map(function(m) { return (m+"").replace("Hz"," Hz"); }) : [root.displayWidth + "×" + root.displayHeight + " " + Math.round(root.displayRefreshRate) + " Hz"]
-                        currentIndex: root.currentModeIndex; Layout.preferredWidth: 190
-                        background: Rectangle {
-                            color: modeCombo.hovered ? Colors.surfaceContainerHigh : Colors.surfaceContainer
-                            radius: Styling.radius(-2)
-                            border.color: Colors.outlineVariant; border.width: 1
-                        }
-                        contentItem: Text { text: modeCombo.displayText; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; verticalAlignment: Text.AlignVCenter; leftPadding: 10; elide: Text.ElideRight }
-                        indicator: Text { text: Icons.caretDown; font.family: Icons.font; font.pixelSize: 14; color: Colors.overBackground; anchors.verticalCenter: parent.verticalCenter; anchors.right: parent.right; anchors.rightMargin: 8 }
-                        onActivated: { if (root.availableModes.length > 0 && index < root.availableModes.length) root.applyMonitorSetting("resolution", root.availableModes[index]); }
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: 2
+                    rowSpacing: 10; columnSpacing: 10
+
+                    // Enabled toggle
+                    Text { text: Icons.accept; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.alignment: Qt.AlignVCenter }
+                    NLToggle {
+                        label: "Enabled"
+                        checked: root.enabled
+                        onToggled: root.settingChanged("enabled", value)
                     }
-                }
 
-                SettingsRow {
-                    icon: Icons.arrowsOut; label: "Scale"; Layout.fillWidth: true
-                    RowLayout {
-                        spacing: 4
+                    // Primary toggle
+                    Text { text: Icons.pin; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.alignment: Qt.AlignVCenter }
+                    NLToggle {
+                        label: "Primary output"
+                        checked: root.isPrimary
+                        onToggled: root.requestPrimary(value)
+                    }
+
+                    // Resolution
+                    Text { text: Icons.layout; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.alignment: Qt.AlignVCenter }
+                    RowLayout { Layout.fillWidth: true; spacing: 8
+                        Text { text: "Resolution"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; Layout.preferredWidth: 76 }
+                        NLCombo {
+                            id: resCombo
+                            Layout.fillWidth: true
+                            model: root.resolutionList
+                            currentIndex: root.resolutionIndex()
+                            onActivated: {
+                                var wh = root.resolutionList[index].split("x");
+                                root.settingChanged("width", parseInt(wh[0]));
+                                root.settingChanged("height", parseInt(wh[1]));
+                                // Keep a sensible refresh rate for the new resolution
+                                var rates = root.refreshMap[root.resolutionList[index]] || [];
+                                if (rates.length > 0) root.settingChanged("refreshRate", rates[0]);
+                            }
+                        }
+                    }
+
+                    // Refresh rate
+                    Text { text: Icons.clock; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.alignment: Qt.AlignVCenter }
+                    RowLayout { Layout.fillWidth: true; spacing: 8
+                        Text { text: "Refresh"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; Layout.preferredWidth: 76 }
+                        NLCombo {
+                            id: refreshCombo
+                            Layout.fillWidth: true
+                            model: root.refreshRateStrings()
+                            currentIndex: root.refreshDisplayIndex()
+                            onActivated: root.settingChanged("refreshRate", parseFloat(model[index].replace("Hz", "").trim()))
+                        }
+                    }
+
+                    // Scale
+                    Text { text: Icons.arrowsOut; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.alignment: Qt.AlignVCenter }
+                    RowLayout { Layout.fillWidth: true; spacing: 8
+                        Text { text: "Scale"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; Layout.preferredWidth: 76 }
                         TextField {
                             id: scaleInput
-                            text: root.displayScale.toFixed(2)
-                            font.family: Config.theme.font
-                            font.pixelSize: Styling.fontSize(-1)
+                            text: root.monitorScale.toFixed(2)
+                            font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1)
                             color: Colors.overBackground
-                            Layout.preferredWidth: 70
-                            horizontalAlignment: Text.AlignRight
+                            Layout.preferredWidth: 70; horizontalAlignment: Text.AlignRight
                             validator: DoubleValidator { bottom: 0.25; top: 10.0; decimals: 2 }
                             background: Rectangle {
                                 color: scaleInput.hovered ? Colors.surfaceContainerHigh : Colors.surfaceContainer
                                 radius: Styling.radius(-2)
-                                border.color: Colors.outlineVariant; border.width: 1
+                                border.color: Colors.surfaceBright; border.width: 1
                             }
                             onEditingFinished: {
-                                var val = parseFloat(text);
-                                if (!isNaN(val) && val >= 0.25 && val <= 10.0) {
-                                    root.applyMonitorSetting("scale", val);
-                                } else {
-                                    text = root.displayScale.toFixed(2);
-                                }
+                                var v = parseFloat(text);
+                                if (!isNaN(v) && v >= 0.25 && v <= 10.0) root.settingChanged("scale", v);
+                                else text = root.monitorScale.toFixed(2);
                             }
                         }
-                        Text {
-                            text: "×"
-                            font.family: Config.theme.font
-                            font.pixelSize: Styling.fontSize(-1)
-                            color: Colors.outline
-                        }
+                        Text { text: "×"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.outline }
                     }
-                }
 
-                SettingsRow {
-                    icon: Icons.arrowsOutCardinal; label: "Position"; Layout.fillWidth: true
-                    RowLayout {
-                        spacing: 4
-                        Text { text: "X"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-2); color: Colors.outline }
+                    // Position
+                    Text { text: Icons.arrowsOutCardinal; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.alignment: Qt.AlignVCenter }
+                    RowLayout { Layout.fillWidth: true; spacing: 8
+                        Text { text: "Position"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; Layout.preferredWidth: 76 }
                         SpinBox {
-                            id: posX; from: -10000; to: 10000; stepSize: 10; value: root.displayX; editable: true; Layout.preferredWidth: 80
-                            background: Rectangle { color: Colors.surfaceContainer; border.color: Colors.outlineVariant; border.width: 1; radius: Styling.radius(-2) }
+                            id: posX; from: -10000; to: 30000; stepSize: 10; value: root.monitorX; editable: true; Layout.preferredWidth: 82
+                            background: Rectangle { color: Colors.surfaceContainer; border.color: Colors.surfaceBright; border.width: 1; radius: Styling.radius(-2) }
                             contentItem: TextInput { text: posX.value; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                            onValueModified: root.applyMonitorSetting("position", { x: posX.value, y: posY.value })
+                            onValueModified: root.settingChanged("x", posX.value)
                         }
                         Text { text: "Y"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-2); color: Colors.outline }
                         SpinBox {
-                            id: posY; from: -10000; to: 10000; stepSize: 10; value: root.displayY; editable: true; Layout.preferredWidth: 80
-                            background: Rectangle { color: Colors.surfaceContainer; border.color: Colors.outlineVariant; border.width: 1; radius: Styling.radius(-2) }
+                            id: posY; from: -10000; to: 30000; stepSize: 10; value: root.monitorY; editable: true; Layout.preferredWidth: 82
+                            background: Rectangle { color: Colors.surfaceContainer; border.color: Colors.surfaceBright; border.width: 1; radius: Styling.radius(-2) }
                             contentItem: TextInput { text: posY.value; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                            onValueModified: root.applyMonitorSetting("position", { x: posX.value, y: posY.value })
+                            onValueModified: root.settingChanged("y", posY.value)
                         }
                     }
-                }
 
-                SettingsRow {
-                    icon: Icons.arrowCounterClockwise; label: "Rotation"; Layout.fillWidth: true
-                    ComboBox {
-                        id: transformCombo
-                        model: ["0° Normal", "90°", "180°", "270°", "90° Flip", "270° Flip"]
-                        currentIndex: root.detailedInfo ? Math.min(root.detailedInfo.transform || 0, 5) : 0; Layout.preferredWidth: 140
-                        background: Rectangle {
-                            color: transformCombo.hovered ? Colors.surfaceContainerHigh : Colors.surfaceContainer
-                            radius: Styling.radius(-2)
-                            border.color: Colors.outlineVariant; border.width: 1
+                    // Rotation
+                    Text { text: Icons.arrowCounterClockwise; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.alignment: Qt.AlignVCenter }
+                    RowLayout { Layout.fillWidth: true; spacing: 8
+                        Text { text: "Rotation"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; Layout.preferredWidth: 76 }
+                        NLCombo {
+                            id: transformCombo
+                            Layout.fillWidth: true
+                            model: ["0° Normal", "90°", "180°", "270°", "Flipped", "90° Flipped", "180° Flipped", "270° Flipped"]
+                            currentIndex: Math.min(root.monitorTransform, 7)
+                            onActivated: root.settingChanged("transform", index)
                         }
-                        contentItem: Text { text: transformCombo.displayText; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; verticalAlignment: Text.AlignVCenter; leftPadding: 10 }
-                        indicator: Text { text: Icons.caretDown; font.family: Icons.font; font.pixelSize: 14; color: Colors.overBackground; anchors.verticalCenter: parent.verticalCenter; anchors.right: parent.right; anchors.rightMargin: 8 }
-                        onActivated: root.applyMonitorSetting("transform", index)
                     }
-                }
 
-                SettingsRow {
-                    icon: Icons.waveform; label: "VRR"; Layout.fillWidth: true
-                    ComboBox {
-                        id: vrrCombo
-                        model: ["Global Default", "Disabled", "Enabled", "Fullscreen", "Fullscreen+Gaming"]
-                        currentIndex: 0; Layout.preferredWidth: 160
-                        background: Rectangle {
-                            color: vrrCombo.hovered ? Colors.surfaceContainerHigh : Colors.surfaceContainer
-                            radius: Styling.radius(-2)
-                            border.color: Colors.outlineVariant; border.width: 1
+                    // VRR
+                    Text { text: Icons.waveform; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.alignment: Qt.AlignVCenter }
+                    RowLayout { Layout.fillWidth: true; spacing: 8
+                        Text { text: "VRR"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; Layout.preferredWidth: 76 }
+                        NLCombo {
+                            id: vrrCombo
+                            Layout.fillWidth: true
+                            model: ["Global Default", "Disabled", "Enabled", "Fullscreen", "Fullscreen+Gaming"]
+                            currentIndex: {
+                                var v = root.monitorVrr;
+                                if (v === 0) return 0;
+                                if (v === 1) return 2;
+                                if (v === 2) return 3;
+                                if (v === 3) return 4;
+                                return 0;
+                            }
+                            onActivated: { var v = [0, 0, 1, 2, 3]; root.settingChanged("vrr", v[index]); }
                         }
-                        contentItem: Text { text: vrrCombo.displayText; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; verticalAlignment: Text.AlignVCenter; leftPadding: 10 }
-                        indicator: Text { text: Icons.caretDown; font.family: Icons.font; font.pixelSize: 14; color: Colors.overBackground; anchors.verticalCenter: parent.verticalCenter; anchors.right: parent.right; anchors.rightMargin: 8 }
-                        onActivated: { var v = [null, "0", "1", "2", "3"]; root.applyMonitorSetting("vrr", v[index]); }
+                    }
+
+                    // HDR
+                    Text { text: Icons.sun; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.alignment: Qt.AlignVCenter }
+                    NLToggle {
+                        label: "HDR" + (root.hdrSupported ? "" : " (unsupported)")
+                        checked: root.monitorHdr
+                        enabled: root.hdrSupported
+                        onToggled: root.settingChanged("hdr", value)
+                    }
+
+                    // Duplicate from
+                    Text { text: Icons.copy; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.alignment: Qt.AlignVCenter }
+                    RowLayout { Layout.fillWidth: true; spacing: 8
+                        Text { text: "Duplicate"; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; Layout.preferredWidth: 76 }
+                        NLCombo {
+                            id: dupCombo
+                            Layout.fillWidth: true
+                            model: {
+                                var names = ["None"];
+                                if (!root.monitorList) return names;
+                                for (var i = 0; i < root.monitorList.length; i++) {
+                                    var m = root.monitorList[i];
+                                    if (m && m.name && m.name !== root.displayName && m.enabled !== false) names.push(m.name);
+                                }
+                                return names;
+                            }
+                            currentIndex: 0
+                            onActivated: {
+                                if (index > 0) root.duplicateFrom(model[index]);
+                                dupCombo.currentIndex = 0;
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
-    // ── Inline: SettingsRow component ──
+    component MonitorChip: StyledRect {
+        id: chipRoot
+        property string icon: ""
+        property string text: ""
+        variant: "internalbg"
+        Layout.preferredHeight: 22
+        radius: Styling.radius(-6)
+        implicitWidth: chipRow.implicitWidth + 12
+        RowLayout {
+            id: chipRow; anchors.centerIn: parent; spacing: 3
+            Text { text: chipRoot.icon; font.family: Icons.font; font.pixelSize: 10; color: Colors.outline }
+            Text { text: chipRoot.text; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-3); color: Colors.outline }
+        }
+    }
+
     component SettingsRow: RowLayout {
-        property string icon: ""; property string label: ""
+        property string icon: ""
+        property string label: ""
         spacing: 8
         Text { text: icon; font.family: Icons.font; font.pixelSize: 14; color: Colors.outline; Layout.preferredWidth: 18 }
-        Text { text: label; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; Layout.preferredWidth: 80 }
+        Text { text: label; font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1); color: Colors.overBackground; Layout.preferredWidth: 76 }
     }
-
-    // Debounced monitor config sync (after settings change)
-    Timer {
-        id: monitorSyncDebounce
-        interval: 2500
-        repeat: false
-        onTriggered: MonitorsWriter.sync()
-    }
-
-    // ── Connections ──
-    Connections {
-        target: AxctlService
-        function onMonitorsChanged() {
-            root.updateAxctlMatch();
-            // No longer restarting the debounce here - it created an infinite loop:
-            // sync -> hyprctl reload -> monitorsChanged -> restart debounce -> sync -> ...
-            // Disk persistence is now only triggered explicitly by the user
-            // via applyMonitorSetting() or the Apply button in MonitorsPanel
-        }
-    }
-
-    onDetailedInfoChanged: {
-        if (detailedInfo) {
-            if (detailedInfo.x !== undefined) posX.value = detailedInfo.x;
-            if (detailedInfo.y !== undefined) posY.value = detailedInfo.y;
-            if (detailedInfo.transform !== undefined) transformCombo.currentIndex = Math.min(detailedInfo.transform, 5);
-        }
-    }
-Component.onDestruction: {
-    monitorSyncDebounce.stop ? monitorSyncDebounce.stop() : undefined;
-    monitorSyncDebounce.running !== undefined ? monitorSyncDebounce.running = false : undefined;
-    monitorSyncDebounce.destroy !== undefined ? monitorSyncDebounce.destroy() : undefined;
-}
 }

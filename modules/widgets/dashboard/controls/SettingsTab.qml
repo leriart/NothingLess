@@ -16,7 +16,7 @@ Rectangle {
     color: "transparent"
     implicitWidth: 400
     implicitHeight: 300
-    // 0: Network, 1: Bluetooth, 2: Mixer, 3: AI, 4: Effects, 5: Theme, 6: Binds, 7: System, 8: Compositor, 9: Shell
+    // 0: Network, 1: Bluetooth, 2: Mixer, 3: AI, 4: Effects, 5: Theme, 6: Binds, 7: System, 8: Compositor, 9: Shell, 10: Screen Sharing
 
     property int currentSection: 0
     property int selectedIndex: GlobalStates.settingsCurrentTab
@@ -219,6 +219,12 @@ Rectangle {
             icon: Icons.bluetooth,
             label: "Bluetooth",
             section: 1,
+            isIcon: true
+        },
+        {
+            icon: Icons.screenShare,
+            label: "Screen Sharing",
+            section: 10,
             isIcon: true
         },
         {
@@ -618,6 +624,10 @@ Rectangle {
                 {
                     component: "ShellPanel.qml",
                     section: 9
+                },
+                {
+                    component: "ScreenSharingPanel.qml",
+                    section: 10
                 }
             ]
 

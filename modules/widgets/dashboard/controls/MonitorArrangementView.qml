@@ -122,25 +122,62 @@ StyledRect {
                     x: root.realToCanvasX(rx); y: root.realToCanvasY(ry)
                     width: Math.max(50, logicalW * root.viewScale)
                     height: Math.max(35, logicalH * root.viewScale)
-                    visible: modelData.enabled
+                    opacity: modelData.enabled ? 1.0 : 0.45
 
                     StyledRect {
                         anchors.fill: parent
-                        variant: isSelected ? "primary" : "common"
-                        radius: Styling.radius(-2); enableShadow: true
-                        border.width: isSelected ? 1.5 : 1
+                        variant: {
+                            if (!modelData.enabled) return isSelected ? "focus" : "transparent";
+                            return isSelected ? "primary" : "common";
+                        }
+                        radius: Styling.radius(-2); enableShadow: modelData.enabled
+                        border.width: isSelected ? 2 : 1
                         border.color: isSelected ? Styling.srItem("primary") : Colors.outlineVariant
-                        opacity: modelData.enabled ? 1.0 : 0.5
+                        opacity: modelData.enabled ? 1.0 : 0.7
                     }
+
+                    // Index badge
+                    StyledRect {
+                        anchors.top: parent.top; anchors.left: parent.left
+                        anchors.margins: 4
+                        width: indexBadge.implicitWidth + 8; height: 16
+                        radius: 8
+                        variant: isSelected ? "primary" : "internalbg"
+                        Text {
+                            id: indexBadge
+                            anchors.centerIn: parent
+                            text: (index + 1).toString()
+                            font.family: Config.theme.font; font.pixelSize: Math.max(7, Math.min(10, Styling.fontSize(-4)))
+                            font.bold: true
+                            color: isSelected ? Styling.srItem("primary") : Colors.outline
+                        }
+                    }
+
                     Column {
                         anchors.centerIn: parent; spacing: 1
                         Text { anchors.horizontalCenter: parent.horizontalCenter; text: modelData.name; font.family: Config.theme.font; font.pixelSize: Math.max(8, Math.min(11, Styling.fontSize(-3))); font.bold: true; color: isSelected ? Styling.srItem("primary") : Colors.overBackground }
-                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: rx + "," + ry; font.family: Config.theme.font; font.pixelSize: Math.max(7, Math.min(10, Styling.fontSize(-4))); color: Colors.outline }
-                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: Math.round(logicalW) + "×" + Math.round(logicalH); font.family: Config.theme.font; font.pixelSize: Math.max(7, Math.min(10, Styling.fontSize(-4))); color: Colors.outline }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: Math.round(logicalW) + "×" + Math.round(logicalH) + " @ " + Math.round(modelData.refreshRate || modelData.refresh_rate || 60) + "Hz"; font.family: Config.theme.font; font.pixelSize: Math.max(7, Math.min(10, Styling.fontSize(-4))); color: Colors.outline }
+                        Text { anchors.horizontalCenter: parent.horizontalCenter; text: rx + "," + ry + " · " + (modelData.scale || 1.0).toFixed(2) + "×"; font.family: Config.theme.font; font.pixelSize: Math.max(7, Math.min(10, Styling.fontSize(-4))); color: Colors.outline }
+                    }
+
+                    // Drag handle
+                    StyledRect {
+                        anchors.right: parent.right; anchors.bottom: parent.bottom
+                        anchors.margins: 4
+                        width: 18; height: 18; radius: 4
+                        variant: isSelected ? "primary" : "internalbg"
+                        visible: modelData.enabled
+                        Text {
+                            anchors.centerIn: parent
+                            text: Icons.arrowsOutCardinal
+                            font.family: Icons.font; font.pixelSize: 10
+                            color: isSelected ? Styling.srItem("primary") : Colors.outline
+                        }
                     }
 
                     MouseArea {
                         id: dragArea; anchors.fill: parent; cursorShape: Qt.SizeAllCursor; hoverEnabled: true
+                        enabled: modelData.enabled
                         property real pcx: 0; property real pcy: 0
                         property real srx: 0; property real sry: 0
                         

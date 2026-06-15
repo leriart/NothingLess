@@ -130,6 +130,8 @@ install_dependencies() {
       google-roboto-fonts google-roboto-mono-fonts dejavu-sans-fonts liberation-fonts
       google-noto-fonts-common google-noto-cjk-fonts google-noto-emoji-fonts
       translate-shell songrec libqalculate
+      uxplay gstreamer1-plugins-bad-free gstreamer1-plugin-libav
+      gnome-network-displays
     )
 
     log_info "Installing dependencies..."
@@ -182,6 +184,8 @@ install_dependencies() {
       quickshell ttf-phosphor-icons ttf-league-gothic adw-gtk-theme
       translate-shell songrec libqalculate
       json-c wayland
+      uxplay gst-plugins-bad gst-libav
+      gnome-network-displays miraclecast-git
     )
 
     log_info "Installing dependencies with $AUR_HELPER..."

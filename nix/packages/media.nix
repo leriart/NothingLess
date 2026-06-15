@@ -9,6 +9,11 @@ with pkgs; [
   x264
   playerctl
 
+  # Wireless display backends
+  uxplay
+  miraclecast
+  gnome-network-displays
+
   # Audio
   pipewire
   wireplumber
