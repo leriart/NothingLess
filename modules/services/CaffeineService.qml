@@ -3,6 +3,12 @@ import Quickshell
 
 pragma Singleton
 
+/**
+ * CaffeineService — Wraps Quickshell's IdleInhibitor and persists state.
+ *
+ * State persistence via StateService. Listens to StateService.stateLoaded
+ * so we don't miss the initial value (eliminates the previous 500ms race).
+ */
 Singleton {
     id: root
 
@@ -26,17 +32,6 @@ Singleton {
         target: StateService
         function onStateLoaded() {
             root.inhibit = StateService.get("caffeine", false);
-        }
-    }
-
-    Timer {
-        interval: 500
-        running: true
-        repeat: false
-        onTriggered: {
-            if (StateService.initialized) {
-                root.inhibit = StateService.get("caffeine", false);
-            }
         }
     }
 }

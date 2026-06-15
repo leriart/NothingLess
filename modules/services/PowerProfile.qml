@@ -5,344 +5,188 @@ import Quickshell
 import Quickshell.Io
 import qs.modules.theme
 
+/**
+ * PowerProfile — Wrapper for power-profiles-daemon (powerprofilesctl).
+ *
+ * Detection: single check at startup; `refresh()` can be called manually to
+ * re-detect (e.g. after installing the daemon post-boot).
+ *
+ * State machine:
+ *   - isAvailable=false  → no UI shown, calls become no-ops
+ *   - isAvailable=true   → currentProfile + availableProfiles populated
+ *
+ * setProfile(name):
+ *   - Validates against availableProfiles
+ *   - Optimistically updates currentProfile (for snappy UI)
+ *   - Spawns setProc; on exit re-reads via getProc to confirm
+ *   - If set fails, getProc restores correct value
+ */
 Singleton {
     id: root
 
+    readonly property var _orderedProfiles: ["power-saver", "balanced", "performance"]
+
+    property bool isAvailable: false
+    property string backendType: ""  // "powerprofilesctl" or ""
     property var availableProfiles: []
     property string currentProfile: ""
-    property bool isAvailable: false
-    property string backendType: "" // "powerprofilesctl" atau "tlp"
+    property bool initialized: false
 
+    signal availabilityChanged(bool available)
     signal profileChanged(string profile)
 
-    Timer {
-        id: startupDelay
-        interval: 2000
-        running: true
-        onTriggered: initialize()
-    }
-
-    property bool _initialized: false
-
-    function initialize() {
-        if (_initialized) return;
-        _initialized = true;
-        console.info("PowerProfile: Component initialized");
-        checkPowerProfilesCtl.running = true;
-    }
-
-    // ============================================
-    // POWERPROFILESCTL CHECK
-    // ============================================
-    Process {
-        id: checkPowerProfilesCtl
+    // ── Detection ───────────────────────────────────────────────────────
+    property Process checkProc: Process {
+        id: checkProc
         workingDirectory: "/"
         command: ["powerprofilesctl", "version"]
         running: false
         stdout: SplitParser {}
-
         onExited: exitCode => {
             if (exitCode === 0) {
-                console.info("PowerProfile: powerprofilesctl detected");
-                backendType = "powerprofilesctl";
-                isAvailable = true;
-
-                // Delay untuk ensure process ready
-                Qt.callLater(() => {
-                    console.info("PowerProfile: Getting profiles...");
-                    getProc.running = true;
-                });
-
-                Qt.callLater(() => {
-                    console.info("PowerProfile: Listing profiles...");
-                    listProc.running = true;
-                }, 100);
+                root._adoptBackend("powerprofilesctl");
+                root.getProc.running = true;
+                root.listProc.running = true;
             } else {
-                console.info("PowerProfile: powerprofilesctl not available, trying tlp...");
-                checkTLP.running = true;
+                root._adoptBackend("");
             }
         }
     }
 
-    // ============================================
-    // TLP CHECK (FALLBACK)
-    // ============================================
-    Process {
-        id: checkTLP
-        workingDirectory: "/"
-        command: ["/sbin/tlp", "--version"]
-        running: false
-        stdout: SplitParser {
-            onRead: data => {
-                const output = data.trim();
-                if (output && output.length > 0) {
-                    console.info("PowerProfile: " + output);
-                }
-            }
-        }
-        onExited: exitCode => {
-            if (exitCode === 0) {
-                console.info("PowerProfile: ✓ TLP detected");
-                backendType = "tlp";
-                isAvailable = true;
-                availableProfiles = ["power-saver", "balanced", "performance"];
-                getTLPProc.running = true;
-            } else {
-                console.warn("PowerProfile: Neither powerprofilesctl nor tlp available");
-                isAvailable = false;
-            }
-        }
+    function refresh() {
+        checkProc.running = true;
     }
 
-    // ============================================
-    // POWERPROFILESCTL - Get current profile
-    // ============================================
-    Process {
+    function _adoptBackend(backend) {
+        const wasAvail = isAvailable;
+        if (backend === "powerprofilesctl") {
+            backendType = backend;
+            isAvailable = true;
+            availableProfiles = _orderedProfiles.slice();
+        } else {
+            backendType = "";
+            isAvailable = false;
+            availableProfiles = [];
+            currentProfile = "";
+        }
+        if (wasAvail !== isAvailable) {
+            availabilityChanged(isAvailable);
+        }
+        initialized = true;
+    }
+
+    // ── Get current profile ─────────────────────────────────────────────
+    property Process getProc: Process {
         id: getProc
         workingDirectory: "/"
         command: ["powerprofilesctl", "get"]
         running: false
         stdout: SplitParser {
             onRead: data => {
-                const profile = data.trim();
-                if (profile && profile.length > 0) {
-                    console.info("PowerProfile: Current profile:", profile);
-                    currentProfile = profile;
-                    profileChanged(profile);
-                }
-            }
-        }
-    }
-
-    // ============================================
-    // POWERPROFILESCTL - List available profiles
-    // ============================================
-    Process {
-        id: listProc
-        workingDirectory: "/"
-        command: ["bash", "-c", "powerprofilesctl list 2>&1"]
-        running: false
-
-        property string fullOutput: ""
-
-        stdout: SplitParser {
-            splitMarker: "\n"
-            onRead: data => {
-                listProc.fullOutput += data + "\n";
-            }
-        }
-
-        onExited: exitCode => {
-            console.info("PowerProfile: listProc exit code:", exitCode);
-
-            if (exitCode === 0 && fullOutput.trim().length > 0) {
-                console.info("PowerProfile: Full output:", fullOutput);
-                const lines = fullOutput.split('\n');
-                const profiles = [];
-
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (line.endsWith(':')) {
-                        const profileName = line.replace('*', '').replace(':', '').trim();
-                        if (profileName && profileName.length > 0 && profiles.indexOf(profileName) === -1) {
-                            profiles.push(profileName);
-                        }
+                const p = (data || "").trim();
+                if (p && p.length > 0 && root.availableProfiles.indexOf(p) !== -1) {
+                    if (root.currentProfile !== p) {
+                        root.currentProfile = p;
+                        root.profileChanged(p);
                     }
                 }
-
-                const order = ["power-saver", "balanced", "performance"];
-                profiles.sort((a, b) => {
-                    const indexA = order.indexOf(a);
-                    const indexB = order.indexOf(b);
-                    if (indexA === -1)
-                        return 1;
-                    if (indexB === -1)
-                        return -1;
-                    return indexA - indexB;
-                });
-
-                availableProfiles = profiles;
-                console.info("PowerProfile: powerprofilesctl profiles loaded:", availableProfiles);
-            } else {
-                // Fallback ke TLP jika powerprofilesctl gagal
-                console.warn("PowerProfile: powerprofilesctl list failed, falling back to TLP...");
-                backendType = "";
-                isAvailable = false;
-                checkTLP.running = true;
             }
-            fullOutput = "";
         }
     }
 
-    // ============================================
-    // TLP - Get current profile
-    // ============================================
-    Process {
-        id: getTLPProc
+    // ── List available profiles (sanity check; mostly informational) ────
+    property Process listProc: Process {
+        id: listProc
         workingDirectory: "/"
-        command: ["bash", "-c", "/sbin/tlp-stat -p 2>/dev/null | grep -i 'Active profile' | head -1"]
+        command: ["powerprofilesctl", "list"]
         running: false
         stdout: SplitParser {
             onRead: data => {
-                const line = data.trim();
-                if (!line)
-                    return;
-
-                console.info("PowerProfile: tlp-stat output:", line);
-                let profile = "";
-
-                if (line.includes("power-saver") || line.includes("powersaver")) {
-                    profile = "power-saver";
-                } else if (line.includes("balanced")) {
-                    profile = "balanced";
-                } else if (line.includes("performance")) {
-                    profile = "performance";
+                if (!data) return;
+                // Lines look like:
+                //   "  performance:"
+                //   "* balanced:"            (active profile is prefixed with *)
+                //   "  power-saver:"
+                // Strip the optional "*" active-marker, then match the profile name.
+                const m = data.match(/^\s*\*?\s*(\S+):\s*$/);
+                if (!m) return;
+                const name = m[1];
+                if (root._orderedProfiles.indexOf(name) === -1) return;
+                if (root.availableProfiles.indexOf(name) === -1) {
+                    // Preserve canonical order
+                    const ordered = root._orderedProfiles.filter(n =>
+                        n === name || root.availableProfiles.indexOf(n) !== -1);
+                    root.availableProfiles = ordered;
                 }
-
-                if (profile && currentProfile !== profile) {
-                    currentProfile = profile;
-                    console.info("PowerProfile: ✓ Current profile set to:", profile);
-                    profileChanged(profile);
-                }
-            }
-        }
-        onExited: exitCode => {
-            if (exitCode !== 0) {
-                console.warn("PowerProfile: Failed to get TLP profile");
             }
         }
     }
 
-    // ============================================
-    // SET PROFILE - Support both backends
-    // ============================================
-    Process {
+    // ── Set profile ─────────────────────────────────────────────────────
+    property Process setProc: Process {
         id: setProc
         workingDirectory: "/"
         running: false
         stdout: SplitParser {}
         stderr: SplitParser {
             onRead: data => {
-                const err = data.trim();
-                if (err && err.length > 0) {
-                    console.warn("PowerProfile: Error:", err);
+                const err = (data || "").trim();
+                if (err.length > 0) {
+                    console.warn("PowerProfile: set error:", err);
                 }
             }
         }
-
         onExited: exitCode => {
             if (exitCode === 0) {
-                console.info("PowerProfile: Profile changed successfully");
-                Qt.callLater(() => {
-                    if (backendType === "powerprofilesctl") {
-                        getProc.running = true;
-                    } else if (backendType === "tlp") {
-                        getTLPProc.running = true;
-                    }
-                });
+                console.info("PowerProfile: profile changed to", root.currentProfile);
             } else {
-                console.warn("PowerProfile: Failed to set profile");
+                console.warn("PowerProfile: set failed, re-reading current state");
             }
+            // Always re-read to confirm ground truth
+            Qt.callLater(() => { root.getProc.running = true; });
         }
     }
 
-    function updateCurrentProfile() {
-        if (!isAvailable)
-            return;
-
-        if (backendType === "powerprofilesctl") {
-            getProc.running = true;
-        } else if (backendType === "tlp") {
-            getTLPProc.running = true;
-        }
-    }
-
-    function updateAvailableProfiles() {
-        if (!isAvailable)
-            return;
-
-        if (backendType === "powerprofilesctl") {
-            availableProfiles = [];
-            listProc.running = true;
-        } else if (backendType === "tlp") {
-            // TLP profiles sudah hardcoded
-            console.info("PowerProfile: Available profiles:", availableProfiles);
-        }
-    }
-
-    function setProfile(profileName) {
+    // ── Public API ──────────────────────────────────────────────────────
+    function setProfile(name) {
         if (!isAvailable) {
-            console.warn("PowerProfile: Cannot set profile - service not available");
+            console.warn("PowerProfile: setProfile called but service unavailable");
             return;
         }
-
-        let found = false;
-        for (let i = 0; i < availableProfiles.length; i++) {
-            if (availableProfiles[i] === profileName) {
-                found = true;
-                break;
-            }
-        }
-
-        if (!found) {
-            console.warn("PowerProfile: Profile not available:", profileName);
+        if (availableProfiles.indexOf(name) === -1) {
+            console.warn("PowerProfile: unknown profile", name);
             return;
         }
-
-        console.info("PowerProfile: Setting profile to:", profileName, "using", backendType);
-
-        currentProfile = profileName;
-        console.info("PowerProfile: ✓ UI updated to:", profileName);
-
-        if (backendType === "powerprofilesctl") {
-            setProc.command = ["powerprofilesctl", "set", profileName];
-        } else if (backendType === "tlp") {
-            setProc.command = ["sudo", "/sbin/tlp", profileName];
-        }
-
+        // Optimistic UI update
+        currentProfile = name;
+        setProc.command = ["powerprofilesctl", "set", name];
         setProc.running = true;
     }
 
-    function getProfileIcon(profileName) {
-        if (profileName === "power-saver")
-            return Icons.powerSave;
-        if (profileName === "balanced")
-            return Icons.balanced;
-        if (profileName === "performance")
-            return Icons.performance;
+    function cycle() {
+        if (!isAvailable || availableProfiles.length === 0) return;
+        const idx = availableProfiles.indexOf(currentProfile);
+        const nextIdx = (idx + 1) % availableProfiles.length;
+        setProfile(availableProfiles[nextIdx]);
+    }
+
+    function getProfileIcon(name) {
+        if (name === "power-saver") return Icons.powerSave;
+        if (name === "balanced") return Icons.balanced;
+        if (name === "performance") return Icons.performance;
         return Icons.balanced;
     }
 
-    function getProfileDisplayName(profileName) {
-        if (profileName === "power-saver")
-            return "Power Save";
-        if (profileName === "balanced")
-            return "Balanced";
-        if (profileName === "performance")
-            return "Performance";
-        return profileName;
+    function getProfileDisplayName(name) {
+        if (name === "power-saver") return "Power Save";
+        if (name === "balanced") return "Balanced";
+        if (name === "performance") return "Performance";
+        return name;
     }
-Component.onDestruction: {
-    startupDelay.stop ? startupDelay.stop() : undefined;
-    startupDelay.running !== undefined ? startupDelay.running = false : undefined;
-    startupDelay.destroy !== undefined ? startupDelay.destroy() : undefined;
-    checkPowerProfilesCtl.stop ? checkPowerProfilesCtl.stop() : undefined;
-    checkPowerProfilesCtl.running !== undefined ? checkPowerProfilesCtl.running = false : undefined;
-    checkPowerProfilesCtl.destroy !== undefined ? checkPowerProfilesCtl.destroy() : undefined;
-    checkTLP.stop ? checkTLP.stop() : undefined;
-    checkTLP.running !== undefined ? checkTLP.running = false : undefined;
-    checkTLP.destroy !== undefined ? checkTLP.destroy() : undefined;
-    getProc.stop ? getProc.stop() : undefined;
-    getProc.running !== undefined ? getProc.running = false : undefined;
-    getProc.destroy !== undefined ? getProc.destroy() : undefined;
-    listProc.stop ? listProc.stop() : undefined;
-    listProc.running !== undefined ? listProc.running = false : undefined;
-    listProc.destroy !== undefined ? listProc.destroy() : undefined;
-    getTLPProc.stop ? getTLPProc.stop() : undefined;
-    getTLPProc.running !== undefined ? getTLPProc.running = false : undefined;
-    getTLPProc.destroy !== undefined ? getTLPProc.destroy() : undefined;
-    setProc.stop ? setProc.stop() : undefined;
-    setProc.running !== undefined ? setProc.running = false : undefined;
-    setProc.destroy !== undefined ? setProc.destroy() : undefined;
-}
+
+    // ── Init ────────────────────────────────────────────────────────────
+    Component.onCompleted: {
+        // Defer first detection so the shell can finish initializing
+        Qt.callLater(() => { checkProc.running = true; });
+    }
 }

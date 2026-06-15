@@ -83,6 +83,10 @@ On first boot, `exec-once = nothingless` launches the shell, which starts the ax
 - **Hardware-Accelerated Wallpapers** — video wallpapers via QtMultimedia + FFmpeg
 - **AI Assistant Sidebar** — multi-provider chat (OpenAI, Gemini, Anthropic, Mistral, Groq, Ollama, DeepSeek, MiniMax) with tool calling and agent support
 - **Compositor Sync** — 100+ Hyprland settings live-applied from NothingLess config GUI
+- **Game Mode** — snapshot/restore compositor (gaps, blur, shadows, animations) + pause video wallpaper + suppress notifications, toggled by keybind or `nothingless run gamemode`
+- **Focus Mode** — zero gaps + DND + caffeine, snapshot/restore on toggle
+- **Power Profile** — `power-profiles-daemon` integration with cycle, auto-switch to power-saver on low battery (configurable threshold)
+- **Charge Limit** — battery charge limit via TLP (sudo) or direct sysfs (auto-detected); persists across reboots
 
 ---
 
@@ -144,6 +148,13 @@ nothingless lock                       # Activate lockscreen
 nothingless update                     # Update NothingLess
 nothingless run <module>               # Run a module (launcher, dashboard, overview, etc.)
 nothingless run toggle-metrics         # Toggle FPS/CPU/GPU metrics in notch
+nothingless run gamemode               # Toggle game mode
+nothingless run focusmode              # Toggle focus mode
+nothingless run caffeine               # Toggle caffeine (idle inhibit)
+nothingless run dnd                    # Toggle do-not-disturb
+nothingless profile <saver|balanced|performance>  # Set power profile
+nothingless cycle-profile              # Cycle to next power profile
+nothingless charge-limit [on|off|50-100]           # Battery charge limit
 nothingless brightness <0-100>         # Set brightness
 nothingless screen on|off              # Display power control
 nothingless suspend                    # Suspend system

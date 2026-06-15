@@ -5,6 +5,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Notifications
+import qs.modules.globals
 
 Singleton {
     id: root
@@ -403,7 +404,7 @@ Singleton {
             "historyPriority": options.historyPriority || 0,
             "replaceKey": options.replaceKey || "",
             "localActionHandlers": options.actionHandlers || {},
-            "popup": !root.popupInhibited && options.popup !== false,
+            "popup": !root.popupInhibited && (typeof GlobalStates === "undefined" || !GlobalStates.notificationsDnd) && options.popup !== false,
             "isCached": false
         });
 

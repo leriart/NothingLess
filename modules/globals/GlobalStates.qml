@@ -613,4 +613,15 @@ Singleton {
     }
 
     property int settingsCurrentTab: 0
+
+    // ═══════════════════════════════════════════════════════════════
+    // MODES STATE (Focus / Game / DND)
+    // ═══════════════════════════════════════════════════════════════
+
+    // DND (do-not-disturb): when true, Notifications.qml suppresses popups
+    // but notifications still accumulate in history.
+    property bool notificationsDnd: false
+
+    // Game mode is active (read by Anim, VideoWallpaper, Notifications, UI)
+    property bool gameModeActive: false
 }

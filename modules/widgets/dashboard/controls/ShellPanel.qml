@@ -677,6 +677,10 @@ Item {
                             text: "System"
                             sectionId: "system"
                         }
+                        SectionButton {
+                            text: "Modes"
+                            sectionId: "modes"
+                        }
                     }
 
                     // ═══════════════════════════════════════════════════════════════
@@ -2232,6 +2236,122 @@ Item {
                                     GlobalStates.markShellChanged();
                                     Config.ai.sidebarPinnedOnStartup = value;
                                 }
+                            }
+                        }
+                    }
+
+                    // ═══════════════════════════════════════════════════════════════
+                    // MODES SECTION
+                    // ═══════════════════════════════════════════════════════════════
+                    ColumnLayout {
+                        visible: root.currentSection === "modes"
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Text {
+                            text: "Modes"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-1)
+                            font.weight: Font.Medium
+                            color: Colors.overSurfaceVariant
+                            Layout.bottomMargin: -4
+                        }
+
+                        // ── Game Mode Preset Toggles ───────────────────────────
+                        Text {
+                            text: "Game Mode"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-2)
+                            font.weight: Font.Medium
+                            color: Colors.overSurfaceVariant
+                            Layout.topMargin: 4
+                        }
+
+                        ToggleRow {
+                            label: "Zero Gaps"
+                            checked: Config.performance.gameMode?.zeroGaps ?? true
+                            onToggled: value => {
+                                GlobalStates.markShellChanged();
+                                Config.performance.gameMode.zeroGaps = value;
+                            }
+                        }
+                        ToggleRow {
+                            label: "Reduce Border"
+                            checked: Config.performance.gameMode?.reduceBorder ?? true
+                            onToggled: value => {
+                                GlobalStates.markShellChanged();
+                                Config.performance.gameMode.reduceBorder = value;
+                            }
+                        }
+                        ToggleRow {
+                            label: "Disable Blur"
+                            checked: Config.performance.gameMode?.disableBlur ?? true
+                            onToggled: value => {
+                                GlobalStates.markShellChanged();
+                                Config.performance.gameMode.disableBlur = value;
+                            }
+                        }
+                        ToggleRow {
+                            label: "Disable Shadows"
+                            checked: Config.performance.gameMode?.disableShadows ?? true
+                            onToggled: value => {
+                                GlobalStates.markShellChanged();
+                                Config.performance.gameMode.disableShadows = value;
+                            }
+                        }
+                        ToggleRow {
+                            label: "Disable Animations"
+                            checked: Config.performance.gameMode?.disableAnimations ?? true
+                            onToggled: value => {
+                                GlobalStates.markShellChanged();
+                                Config.performance.gameMode.disableAnimations = value;
+                            }
+                        }
+                        ToggleRow {
+                            label: "Pause Video Wallpaper"
+                            checked: Config.performance.gameMode?.pauseVideoWallpaper ?? true
+                            onToggled: value => {
+                                GlobalStates.markShellChanged();
+                                Config.performance.gameMode.pauseVideoWallpaper = value;
+                            }
+                        }
+                        ToggleRow {
+                            label: "Suppress Notifications"
+                            checked: Config.performance.gameMode?.suppressNotifications ?? true
+                            onToggled: value => {
+                                GlobalStates.markShellChanged();
+                                Config.performance.gameMode.suppressNotifications = value;
+                            }
+                        }
+
+                        // ── Battery Auto Power Saver ───────────────────────────
+                        Text {
+                            text: "Battery"
+                            font.family: Config.theme.font
+                            font.pixelSize: Styling.fontSize(-2)
+                            font.weight: Font.Medium
+                            color: Colors.overSurfaceVariant
+                            Layout.topMargin: 12
+                        }
+
+                        ToggleRow {
+                            label: "Auto Power-Save on Low Battery"
+                            checked: Config.system.batteryNotifications?.autoPowerSave ?? false
+                            onToggled: value => {
+                                GlobalStates.markShellChanged();
+                                Config.system.batteryNotifications.autoPowerSave = value;
+                            }
+                        }
+                        NumberInputRow {
+                            label: "Threshold"
+                            value: Config.system.batteryNotifications?.powerSaveThreshold ?? 15
+                            minValue: 5
+                            maxValue: 50
+                            suffix: "%"
+                            enabled: Config.system.batteryNotifications?.autoPowerSave ?? false
+                            onValueEdited: newValue => {
+                                GlobalStates.markShellChanged();
+                                Config.system.batteryNotifications.powerSaveThreshold = newValue;
                             }
                         }
                     }

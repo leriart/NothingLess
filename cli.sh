@@ -73,7 +73,11 @@ Commands:
     volume-mute                       Toggle volume mute
     mic-mute                          Toggle microphone mute
     caffeine                          Toggle caffeine (idle inhibition)
-    gamemode                          Toggle game mode
+    gamemode                          Toggle game mode (snapshot/restore compositor)
+    focusmode                         Toggle focus mode (zero gaps + DND + caffeine)
+    profile [saver|balanced|performance] Set power-profiles-daemon profile
+    cycle-profile                     Cycle to the next power profile
+    charge-limit [on|off|<percent>]   Toggle / set battery charge limit (50-100)
     nightlight                        Toggle night light
 
     run <command>                     Run any IPC command (launcher, dashboard, overview, etc.)
@@ -397,7 +401,7 @@ suspend)
 		dbus-send --system --print-reply --dest=org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager.Suspend boolean:true
 	fi
 	;;
-volume-up|volume-down|volume-mute|mic-mute|caffeine|gamemode|nightlight)
+volume-up|volume-down|volume-mute|mic-mute|caffeine|gamemode|focusmode|dnd|nightlight)
 	PID=$(find_nothingless_pid_cached)
 	if [ -z "$PID" ]; then
 		echo "Error: NothingLess is not running"
@@ -407,6 +411,68 @@ volume-up|volume-down|volume-mute|mic-mute|caffeine|gamemode|nightlight)
 		echo "Error: Could not run command '$1'"
 		exit 1
 	}
+	;;
+profile)
+	# nothingless profile [saver|balanced|performance]
+	PID=$(find_nothingless_pid_cached)
+	if [ -z "$PID" ]; then
+		echo "Error: NothingLess is not running"
+		exit 1
+	fi
+	NAME="${2:-}"
+	case "$NAME" in
+		saver|power-saver) IPC_CMD="powerprofile-saver" ;;
+		balanced) IPC_CMD="powerprofile-balanced" ;;
+		performance) IPC_CMD="powerprofile-performance" ;;
+		"")
+			echo "Usage: nothingless profile <saver|balanced|performance>" >&2
+			exit 1
+			;;
+		*)
+			echo "Error: unknown profile '$NAME' (use: saver, balanced, performance)" >&2
+			exit 1
+			;;
+	esac
+	qs ipc --pid "$PID" call nothingless run "$IPC_CMD" 2>/dev/null || {
+		echo "Error: Could not run profile command"
+		exit 1
+	}
+	;;
+cycle-profile)
+	PID=$(find_nothingless_pid_cached)
+	if [ -z "$PID" ]; then
+		echo "Error: NothingLess is not running"
+		exit 1
+	fi
+	qs ipc --pid "$PID" call nothingless run "cycle-powerprofile" 2>/dev/null || {
+		echo "Error: Could not cycle power profile"
+		exit 1
+	}
+	;;
+charge-limit)
+	# nothingless charge-limit [on|off|<percent>]
+	# With no args, prints the current state.
+	PID=$(find_nothingless_pid_cached)
+	if [ -z "$PID" ]; then
+		echo "Error: NothingLess is not running"
+		exit 1
+	fi
+	ARG="${2:-}"
+	if [ -z "$ARG" ]; then
+		qs ipc --pid "$PID" call nothingless run "charge-limit-status" 2>/dev/null || {
+			echo "Error: Could not query charge limit"
+			exit 1
+		}
+	elif [ "$ARG" = "on" ]; then
+		qs ipc --pid "$PID" call nothingless run "charge-limit-on" 2>/dev/null
+	elif [ "$ARG" = "off" ]; then
+		qs ipc --pid "$PID" call nothingless run "charge-limit-off" 2>/dev/null
+	elif [[ "$ARG" =~ ^[0-9]+$ ]] && [ "$ARG" -ge 50 ] && [ "$ARG" -le 100 ]; then
+		qs ipc --pid "$PID" call nothingless run "charge-limit-set $ARG" 2>/dev/null
+	else
+		echo "Usage: nothingless charge-limit [on|off|<50-100>]" >&2
+		exit 1
+	fi
 	;;
 brightness)
 	PID=$(find_nothingless_pid_cached)

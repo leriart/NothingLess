@@ -93,15 +93,49 @@ QtObject {
             // System toggles
             case "caffeine": CaffeineService.toggleInhibit(); break;
             case "gamemode": GameModeService.toggle(); break;
+            case "focusmode": FocusModeService.toggle(); break;
+            case "dnd": GlobalStates.notificationsDnd = !GlobalStates.notificationsDnd; break;
             case "nightlight": NightLightService.toggle(); break;
+
+            // Power profile
+            case "powerprofile-saver": PowerProfile.setProfile("power-saver"); break;
+            case "powerprofile-balanced": PowerProfile.setProfile("balanced"); break;
+            case "powerprofile-performance": PowerProfile.setProfile("performance"); break;
+            case "cycle-powerprofile": PowerProfile.cycle(); break;
+
+            // Charge limit
+            case "charge-limit-status":
+                console.log("ChargeLimit: enabled=" + ChargeLimitService.enabled +
+                            " limit=" + ChargeLimitService.limit +
+                            " backend=" + ChargeLimitService.backendType +
+                            " available=" + ChargeLimitService.isAvailable);
+                break;
+            case "charge-limit-on":
+                if (ChargeLimitService.isAvailable) ChargeLimitService.setEnabled(true);
+                else console.warn("ChargeLimit: no backend available");
+                break;
+            case "charge-limit-off":
+                ChargeLimitService.setEnabled(false);
+                break;
+            default:
+                // Pattern: "charge-limit-set <percent>"
+                if (command.indexOf("charge-limit-set ") === 0) {
+                    const pct = parseInt(command.substring("charge-limit-set ".length).trim(), 10);
+                    if (!isNaN(pct) && pct >= 50 && pct <= 100) {
+                        ChargeLimitService.setLimit(pct);
+                    } else {
+                        console.warn("ChargeLimit: invalid percent (must be 50-100)");
+                    }
+                } else {
+                    console.warn("Unknown IPC command:", command);
+                }
+                break;
 
             // Audio
             case "volume-up": Audio.incrementVolume(); break;
             case "volume-down": Audio.decrementVolume(); break;
             case "volume-mute": Audio.toggleMute(); break;
             case "mic-mute": Audio.toggleMicMute(); break;
-
-            default: console.warn("Unknown IPC command:", command);
         }
     }
 

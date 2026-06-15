@@ -3,6 +3,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.config
+import qs.modules.globals
 
 /**
  * VideoWallpaperService.qml — Runtime optimizer for video wallpapers.
@@ -290,7 +291,7 @@ Singleton {
             fps: root.optimalFps,
             useHardware: root.usingHardware,
             maxThreads: root.maxSoftwareThreads,
-            paused: root.screenLocked || !root.videoPlaying,
+            paused: root.screenLocked || !root.videoPlaying || (typeof GlobalStates !== "undefined" && GlobalStates.gameModeActive),
             isVideo: isVideo
         };
     }

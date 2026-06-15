@@ -194,6 +194,13 @@ ShellRoot {
         id: compositorConfig
     }
 
+    Connections {
+        target: GlobalStates
+        function onCompositorConfigChanged() {
+            compositorConfig.applyCompositorConfig();
+        }
+    }
+
     CompositorKeybinds {
         id: compositorKeybinds
     }

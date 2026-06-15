@@ -47,6 +47,14 @@ var ACTION_CATALOG = [
     { id: "nothingless.reload", label: "Reload NothingLess", category: "NothingLess", dispatcher: "exec", argument: "nothingless reload" },
     { id: "nothingless.quit", label: "Quit NothingLess", category: "NothingLess", dispatcher: "exec", argument: "nothingless quit" },
     { id: "nothingless.toggle-metrics", label: "Toggle Metrics", category: "NothingLess", dispatcher: "exec", argument: "nothingless run toggle-metrics" },
+    { id: "nothingless.toggle-gamemode", label: "Toggle Game Mode", category: "NothingLess", dispatcher: "exec", argument: "nothingless run gamemode" },
+    { id: "nothingless.toggle-focusmode", label: "Toggle Focus Mode", category: "NothingLess", dispatcher: "exec", argument: "nothingless run focusmode" },
+    { id: "nothingless.toggle-caffeine", label: "Toggle Caffeine", category: "NothingLess", dispatcher: "exec", argument: "nothingless run caffeine" },
+    { id: "nothingless.toggle-dnd", label: "Toggle Do Not Disturb", category: "NothingLess", dispatcher: "exec", argument: "nothingless run dnd" },
+    { id: "nothingless.profile-saver", label: "Power Profile: Power Saver", category: "NothingLess", dispatcher: "exec", argument: "nothingless profile saver" },
+    { id: "nothingless.profile-balanced", label: "Power Profile: Balanced", category: "NothingLess", dispatcher: "exec", argument: "nothingless profile balanced" },
+    { id: "nothingless.profile-performance", label: "Power Profile: Performance", category: "NothingLess", dispatcher: "exec", argument: "nothingless profile performance" },
+    { id: "nothingless.cycle-profile", label: "Cycle Power Profile", category: "NothingLess", dispatcher: "exec", argument: "nothingless cycle-profile" },
 
     { id: "window.close", label: "Close Window", category: "Window", dispatcher: "killactive", argument: "" },
     { id: "window.focus", label: "Focus Window", category: "Window", dispatcher: "movefocus", args: [{ key: "direction", label: "Direction", placeholder: "up/down/left/right", defaultValue: "up" }], argumentBuilder: function (args) {

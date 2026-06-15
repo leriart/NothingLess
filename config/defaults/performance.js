@@ -25,6 +25,18 @@ var data = {
     "wavyLine": true,                   // Línea wave en el reproductor
     "rotateCoverArt": true,             // Rotación de cover art
 
+    // ─── Game Mode ─────────────────────────────────────
+    // Preset applied when GameModeService.toggled = true
+    "gameMode": {
+        "zeroGaps": true,              // gapsIn/out = 0
+        "reduceBorder": true,          // borderSize -> 1, rounding -> 0
+        "disableBlur": true,           // compositor.blurEnabled = false
+        "disableShadows": true,        // compositor.shadowEnabled = false
+        "disableAnimations": true,     // compositor.animationsEnabled = false + Anim.instantMode
+        "pauseVideoWallpaper": true,   // pause video wallpaper playback
+        "suppressNotifications": true  // GlobalStates.notificationsDnd = true
+    },
+
     // ─── Dashboard ────────────────────────────────────
     "dashboardPersistTabs": false,      // Mantener tabs abiertos en memoria
     "dashboardMaxPersistentTabs": 2,    // Max tabs persistentes

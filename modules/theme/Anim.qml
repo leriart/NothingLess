@@ -1,6 +1,7 @@
 pragma Singleton
 import QtQuick
 import qs.config
+import qs.modules.globals
 
 /*!
     Anim.qml — Animation system for NothingLess.
@@ -729,6 +730,8 @@ QtObject {
     function _scale(baseMs) {
         // Fast-path: disabled → 0
         if (root._baseScale <= 0) return 0;
+        // Fast-path: instant mode (game mode) → 0
+        if (root.instantMode === true) return 0;
         // Integer rounding via |0 (≈2× faster than Math.round in V4 JIT)
         return (baseMs * root._baseScale + 0.5) | 0;
     }
@@ -736,6 +739,8 @@ QtObject {
     function duration(type, size) {
         // Fast-path: disabled animations
         if (root._baseScale <= 0) return 0;
+        // Fast-path: instant mode (game mode) → 0
+        if (root.instantMode === true) return 0;
         const ti = root._durTypeIdx[type];
         if (ti === undefined) return 0;
         const si = root._durSizeIdx[type] ? root._durSizeIdx[type][size] : undefined;
@@ -1228,6 +1233,12 @@ QtObject {
     readonly property int springLarge:   root.duration("spring", "large")
 
     readonly property bool animationsEnabled: root._baseScale > 0
+
+    // instantMode: when true, all animations are forced to duration 0
+    // (set externally by GameModeService via GlobalStates.gameModeActive).
+    // Using GlobalStates (no circular dep) instead of GameModeService directly.
+    property bool _instantMode: false
+    readonly property bool instantMode: root._instantMode || (typeof Services !== "undefined" && typeof GlobalStates !== "undefined" && GlobalStates.gameModeActive === true)
 
     // ============================================
     // PROFILE-AWARE EASING ACCESSORS (REACTIVE)

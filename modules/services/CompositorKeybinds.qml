@@ -81,7 +81,12 @@ QtObject {
                 lens: cloneKeybind(nothingless.system.lens),
                 reload: nothingless.system.reload ? cloneKeybind(nothingless.system.reload) : null,
                 quit: nothingless.system.quit ? cloneKeybind(nothingless.system.quit) : null,
-                "toggle-metrics": nothingless.system["toggle-metrics"] ? cloneKeybind(nothingless.system["toggle-metrics"]) : null
+                "toggle-metrics": nothingless.system["toggle-metrics"] ? cloneKeybind(nothingless.system["toggle-metrics"]) : null,
+                "toggle-gamemode": nothingless.system["toggle-gamemode"] ? cloneKeybind(nothingless.system["toggle-gamemode"]) : null,
+                "toggle-focusmode": nothingless.system["toggle-focusmode"] ? cloneKeybind(nothingless.system["toggle-focusmode"]) : null,
+                "cycle-profile": nothingless.system["cycle-profile"] ? cloneKeybind(nothingless.system["cycle-profile"]) : null,
+                "toggle-dnd": nothingless.system["toggle-dnd"] ? cloneKeybind(nothingless.system["toggle-dnd"]) : null,
+                "toggle-caffeine": nothingless.system["toggle-caffeine"] ? cloneKeybind(nothingless.system["toggle-caffeine"]) : null
             }
         };
 
@@ -199,6 +204,11 @@ QtObject {
                 if (previousNothinglessBinds.system.reload) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system.reload));
                 if (previousNothinglessBinds.system.quit) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system.quit));
                 if (previousNothinglessBinds.system["toggle-metrics"]) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system["toggle-metrics"]));
+                if (previousNothinglessBinds.system["toggle-gamemode"]) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system["toggle-gamemode"]));
+                if (previousNothinglessBinds.system["toggle-focusmode"]) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system["toggle-focusmode"]));
+                if (previousNothinglessBinds.system["cycle-profile"]) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system["cycle-profile"]));
+                if (previousNothinglessBinds.system["toggle-dnd"]) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system["toggle-dnd"]));
+                if (previousNothinglessBinds.system["toggle-caffeine"]) payload.unbinds.push(makeUnbindTarget(previousNothinglessBinds.system["toggle-caffeine"]));
             }
 
             // Unbind previous custom keybinds
@@ -248,9 +258,20 @@ QtObject {
         if (system.reload) payload.unbinds.push(makeUnbindTarget(system.reload));
         if (system.quit) payload.unbinds.push(makeUnbindTarget(system.quit));
         if (system["toggle-metrics"]) payload.unbinds.push(makeUnbindTarget(system["toggle-metrics"]));
+        if (system["toggle-gamemode"]) payload.unbinds.push(makeUnbindTarget(system["toggle-gamemode"]));
+        if (system["toggle-focusmode"]) payload.unbinds.push(makeUnbindTarget(system["toggle-focusmode"]));
+        if (system["cycle-profile"]) payload.unbinds.push(makeUnbindTarget(system["cycle-profile"]));
+        if (system["toggle-dnd"]) payload.unbinds.push(makeUnbindTarget(system["toggle-dnd"]));
+        if (system["toggle-caffeine"]) payload.unbinds.push(makeUnbindTarget(system["toggle-caffeine"]));
 
         // Bind current system keybinds
-        [system.overview, system.powermenu, system.config, system.lockscreen, system.tools, system.screenshot, system.screenrecord, system.lens, system.reload, system.quit, system["toggle-metrics"]].forEach(bind => {
+        [
+            system.overview, system.powermenu, system.config, system.lockscreen, system.tools,
+            system.screenshot, system.screenrecord, system.lens,
+            system.reload, system.quit,
+            system["toggle-metrics"], system["toggle-gamemode"], system["toggle-focusmode"],
+            system["cycle-profile"], system["toggle-dnd"], system["toggle-caffeine"]
+        ].forEach(bind => {
             if (!bind) return;
             const resolved = makeBindFromCore(bind);
             if (resolved) payload.binds.push(resolved);

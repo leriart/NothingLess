@@ -567,6 +567,25 @@ install_axctl() {
   (axctl -c "$HOME/.local/share/nothingless/axctl.toml" daemon >/dev/null 2>&1 &)
 }
 
+# === Udev Rule for Battery Charge Limit ===
+setup_udev_rules() {
+  [[ "$DISTRO" == "nixos" ]] && return 0
+
+  local UDEV_RULE="/etc/udev/rules.d/99-nothingless-charge-threshold.rules"
+  local RULE_CONTENT='SUBSYSTEM=="power_supply", ATTR{charge_control_end_threshold}="80"'
+
+  if [[ -f "$UDEV_RULE" ]] && grep -qF "99-nothingless-charge-threshold" "$UDEV_RULE"; then
+    log_info "udev rule for charge threshold already present"
+    return 0
+  fi
+
+  log_info "Installing udev rule for battery charge control..."
+  echo "$RULE_CONTENT" | sudo tee "$UDEV_RULE" >/dev/null
+  sudo udevadm control --reload-rules 2>/dev/null || true
+  sudo udevadm trigger 2>/dev/null || true
+  log_success "udev rule installed at $UDEV_RULE"
+}
+
 # === Main ===
 migrate_old_paths
 install_dependencies "$1"
@@ -577,6 +596,7 @@ install_ndot_font
 install_python_tools
 configure_services
 setup_launcher
+setup_udev_rules
 
 echo ""
 log_success "Installation complete!"

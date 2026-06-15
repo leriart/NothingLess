@@ -8,13 +8,13 @@ Backend singletons bridging Wayland protocols, CLI tools (nmcli, upower, wpctl, 
 |------|----------|-------|
 | **Audio/Volume** | `Audio.qml` | PipeWire/PulseAudio via `wpctl`. Sink/source management |
 | **Network/WiFi** | `NetworkService.qml` | `nmcli` wrapper. WiFi scanning, connection, status |
-| **Battery/Power** | `Battery.qml` | UPower integration. Percentage, charging state, time remaining |
+| **Battery/Power** | `Battery.qml` | UPower integration. Percentage, charging state, time remaining. Auto-switches to power-saver when below threshold (configurable). |
 | **Bluetooth** | `BluetoothService.qml` | Device listing, connect/disconnect |
 | **Brightness** | `Brightness.qml` | Per-monitor brightness via `brightnessctl` |
 | **AI Assistant** | `Ai.qml` + `ai/strategies/` | Multi-provider (OpenAI, Gemini, Mistral). Strategy pattern |
 | **Clipboard** | `ClipboardService.qml` | Persistent clipboard via `clipboard.db` + helper scripts |
 | **Media** | `MprisController.qml` | MPRIS D-Bus player control |
-| **Notifications** | `Notifications.qml` | D-Bus notification server with persistence |
+| **Notifications** | `Notifications.qml` | D-Bus notification server with persistence. Suppresses popups when `GlobalStates.notificationsDnd` is true (history still accumulates). |
 | **System Monitor** | `SystemResources.qml` | CPU, RAM, GPU, temps via Python script |
 | **Compositor** | `AxctlService.qml` | Abstraction layer for compositor IPC (focus, dispatch) |
 | **Visibility** | `Visibilities.qml` | Per-screen UI visibility/layering orchestration |
@@ -23,7 +23,12 @@ Backend singletons bridging Wayland protocols, CLI tools (nmcli, upower, wpctl, 
 | **Desktop** | `DesktopService.qml` | Desktop icon grid positioning and management |
 | **App Search** | `AppSearch.qml` | Application indexing for launcher |
 | **Weather** | `WeatherService.qml` | Forecast, sunrise/sunset, day/night detection |
-| **Keybinds** | `GlobalShortcuts.qml` | Compositor-level keybind management |
+| **Keybinds** | `GlobalShortcuts.qml` | Compositor-level keybind management + IPC dispatcher (volume, caffeine, gamemode, focusmode, dnd, power profile, charge limit) |
+| **Caffeine** | `CaffeineService.qml` | Wraps `IdleInhibitor`. State persisted via `StateService` |
+| **Game Mode** | `GameModeService.qml` | Snapshot/restore `Config.compositor.*` and live-apply via `CompositorConfig.applyCompositorConfig()`. Triggers Anim.instantMode, pauses VideoWallpaperService, suppresses notifications. State persisted. |
+| **Focus Mode** | `FocusModeService.qml` | Zero gaps + DND + caffeine. Snapshot/restore of `gapsIn/gapsOut` and pre-existing DND/caffeine states. State persisted. |
+| **Power Profile** | `PowerProfile.qml` | `power-profiles-daemon` only (TLP dropped). Available profiles always `["power-saver", "balanced", "performance"]` in that order. Exposes `setProfile(name)`, `cycle()`. UI binds to `availableProfiles`/`currentProfile` |
+| **Charge Limit** | `ChargeLimitService.qml` + `scripts/set-charge-limit.sh` | Battery charge limit via TLP (sudo) or direct sysfs write. Auto-detects backend. State persisted. |
 
 ## CONVENTIONS
 - **Singleton pattern**: `pragma Singleton` + `Singleton { id: root }` root component.

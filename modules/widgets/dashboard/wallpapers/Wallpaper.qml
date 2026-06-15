@@ -1163,6 +1163,18 @@ PanelWindow {
                         }
                     }
                 }
+
+                // Game mode: freeze last frame instead of black screen
+                Connections {
+                    target: GlobalStates
+                    function onGameModeActiveChanged() {
+                        if (GlobalStates.gameModeActive) {
+                            videoPlayer.pause();
+                        } else {
+                            videoPlayer.play();
+                        }
+                    }
+                }
             }
 
             // Live capture of the current frame

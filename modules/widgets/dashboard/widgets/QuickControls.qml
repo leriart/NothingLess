@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import qs.modules.theme
 import qs.modules.components
 import qs.modules.services
+import qs.modules.globals
 import qs.config
 import "../controls"
 
@@ -11,11 +12,11 @@ StyledRect {
     variant: "pane"
     Layout.alignment: Qt.AlignHCenter
     implicitWidth: internalBgRect.implicitWidth + 8
-    implicitHeight: columnLayout.implicitHeight + 8
+    implicitHeight: internalBgRect.implicitHeight + 8
     radius: Styling.radius(4)
     
-    property int expandedPanel: -1 // -1: none, 0: wifi, 1: bluetooth
-    
+    property int expandedPanel: -1 // -1: none, 0: wifi, 1: bluetooth, 2: modes
+
     onVisibleChanged: {
         if (!visible) {
             root.expandedPanel = -1;
@@ -117,101 +118,26 @@ StyledRect {
                     onClicked: CaffeineService.toggleInhibit()
                 }
 
+                // Modes panel launcher — opens ModesPanel (game/focus/dnd/profile/battery)
                 ControlButton {
                     Layout.preferredWidth: 48
                     Layout.preferredHeight: 48
-                    iconName: Icons.gameMode
-                    isActive: GameModeService.toggled
-                    tooltipText: GameModeService.toggled ? "Game Mode: On" : "Game Mode: Off"
-                    onClicked: GameModeService.toggle()
-                }
-
-                // Brainx: Focus Mode toggle
-                ControlButton {
-                    Layout.preferredWidth: 48
-                    Layout.preferredHeight: 48
-                    iconName: Icons.aperture
-                    isActive: FocusModeService.enabled
-                    tooltipText: FocusModeService.enabled ? "Focus Mode: On" : "Focus Mode: Off"
-                    onClicked: FocusModeService.toggle()
-                }
-            }
-        }
-        
-        Item {
-            id: panelArea
-            Layout.fillWidth: true
-            Layout.preferredHeight: root.expandedPanel !== -1 ? root.width - 8 : 0 
-            clip: true
-            opacity: root.expandedPanel !== -1 ? 1 : 0
-            
-            Behavior on Layout.preferredHeight {
-                enabled: Anim.animationsEnabled
-                NumberAnimation { duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
-            }
-            
-            Behavior on opacity {
-                enabled: Anim.animationsEnabled
-                NumberAnimation { duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
-            }
-            
-            StyledRect {
-                variant: "internalbg"
-                anchors.fill: parent
-                anchors.margins: 4
-                radius: Styling.radius(0)
-                clip: true
-
-                Item {
-                    id: panelStack
-                    anchors.fill: parent
-                    anchors.margins: 8 // Extra margin for content
-                    
-                    Loader {
-                        id: wifiLoader
-                        anchors.fill: parent
-                        active: root.expandedPanel === 0
-                        source: "../controls/WifiPanel.qml"
-                        asynchronous: true
-                        
-                        opacity: root.expandedPanel === 0 ? 1 : 0
-                        x: root.expandedPanel === 0 ? 0 : (root.expandedPanel === 1 ? -width : width)
-                        
-                        onLoaded: {
-                            if (item) {
-                                item.maxContentWidth = width;
-                            }
-                        }
-
-                        Behavior on opacity { enabled: Anim.animationsEnabled; NumberAnimation { duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve } }
-                        Behavior on x { enabled: Anim.animationsEnabled; NumberAnimation { duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve } }
+                    iconName: Icons.faders
+                    isActive: root.expandedPanel === 2
+                            || GameModeService.toggled
+                            || FocusModeService.enabled
+                            || GlobalStates.notificationsDnd
+                    tooltipText: {
+                        const flags = [];
+                        if (GameModeService.toggled) flags.push("Game");
+                        if (FocusModeService.enabled) flags.push("Focus");
+                        if (GlobalStates.notificationsDnd) flags.push("DND");
+                        if (flags.length > 0) return "Modes: " + flags.join(" + ");
+                        return "Modes & Power";
                     }
-
-                    Loader {
-                        id: bluetoothLoader
-                        anchors.fill: parent
-                        active: root.expandedPanel === 1
-                        source: "../controls/BluetoothPanel.qml"
-                        asynchronous: true
-                        
-                        opacity: root.expandedPanel === 1 ? 1 : 0
-                        x: root.expandedPanel === 1 ? 0 : (root.expandedPanel === 0 ? width : -width)
-                        
-                        onLoaded: {
-                            if (item) {
-                                item.maxContentWidth = width;
-                            }
-                        }
-
-                        Behavior on opacity { enabled: Anim.animationsEnabled; NumberAnimation { duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve } }
-                        Behavior on x { enabled: Anim.animationsEnabled; NumberAnimation { duration: Anim.standardNormal; easing.type: Anim.easing("standard").type
-                        easing.bezierCurve: Anim.easing("standard").bezierCurve } }
-                    }
+                    onClicked: root.togglePanel(2)
+                    onRightClicked: root.togglePanel(2)
+                    onLongPressed: root.togglePanel(2)
                 }
             }
         }

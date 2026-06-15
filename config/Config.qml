@@ -1547,7 +1547,7 @@ Singleton {
             const defaultBinds = adapter.defaultNothinglessBinds || {};
             
             // Check system binds
-            const systemKeys = ["overview", "powermenu", "config", "lockscreen", "tools", "screenshot", "screenrecord", "lens", "reload", "quit", "toggle-metrics"];
+            const systemKeys = ["overview", "powermenu", "config", "lockscreen", "tools", "screenshot", "screenrecord", "lens", "reload", "quit", "toggle-metrics", "toggle-gamemode", "toggle-focusmode", "cycle-profile", "toggle-dnd", "toggle-caffeine"];
             for (const key of systemKeys) {
                 let defaultBind = null;
                 if (adapter.nothingless.system && adapter.nothingless.system[key]) {
@@ -1566,6 +1566,23 @@ Singleton {
                     delete current.nothingless.system[key].flags;
                     needsUpdate = true;
                 }
+            }
+
+            // Migration: if toggle-metrics is still on the old default key (BACKSPACE)
+            // and toggle-gamemode is now also on BACKSPACE, move toggle-metrics to its
+            // new default (M) to avoid Hyprland bind conflicts.
+            if (current.nothingless.system["toggle-metrics"]
+                && current.nothingless.system["toggle-gamemode"]
+                && current.nothingless.system["toggle-metrics"].key === "BACKSPACE"
+                && current.nothingless.system["toggle-gamemode"].key === "BACKSPACE") {
+                console.log("Migrating toggle-metrics: BACKSPACE -> M (to free up the gamemode bind)");
+                const newMetricsDefault = defaultBinds.system && defaultBinds.system["toggle-metrics"];
+                if (newMetricsDefault) {
+                    current.nothingless.system["toggle-metrics"] = createCleanBind(newMetricsDefault);
+                } else {
+                    current.nothingless.system["toggle-metrics"].key = "M";
+                }
+                needsUpdate = true;
             }
 
             if (current.custom && current.custom.length > 0) {
@@ -1754,7 +1771,12 @@ Singleton {
                     "screenrecord": { "modifiers": ["SUPER", "SHIFT"], "key": "R", "action": { "id": "nothingless.screenrecord", "args": {} } },
                     "lens": { "modifiers": ["SUPER", "SHIFT"], "key": "A", "action": { "id": "nothingless.lens", "args": {} } },
                     "reload": { "modifiers": ["SUPER", "ALT"], "key": "B", "action": { "id": "nothingless.reload", "args": {} } },
-                    "toggle-metrics": { "modifiers": ["SUPER", "SHIFT"], "key": "BACKSPACE", "action": { "id": "nothingless.toggle-metrics", "args": {} } },
+                    "toggle-metrics": { "modifiers": ["SUPER", "SHIFT"], "key": "M", "action": { "id": "nothingless.toggle-metrics", "args": {} } },
+                    "toggle-gamemode": { "modifiers": ["SUPER", "SHIFT"], "key": "BACKSPACE", "action": { "id": "nothingless.toggle-gamemode", "args": {} } },
+                    "toggle-focusmode": { "modifiers": ["SUPER", "SHIFT"], "key": "F", "action": { "id": "nothingless.toggle-focusmode", "args": {} } },
+                    "cycle-profile": { "modifiers": ["SUPER", "SHIFT"], "key": "B", "action": { "id": "nothingless.cycle-profile", "args": {} } },
+                    "toggle-dnd": { "modifiers": ["SUPER", "SHIFT"], "key": "N", "action": { "id": "nothingless.toggle-dnd", "args": {} } },
+                    "toggle-caffeine": { "modifiers": ["SUPER"], "key": "PAUSE", "action": { "id": "nothingless.toggle-caffeine", "args": {} } },
             "quit": { "modifiers": ["SUPER", "CTRL", "ALT"], "key": "B", "action": { "id": "nothingless.quit", "args": {} } }
                 }
             }
@@ -3675,7 +3697,7 @@ Singleton {
 
     property int roundness: theme.roundness
     property string defaultFont: theme.font
-    property int animDuration: Services.GameModeService.toggled ? 0 : theme.animDuration
+    property int animDuration: theme.animDuration
     property bool tintIcons: theme.tintIcons
 
     // Handle lightMode changes

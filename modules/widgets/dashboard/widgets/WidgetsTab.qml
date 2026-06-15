@@ -38,9 +38,22 @@ Rectangle {
 
             property bool circularControlDragging: false
 
+            // QuickControls — pinned at top, always visible
+            QuickControls {
+                id: controlButtonsContainer
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+            }
+
+            // Scrollable content below QuickControls
             Flickable {
                 id: widgetsFlickable
-                anchors.fill: parent
+                anchors {
+                    left: parent.left
+                    right: parent.right
+                    top: controlButtonsContainer.bottom
+                    bottom: parent.bottom
+                    topMargin: 8
+                }
                 contentWidth: width
                 contentHeight: columnLayout.implicitHeight
                 clip: true
@@ -51,20 +64,79 @@ Rectangle {
                     width: parent.width
                     spacing: 8
 
-                    // Control buttons - 5 buttons wrapped in StyledRect pane > internalbg
-                    QuickControls {
-                        id: controlButtonsContainer
-                    }
-
+                    // Calendar — hidden when a QuickControls panel is open
                     Calendar {
+                        id: calendarSlot
                         Layout.fillWidth: true
                         Layout.preferredHeight: width
+                        visible: controlButtonsContainer.expandedPanel === -1
                     }
 
+                    // QuickControls side panel (wifi / bluetooth / modes)
+                    // Slides open in place of the calendar, so QuickControls stays fixed.
                     StyledRect {
-                        variant: "pane"
+                        id: panelSlot
+                        variant: "internalbg"
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 150
+                        Layout.preferredHeight: controlButtonsContainer.expandedPanel === -1
+                                                ? 0
+                                                : Math.max(400, calendarSlot.width || 0)
+                        visible: controlButtonsContainer.expandedPanel !== -1
+                        radius: Styling.radius(0)
+                        clip: true
+
+                        Behavior on Layout.preferredHeight {
+                            enabled: Anim.animationsEnabled
+                            NumberAnimation {
+                                duration: Anim.standardNormal
+                                easing.type: Anim.easing("standard").type
+                                easing.bezierCurve: Anim.easing("standard").bezierCurve
+                            }
+                        }
+
+                        Item {
+                            id: panelStack
+                            anchors.fill: parent
+                            anchors.margins: 8
+
+                            Loader {
+                                anchors.fill: parent
+                                active: controlButtonsContainer.expandedPanel === 0
+                                source: "../controls/WifiPanel.qml"
+                                asynchronous: true
+                                opacity: controlButtonsContainer.expandedPanel === 0 ? 1 : 0
+
+                                onLoaded: { if (item) item.maxContentWidth = width }
+
+                                Behavior on opacity {
+                                    enabled: Anim.animationsEnabled
+                                    NumberAnimation { duration: Anim.standardNormal; easing.type: Anim.easing("standard").type;
+                                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
+                                }
+                            }
+
+                            Loader {
+                                anchors.fill: parent
+                                active: controlButtonsContainer.expandedPanel === 1
+                                source: "../controls/BluetoothPanel.qml"
+                                asynchronous: true
+                                opacity: controlButtonsContainer.expandedPanel === 1 ? 1 : 0
+
+                                onLoaded: { if (item) item.maxContentWidth = width }
+
+                                Behavior on opacity {
+                                    enabled: Anim.animationsEnabled
+                                    NumberAnimation { duration: Anim.standardNormal; easing.type: Anim.easing("standard").type;
+                                        easing.bezierCurve: Anim.easing("standard").bezierCurve }
+                                }
+                            }
+
+                            ModesPanel {
+                                anchors.fill: parent
+                                visible: controlButtonsContainer.expandedPanel === 2
+                                maxContentWidth: width
+                            }
+                        }
                     }
                 }
             }

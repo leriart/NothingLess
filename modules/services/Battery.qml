@@ -18,9 +18,60 @@ Singleton {
     readonly property bool isPluggedIn: available && (primaryDevice.state === UPowerDevice.Charging || primaryDevice.state === UPowerDevice.FullyCharged)
     readonly property int chargeState: available ? primaryDevice.state : UPowerDevice.Unknown
     property int lastBatteryAlertThreshold: 0
+    property bool _autoPowerSaveTriggered: false  // debounce: only auto-trigger once per discharge session
 
-    property Process powerSaveProcess: Process {
-        running: false
+    // ── Auto power-save profile switching ────────────────────────────────
+    // When enabled in Config, switch power-profiles-daemon to "power-saver"
+    // when battery drops below threshold. Resets on charging.
+
+    function triggerAutoPowerSave() {
+        if (!PowerProfile.isAvailable) return;
+        if (PowerProfile.currentProfile === "power-saver") return;
+        console.info("Battery: auto-switching to power-saver");
+        PowerProfile.setProfile("power-saver");
+        Notifications.notifyInternal({
+            "appName": "Battery",
+            "summary": "Power saver enabled",
+            "body": "Battery at " + Math.floor(percentage) + "%. Switched to power-saver profile to extend runtime.",
+            "urgency": NotificationUrgency.Normal,
+            "historyPriority": 70,
+            "replaceKey": "battery-autopowersave",
+            "expireTimeout": 8000
+        });
+    }
+
+    function resetAutoPowerSave() {
+        // Called when charger plugged in; user can manually re-select profile.
+        _autoPowerSaveTriggered = false;
+    }
+
+    // ── Charge limit integration (via ChargeLimitService) ────────────────
+    // If user has enabled a charge limit via Config AND ChargeLimitService
+    // is available, we surface alerts. The actual limit is set by
+    // ChargeLimitService itself; this just shows the user-visible notification.
+
+    property int lastChargeLimitAlertLevel: 0
+
+    function evaluateChargeLimit() {
+        if (!ChargeLimitService.isAvailable || !ChargeLimitService.enabled) return;
+        if (!isPluggedIn) {
+            lastChargeLimitAlertLevel = 0;
+            return;
+        }
+        const roundedPct = Math.floor(percentage);
+        const limit = ChargeLimitService.limit;
+        if (roundedPct >= limit && lastChargeLimitAlertLevel < limit) {
+            lastChargeLimitAlertLevel = limit;
+            Notifications.notifyInternal({
+                "appName": "Battery",
+                "summary": "Charge limit reached",
+                "body": "Battery at " + roundedPct + "%. Unplug to preserve battery health (limit: " + limit + "%).",
+                "urgency": NotificationUrgency.Normal,
+                "historyPriority": 80,
+                "replaceKey": "battery-charge-limit",
+                "expireTimeout": 15000
+            });
+        }
     }
 
     // Add some helpful descriptive properties if needed
@@ -37,7 +88,7 @@ Singleton {
     function getBatteryIcon() {
         if (!available) return Icons.batteryEmpty;
         if (isPluggedIn) return Icons.batteryCharging;
-        
+
         const pct = percentage;
         if (pct > 75) return Icons.batteryFull;
         if (pct > 50) return Icons.batteryHigh;
@@ -54,23 +105,25 @@ Singleton {
 
         const roundedPercentage = Math.floor(percentage);
 
-        // ── Charge limit suggestion ──
-        if (cfg.chargeLimitEnabled && cfg.chargeLimit > 0 && isPluggedIn) {
-            if (roundedPercentage >= cfg.chargeLimit && lastBatteryAlertThreshold !== cfg.chargeLimit) {
-                sendChargeLimitAlert(roundedPercentage, cfg.chargeLimit);
-                lastBatteryAlertThreshold = cfg.chargeLimit;
-            }
-            return; // Don't fire low battery alerts while charging
+        // ── Charge limit check (delegated to ChargeLimitService) ──
+        if (cfg.chargeLimitEnabled) {
+            evaluateChargeLimit();
+        } else {
+            lastChargeLimitAlertLevel = 0;
         }
 
         if (isPluggedIn) {
             lastBatteryAlertThreshold = 0;
+            resetAutoPowerSave();
             return;
         }
 
-        // ── Auto power-save ──
+        // ── Auto power-save (real implementation) ──
         if (cfg.autoPowerSave && roundedPercentage <= cfg.powerSaveThreshold) {
-            enablePowerSave();
+            if (!_autoPowerSaveTriggered) {
+                _autoPowerSaveTriggered = true;
+                triggerAutoPowerSave();
+            }
         }
 
         // ── Low battery alerts ──
@@ -87,26 +140,6 @@ Singleton {
 
         sendBatteryAlert(threshold, roundedPercentage);
         lastBatteryAlertThreshold = threshold;
-    }
-
-    function enablePowerSave() {
-        if (Quickshell.env("XDG_CURRENT_DESKTOP")?.toLowerCase().includes("hyprland")) {
-            // Lower refresh rate, dim screen, reduce brightness
-            powerSaveProcess.command = ["bash", "-c", "hyprctl keyword misc:vfr 1; hyprctl keyword decoration:dim_inactive true; hyprctl keyword decoration:dim_strength 0.5; brightnessctl set 30% 2>/dev/null || true"];
-            powerSaveProcess.running = true;
-        }
-    }
-
-    function sendChargeLimitAlert(roundedPercentage, limit) {
-        Notifications.notifyInternal({
-            "appName": "Battery",
-            "summary": "Charge limit reached",
-            "body": "Battery at " + roundedPercentage + "%. Unplug to preserve battery health (limit: " + limit + "%).",
-            "urgency": NotificationUrgency.Normal,
-            "historyPriority": 80,
-            "replaceKey": "battery-charge-limit",
-            "expireTimeout": 15000
-        });
     }
 
     function sendBatteryAlert(threshold, roundedPercentage) {
