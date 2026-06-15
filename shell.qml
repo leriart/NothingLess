@@ -311,6 +311,7 @@ ShellRoot {
                 _ = IdleService.lockCmd; // Force init
                 _ = GlobalShortcuts.appId; // Force init (IPC pipe listener)
                 _ = BatteryAlertService.enabled; // Force init (battery notifications)
+                _ = KanbanBoard.initialized; // Force init (load tasks from disk)
             });
         }
     }

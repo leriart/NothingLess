@@ -12,6 +12,11 @@ QtObject {
     property string lastError: ""
     property bool canRecordDirectly: true // Optimistic default
 
+    // Multi-monitor support
+    property var monitors: []                // [{name, description, resolution}]
+    property string selectedMonitor: ""      // Monitor name to record ("" = all/screen)
+    property bool recordAllMonitors: true    // Default: capture all monitors
+
     property bool _initialized: false
 
     function initialize() {
@@ -20,6 +25,56 @@ QtObject {
         checkCapabilitiesProcess.running = true;
         xdgVideosProcess.running = true;
         checkProcess.running = true;
+        listMonitorsProcess.running = true;
+    }
+
+    // List available monitors
+    property Process listMonitorsProcess: Process {
+        id: listMonitorsProcess
+        command: ["gpu-screen-recorder", "--list-monitors"]
+        running: false
+        stdout: StdioCollector {
+            onTextChanged: {
+                var lines = text.trim().split("\n");
+                var result = [];
+                for (var i = 0; i < lines.length; i++) {
+                    var line = lines[i].trim();
+                    if (line === "") continue;
+                    // Format: "name|1920x1080" or "name: desc (WxH)"
+                    var match = line.match(/^([^|]+)\|(\d+)x(\d+)\s*$/);
+                    if (!match) {
+                        match = line.match(/^([^:]+):\s*(.+?)\s*\((\d+)x(\d+)\)\s*$/);
+                        if (match) {
+                            result.push({
+                                name: match[1].trim(),
+                                description: match[2].trim(),
+                                width: parseInt(match[3]),
+                                height: parseInt(match[4])
+                            });
+                            continue;
+                        }
+                    } else {
+                        result.push({
+                            name: match[1].trim(),
+                            description: "",
+                            width: parseInt(match[2]),
+                            height: parseInt(match[3])
+                        });
+                        continue;
+                    }
+                    // Fallback: use the whole line as name
+                    result.push({
+                        name: line,
+                        description: "",
+                        width: 0,
+                        height: 0
+                    });
+                }
+                if (result.length > 0) {
+                    root.monitors = result;
+                }
+            }
+        }
     }
 
     property Process checkCapabilitiesProcess: Process {
@@ -106,6 +161,19 @@ QtObject {
         }
     }
 
+    // Convenience: record a specific monitor by name
+    function recordMonitor(monitorName, recordAudioOutput, recordAudioInput) {
+        root.selectedMonitor = monitorName;
+        root.recordAllMonitors = false;
+        startRecording(recordAudioOutput || false, recordAudioInput || false, "monitor", "");
+    }
+
+    // Convenience: record all monitors
+    function recordAllScreens(recordAudioOutput, recordAudioInput) {
+        root.recordAllMonitors = true;
+        startRecording(recordAudioOutput || false, recordAudioInput || false, "screen", "");
+    }
+
     function startRecording(recordAudioOutput, recordAudioInput, mode, regionStr) {
         if (isRecording)
             return;
@@ -117,7 +185,19 @@ QtObject {
         if (mode === "portal") {
             cmd += " -w portal";
         } else if (mode === "screen") {
-            cmd += " -w screen";
+            // Full desktop (all monitors) or specific monitor
+            if (root.selectedMonitor && !root.recordAllMonitors) {
+                cmd += " -w " + root.selectedMonitor;
+            } else {
+                cmd += " -w screen";
+            }
+        } else if (mode === "monitor") {
+            // Specific monitor by name
+            if (root.selectedMonitor) {
+                cmd += " -w " + root.selectedMonitor;
+            } else {
+                cmd += " -w screen";
+            }
         } else if (mode === "region") {
             cmd += " -w region";
             if (regionStr) {

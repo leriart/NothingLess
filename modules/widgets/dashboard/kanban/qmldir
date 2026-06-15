@@ -1,0 +1,4 @@
+module qs.modules.widgets.dashboard.kanban
+KanbanTab 1.0 KanbanTab.qml
+KanbanColumn 1.0 KanbanColumn.qml
+KanbanTaskCard 1.0 KanbanTaskCard.qml
