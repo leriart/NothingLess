@@ -1,9 +1,11 @@
 import QtQuick
+import qs.modules.theme
+import qs.config
 
 /**
  * Individual metrics group in the notch metrics overlay.
- * Shows a colored dot, label, value with small unit, optional sub value/unit.
- * e.g. "CPU 51°C 40W" → label=CPU, valueText=51, valueUnit=°C, subValue=40, subUnit=W
+ * Compact pill showing label, value and optional sub-value.
+ * Styling follows the shell palette for consistent contrast.
  */
 Item {
     id: root
@@ -14,7 +16,6 @@ Item {
     property string valueUnit: ""
     property string subValue: ""
     property string subUnit: ""
-    property bool expanded: false
 
     implicitHeight: parent ? parent.height : 32
     implicitWidth: innerRow.implicitWidth
@@ -22,38 +23,46 @@ Item {
     Row {
         id: innerRow
         anchors.verticalCenter: parent.verticalCenter
-        anchors.horizontalCenter: root.expanded ? parent.horizontalCenter : undefined
-        anchors.left: root.expanded ? undefined : parent.left
-        spacing: root.expanded ? 6 : 4
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: 4
+
+        // Colored indicator dot
+        Rectangle {
+            width: 6
+            height: 6
+            radius: 3
+            color: root.labelColor
+            anchors.verticalCenter: parent.verticalCenter
+        }
 
         // Label
         Text {
             text: root.label
             color: root.labelColor
-            font.pixelSize: root.expanded ? 13 : 11
+            font.pixelSize: 11
             font.weight: Font.Bold
-            font.family: "sans-serif"
+            font.family: Config.theme.font
             anchors.verticalCenter: parent.verticalCenter
         }
 
         // Value number
         Text {
             text: root.valueText
-            color: "#FFFFFF"
-            font.pixelSize: root.expanded ? 15 : 12
+            color: Colors.overBackground
+            font.pixelSize: 13
             font.weight: Font.DemiBold
-            font.family: "sans-serif"
+            font.family: Config.theme.font
             anchors.verticalCenter: parent.verticalCenter
             visible: root.valueText !== ""
         }
 
-        // Value unit (small, e.g. °C)
+        // Value unit (small)
         Text {
             text: root.valueUnit
-            color: "#CCFFFFFF"
-            font.pixelSize: root.expanded ? 10 : 8
+            color: Colors.outline
+            font.pixelSize: 9
             font.weight: Font.Normal
-            font.family: "sans-serif"
+            font.family: Config.theme.font
             anchors.verticalCenter: parent.verticalCenter
             visible: root.valueUnit !== ""
         }
@@ -61,21 +70,21 @@ Item {
         // Sub value (e.g. watts)
         Text {
             text: root.subValue
-            color: "#FFFFFF"
-            font.pixelSize: root.expanded ? 14 : 12
+            color: Colors.overBackground
+            font.pixelSize: 12
             font.weight: Font.DemiBold
-            font.family: "sans-serif"
+            font.family: Config.theme.font
             anchors.verticalCenter: parent.verticalCenter
             visible: root.subValue !== ""
         }
 
-        // Sub unit (small, e.g. W)
+        // Sub unit
         Text {
             text: root.subUnit
-            color: "#CCFFFFFF"
-            font.pixelSize: root.expanded ? 9 : 8
+            color: Colors.outline
+            font.pixelSize: 8
             font.weight: Font.Normal
-            font.family: "sans-serif"
+            font.family: Config.theme.font
             anchors.verticalCenter: parent.verticalCenter
             visible: root.subUnit !== ""
         }

@@ -14,9 +14,8 @@ Item {
     property string valueUnit: ""
     property string subValue: ""
     property string subUnit: ""
-    property bool expanded: false
 
-    Layout.fillWidth: true
+    Layout.fillWidth: false
     Layout.fillHeight: true
     implicitWidth: metricGroup.implicitWidth
     implicitHeight: metricGroup.implicitHeight
@@ -24,7 +23,6 @@ Item {
     MetricsGroup {
         id: metricGroup
         anchors.centerIn: parent
-        expanded: root.expanded
         label: root.label
         labelColor: root.labelColor
         valueText: root.valueText

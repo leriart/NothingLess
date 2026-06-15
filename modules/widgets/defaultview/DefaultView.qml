@@ -155,7 +155,7 @@ Item {
 
     // Computed dimensions
     readonly property real mainRowContentWidth: metricsActive
-        ? Math.max(metricsRowWidth + mainRowMargin, 200)
+        ? Math.max(metricsRowWidth + mainRowMargin * 2, 200)
         : (200
             + (userInfo.visible ? userInfo.width + mainRow.spacing : 0)
             + (separator1.visible ? separator1.width + mainRow.spacing : 0)
@@ -235,57 +235,51 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             height: mainRowHeight
-            width: metricsActive ? Math.min(parent.width - mainRowMargin * 2, parent.width) : implicitWidth
-            spacing: 8
+            spacing: 16
             z: 3
 
             MetricsGroupWrapper {
                 visible: SystemResources.cpuUsageEnabled || SystemResources.cpuTempEnabled || SystemResources.cpuPowerEnabled
-                expanded: metricsActive
                 label: "CPU"
                 labelColor: SystemResources.metricColorCpu
-                valueText: (SystemResources.metricsAvailable && SystemResources.cpuTempEnabled && SystemResources.cpuTemp > 0) ? (SystemResources.cpuTemp.toString() + (SystemResources.metricsAvailable && SystemResources.cpuUsageEnabled ? "° " + Math.round(SystemResources.cpuUsage).toString() + "%" : "°C")) : (SystemResources.metricsAvailable && SystemResources.cpuUsageEnabled) ? Math.round(SystemResources.cpuUsage).toString() + "%" : "--"
-                valueUnit: ""
+                valueText: (SystemResources.metricsAvailable && SystemResources.cpuTempEnabled && SystemResources.cpuTemp > 0) ? (SystemResources.cpuTemp.toString() + (SystemResources.metricsAvailable && SystemResources.cpuUsageEnabled ? "° " + Math.round(SystemResources.cpuUsage).toString() : "")) : (SystemResources.metricsAvailable && SystemResources.cpuUsageEnabled) ? Math.round(SystemResources.cpuUsage).toString() : "--"
+                valueUnit: (SystemResources.metricsAvailable && SystemResources.cpuTempEnabled && SystemResources.cpuTemp > 0) ? (SystemResources.metricsAvailable && SystemResources.cpuUsageEnabled ? "" : "°C") : (SystemResources.metricsAvailable && SystemResources.cpuUsageEnabled) ? "%" : ""
                 subValue: (SystemResources.metricsAvailable && SystemResources.cpuPowerEnabled && SystemResources.cpuPower > 0) ? SystemResources.cpuPower.toFixed(0) : ""
                 subUnit: (SystemResources.metricsAvailable && SystemResources.cpuPowerEnabled && SystemResources.cpuPower > 0) ? "W" : ""
             }
 
             MetricsGroupWrapper {
                 visible: SystemResources.gpuUsageEnabled || SystemResources.gpuTempEnabled || SystemResources.gpuPowerEnabled
-                expanded: metricsActive
                 label: "GPU"
                 labelColor: SystemResources.metricColorGpu
-                valueText: (SystemResources.metricsAvailable && SystemResources.gpuTempEnabled && SystemResources.gpuTemp > 0) ? (SystemResources.gpuTemp.toString() + (SystemResources.metricsAvailable && SystemResources.gpuUsageEnabled && SystemResources.gpuUsages.length > 0 ? "° " + Math.round(SystemResources.gpuUsages[0]).toString() + "%" : "°C")) : (SystemResources.metricsAvailable && SystemResources.gpuUsageEnabled && SystemResources.gpuUsages.length > 0) ? Math.round(SystemResources.gpuUsages[0]).toString() + "%" : "--"
-                valueUnit: ""
+                valueText: (SystemResources.metricsAvailable && SystemResources.gpuTempEnabled && SystemResources.gpuTemp > 0) ? (SystemResources.gpuTemp.toString() + (SystemResources.metricsAvailable && SystemResources.gpuUsageEnabled && SystemResources.gpuUsages.length > 0 ? "° " + Math.round(SystemResources.gpuUsages[0]).toString() : "")) : (SystemResources.metricsAvailable && SystemResources.gpuUsageEnabled && SystemResources.gpuUsages.length > 0) ? Math.round(SystemResources.gpuUsages[0]).toString() : "--"
+                valueUnit: (SystemResources.metricsAvailable && SystemResources.gpuTempEnabled && SystemResources.gpuTemp > 0) ? (SystemResources.metricsAvailable && SystemResources.gpuUsageEnabled ? "" : "°C") : (SystemResources.metricsAvailable && SystemResources.gpuUsageEnabled) ? "%" : ""
                 subValue: (SystemResources.metricsAvailable && SystemResources.gpuPowerEnabled && SystemResources.gpuPower > 0) ? SystemResources.gpuPower.toFixed(0) : ""
                 subUnit: (SystemResources.metricsAvailable && SystemResources.gpuPowerEnabled && SystemResources.gpuPower > 0) ? "W" : ""
             }
 
             MetricsGroupWrapper {
                 visible: SystemResources.ramEnabled
-                expanded: metricsActive
                 label: "RAM"
                 labelColor: SystemResources.metricColorRam
-                valueText: (SystemResources.metricsAvailable && SystemResources.ramEnabled && SystemResources.ramUsage > 0) ? Math.round(SystemResources.ramUsage).toString() + "%" : "--"
-                valueUnit: ""
+                valueText: (SystemResources.metricsAvailable && SystemResources.ramEnabled && SystemResources.ramUsage > 0) ? Math.round(SystemResources.ramUsage).toString() : "--"
+                valueUnit: (SystemResources.metricsAvailable && SystemResources.ramEnabled && SystemResources.ramUsage > 0) ? "%" : ""
                 subValue: ""
                 subUnit: ""
             }
 
             MetricsGroupWrapper {
                 visible: SystemResources.diskEnabled
-                expanded: metricsActive
                 label: "DSK"
                 labelColor: SystemResources.metricColorDisk
-                valueText: (SystemResources.metricsAvailable && SystemResources.diskEnabled && SystemResources.validDisks.length > 0 && SystemResources.diskUsage[SystemResources.validDisks[0]]) ? Math.round(SystemResources.diskUsage[SystemResources.validDisks[0]]).toString() + "%" : "--"
-                valueUnit: ""
+                valueText: (SystemResources.metricsAvailable && SystemResources.diskEnabled && SystemResources.validDisks.length > 0 && SystemResources.diskUsage[SystemResources.validDisks[0]]) ? Math.round(SystemResources.diskUsage[SystemResources.validDisks[0]]).toString() : "--"
+                valueUnit: (SystemResources.metricsAvailable && SystemResources.diskEnabled && SystemResources.validDisks.length > 0) ? "%" : ""
                 subValue: ""
                 subUnit: ""
             }
 
             MetricsGroupWrapper {
                 visible: SystemResources.fpsEnabled
-                expanded: metricsActive
                 label: "FPS"
                 labelColor: SystemResources.metricColorFps
                 valueText: (SystemResources.metricsAvailable && SystemResources.fpsEnabled && SystemResources.fps > 0) ? Math.round(SystemResources.fps).toString() : "--"
