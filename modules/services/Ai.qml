@@ -133,6 +133,11 @@ Singleton {
     property string ollamaLastError: ""
     property bool _ollamaFetchPending: false
     property bool _ollamaChatPending: false
+    // Max auto-continue nudges per user turn. Prevents infinite
+    // loops when a read-only tool returns info and the model
+    // responds with text instead of chaining the next tool.
+    // Reset in sendMessage() on every new user message.
+    property int _autoContinueCount: 0
     readonly property string ollamaEnsureScript: Qt.resolvedUrl(
         "../../scripts/ollama-ensure.sh").toString().replace("file://", "")
 
@@ -1187,6 +1192,8 @@ Singleton {
         // corrupting the chat.
         _killedByUser = false;
         shellCmdWasCancelled = false;
+        // Reset auto-continue for the new user turn
+        root._autoContinueCount = 0;
         isLoading = true;
         lastError = "";
         let userMsg = {
@@ -1962,6 +1969,54 @@ Singleton {
                             newChat[newChat.length - 1].role = "system";
                         }
                         root.currentChat = newChat;
+                    }
+                }
+
+                // ── Auto-continue after a read-only info tool ──
+                // Small models (granite-2b, qwen-1.5, phi-1.5) often
+                // answer a read-only tool result with text instead
+                // of chaining the next tool. For example: the user
+                // says 'move YTMusic to ws 3', the model calls
+                // list_windows, gets the IDs back, and then returns
+                // the JSON list as a text response instead of
+                // calling move_window_to_workspace. The task is
+                // unfulfilled but the model treats it as done.
+                //
+                // We detect this pattern and auto-inject a nudge
+                // asking the model to continue, with a hard cap of
+                // 3 per user turn so a genuinely confused model
+                // doesn't loop forever.
+                if (!toolAttached && root.responseBuffer !== ""
+                        && root._autoContinueCount < 3
+                        && root.currentChat.length >= 2) {
+                    let prevTool = root.currentChat[root.currentChat.length - 2];
+                    if (prevTool && prevTool.role === "function"
+                            && !prevTool.is_error) {
+                        let toolName = prevTool.name || "";
+                        let isInfo = root._idempotentReadTools.indexOf(toolName) !== -1;
+                        if (isInfo) {
+                            root._autoContinueCount++;
+                            let contChat = Array.from(root.currentChat);
+                            contChat.push({
+                                role: "system",
+                                content: "[Auto-continue #"
+                                         + root._autoContinueCount
+                                         + " — the user's request is "
+                                         + "not fulfilled yet. The "
+                                         + toolName + " result above "
+                                         + "has the data you need. Call "
+                                         + "the NEXT tool to ACT on it. "
+                                         + "Do NOT re-display the data "
+                                         + "or explain — just call the "
+                                         + "tool.]"
+                            });
+                            root.currentChat = contChat;
+                            root.saveCurrentChat();
+                            root.isLoading = true;
+                            root.lastError = "";
+                            Qt.callLater(root.makeRequest);
+                            return;
+                        }
                     }
                 }
 
