@@ -754,6 +754,60 @@ Singleton {
     // message for the target workspace, then calls move_windows
     // (or move_window_to_workspace if only one match) directly
     // through the agent — no model round-trip needed.
+    function _tryDirectOpenApp(userMsg, appList) {
+        try {
+            let apps = JSON.parse(appList || "[]");
+            let keywords = userMsg.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            let match = null;
+            for (let a of apps) {
+                let text = (a.id + " " + a.name).toLowerCase();
+                for (let kw of keywords) {
+                    if (text.indexOf(kw) !== -1) { match = a; break; }
+                }
+                if (match) break;
+            }
+            if (!match) return;
+            root._autoContinueCount = 99;
+            root.agentToolRegistry.invoke("open_app", { app_name: match.name }, function(result) {
+                let output = result.error || result.content || "Done";
+                root._onToolFinished("open_app", "", output, !!result.error);
+            });
+        } catch (e) {
+            console.warn("[Ai] _tryDirectOpenApp failed: " + e);
+        }
+    }
+
+    function _tryDirectClose(userMsg, listResult) {
+        try {
+            let windows = JSON.parse(listResult || "[]");
+            if (!Array.isArray(windows) || windows.length === 0) return;
+            let keywords = userMsg.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            let matched = [];
+            for (let w of windows) {
+                let text = (w.app_id + " " + w.title).toLowerCase();
+                for (let kw of keywords) {
+                    if (text.indexOf(kw) !== -1) { matched.push(w.id); break; }
+                }
+            }
+            if (matched.length === 0) return;
+            root._autoContinueCount = 99;
+            root.agentToolRegistry.invoke("move_windows", {
+                window_ids: matched, workspace_id: "0"  // dummy, we close not move
+            }, function() {
+                // Use close_app for simplicity
+                let appNames = [...new Set(windows.filter(w => matched.includes(w.id)).map(w => w.app_id))];
+                if (appNames.length > 0) {
+                    root.agentToolRegistry.invoke("close_app", { app_name: appNames[0] }, function(result) {
+                        let output = result.error || result.content || "Done";
+                        root._onToolFinished("close_app", "", output, !!result.error);
+                    });
+                }
+            });
+        } catch (e) {
+            console.warn("[Ai] _tryDirectClose failed: " + e);
+        }
+    }
+
     function _tryDirectMove(userMsg, listResult) {
         try {
             let windows = JSON.parse(listResult || "[]");
@@ -1974,31 +2028,8 @@ Singleton {
                             // as the text-response case: auto-continue.
                             let prevToolName = prev.name || "";
                             let isReadOnly = root._idempotentReadTools.indexOf(prevToolName) !== -1;
-                            if (isReadOnly && root._autoContinueCount < 1) {
-                                root._autoContinueCount++;
-                                console.warn("[Ai] auto-continue #"
-                                    + root._autoContinueCount + " after "
-                                    + prevToolName + " (model returned empty)");
-                                newChat.push({
-                                    role: "system",
-                                    content: "[Auto-continue #"
-                                             + root._autoContinueCount
-                                             + " — the user's request is "
-                                             + "not fulfilled yet. The "
-                                             + prevToolName + " result "
-                                             + "above has the data. Call "
-                                             + "the NEXT tool to ACT on it.]"
-                                });
-                                root.currentChat = newChat;
-                                root.saveCurrentChat();
-                                root.requestInFlight = false;
-                                root.requestQueued = false;
-                                root.isLoading = true;
-                                Qt.callLater(root.makeRequest);
-                                return;
-                            }
-                            if (isReadOnly && root._autoContinueCount >= 1
-                                    && prevToolName === "list_windows") {
+                            if (isReadOnly) {
+                                // Detect user intent from their message
                                 let lastUser = "";
                                 for (let i = root.currentChat.length - 1; i >= 0; i--) {
                                     if (root.currentChat[i].role === "user") {
@@ -2006,14 +2037,34 @@ Singleton {
                                         break;
                                     }
                                 }
-                                if (/move|mover|mueve|mueva/i.test(lastUser)) {
-                                    newChat[newChat.length - 1].content =
-                                        "[Direct action — moving...]";
+                                if (prevToolName === "list_windows"
+                                        && /move|mover|mueve|mueva|moveme/i.test(lastUser)) {
+                                    newChat[newChat.length - 1].content = "[Direct action - moving...]";
                                     root.currentChat = newChat;
                                     root.saveCurrentChat();
                                     root.requestInFlight = false;
-                                    console.warn("[Ai] empty+exhausted — direct move");
+                                    console.warn("[Ai] direct move from list_windows");
                                     root._tryDirectMove(lastUser, prev.content);
+                                    return;
+                                }
+                                if (prevToolName === "list_windows"
+                                        && /close|cerrar|cierra|quit|kill/i.test(lastUser)) {
+                                    newChat[newChat.length - 1].content = "[Direct action - closing...]";
+                                    root.currentChat = newChat;
+                                    root.saveCurrentChat();
+                                    root.requestInFlight = false;
+                                    console.warn("[Ai] direct close from list_windows");
+                                    root._tryDirectClose(lastUser, prev.content);
+                                    return;
+                                }
+                                if (prevToolName === "list_installed_apps"
+                                        && /open|abrir|abre|launch/i.test(lastUser)) {
+                                    newChat[newChat.length - 1].content = "[Direct action - opening...]";
+                                    root.currentChat = newChat;
+                                    root.saveCurrentChat();
+                                    root.requestInFlight = false;
+                                    console.warn("[Ai] direct open from list_installed_apps");
+                                    root._tryDirectOpenApp(lastUser, prev.content);
                                     return;
                                 }
                             }
@@ -2088,103 +2139,30 @@ Singleton {
                     }
                 }
 
-                // ── Auto-continue after a read-only info tool ──
-                // Small models (granite-2b, qwen-1.5, phi-1.5) often
-                // answer a read-only tool result with text instead
-                // of chaining the next tool. For example: the user
-                // says 'move YTMusic to ws 3', the model calls
-                // list_windows, gets the IDs back, and then returns
-                // the JSON list as a text response instead of
-                // calling move_window_to_workspace. The task is
-                // unfulfilled but the model treats it as done.
-                //
-                // We detect this pattern and auto-inject a nudge
-                // asking the model to continue, with a hard cap of
-                // 1 per user turn so a genuinely confused model
-                // doesn't loop forever. After 1 failed nudge, the
-                // _tryDirectMove fallback executes the action directly.
-                console.warn("[Ai] onExited check: toolAttached="
-                    + toolAttached + " responseLen="
-                    + root.responseBuffer.length
-                    + " autoContinue=" + root._autoContinueCount
-                    + " chatLen=" + root.currentChat.length);
+                // ── Direct-action fallback for text responses ──
+                // When the model returns text (not empty) after a
+                // read-only tool, and the user's intent matches a
+                // known pattern, execute directly — no nudges.
                 if (!toolAttached && root.responseBuffer !== ""
-                        && root._autoContinueCount < 1
                         && root.currentChat.length >= 2) {
                     let prevTool = root.currentChat[root.currentChat.length - 2];
-                    console.warn("[Ai] prevTool check: role="
-                        + (prevTool ? prevTool.role : "null")
-                        + " name=" + (prevTool ? prevTool.name : "null")
-                        + " is_error=" + (prevTool ? prevTool.is_error : "null"));
                     if (prevTool && prevTool.role === "function"
                             && !prevTool.is_error) {
                         let toolName = prevTool.name || "";
-                        let isInfo = root._idempotentReadTools.indexOf(toolName) !== -1;
-                        console.warn("[Ai] isInfo=" + isInfo + " for " + toolName);
-                        if (isInfo) {
-                            root._autoContinueCount++;
-                            console.warn("[Ai] auto-continue #"
-                                + root._autoContinueCount + " after "
-                                + toolName + " (model returned text, no tool call)");
-                            let contChat = Array.from(root.currentChat);
-                            contChat.push({
-                                role: "system",
-                                content: "[Auto-continue #"
-                                         + root._autoContinueCount
-                                         + " — the user's request is "
-                                         + "not fulfilled yet. The "
-                                         + toolName + " result above "
-                                         + "has the data you need. Call "
-                                         + "the NEXT tool to ACT on it. "
-                                         + "Do NOT re-display the data "
-                                         + "or explain — just call the "
-                                         + "tool.]"
-                            });
-                            root.currentChat = contChat;
-                            root.saveCurrentChat();
+                        let lastUser = "";
+                        for (let i = root.currentChat.length - 1; i >= 0; i--) {
+                            if (root.currentChat[i].role === "user") {
+                                lastUser = root.currentChat[i].content || "";
+                                break;
+                            }
+                        }
+                        if (toolName === "list_windows"
+                                && /move|mover|mueve|mueva/i.test(lastUser)) {
                             root.requestInFlight = false;
-                            root.requestQueued = false;
-                            root.isLoading = true;
-                            root.lastError = "";
-                            Qt.callLater(root.makeRequest);
+                            console.warn("[Ai] direct move from list_windows (text)");
+                            root._tryDirectMove(lastUser, prevTool.content);
                             return;
                         }
-                    }
-                }
-
-                // Fallback: after 3 auto-continues failed, if the model
-                // still can't chain list_windows → move_window_to_workspace,
-                // directly execute the move using the data we already have.
-                // Tiny models (granite-2b, phi-1.5) often never learn to
-                // chain from nudges alone. At this point the user has waited
-                // through 3 round-trips and the action still hasn't happened.
-                if (root._autoContinueCount >= 1
-                        && !toolAttached
-                        && root.currentChat.length >= 2) {
-                    let prevTool = root.currentChat[root.currentChat.length - 2];
-                    let lastUser = "";
-                    for (let i = root.currentChat.length - 1; i >= 0; i--) {
-                        if (root.currentChat[i].role === "user") {
-                            lastUser = root.currentChat[i].content || "";
-                            break;
-                        }
-                    }
-                    if (prevTool && prevTool.role === "function"
-                            && prevTool.name === "list_windows"
-                            && /move|mover|mueve|mueva|moveme|movelo/i.test(lastUser)) {
-                        console.warn("[Ai] auto-continue exhausted — "
-                            + "direct-executing move from list_windows data");
-                        root.requestInFlight = false;
-                        let actChat = Array.from(root.currentChat);
-                        if (actChat.length > 0
-                                && actChat[actChat.length - 1].role === "assistant") {
-                            actChat[actChat.length - 1].content =
-                                "[Direct action — moving to workspace...]";
-                        }
-                        root.currentChat = actChat;
-                        root.saveCurrentChat();
-                        root._tryDirectMove(lastUser, prevTool.content);
-                        return;
                     }
                 }
 
