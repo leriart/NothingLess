@@ -617,6 +617,34 @@ Singleton {
         return String(args);
     }
 
+    // Decide whether the incoming tool call should be auto-approved
+    // (i.e. execute without showing the user the approval card).
+    //
+    // Two-stage gate, matches the UI toggle + allowlist fields in
+    // AiPanel.qml and the AGENTS.md contract:
+    //
+    //   1. toolAutoApprove must be on. If off, never auto-approve.
+    //   2. toolAllowlist gates the actual set:
+    //        - empty  → ALL tools auto-approve (full trust mode)
+    //        - non-empty → only tools/commands whose name or first
+    //          token is in the allowlist auto-approve
+    //
+    // For `run_shell_command` we look at the first whitespace-separated
+    // token of `args.command` so the user can list binaries like
+    // ["ls", "cat", "systemctl"] instead of full shell invocations.
+    // For every other tool we look at the tool name itself.
+    function _shouldAutoApprove(toolName, args) {
+        if (!Config.ai.toolAutoApprove) return false;
+        let allowlist = Config.ai.toolAllowlist || [];
+        if (allowlist.length === 0) return true;
+        if (toolName === "run_shell_command" && args && args.command) {
+            let firstToken = String(args.command).trim().split(/\s+/)[0];
+            if (!firstToken) return false;
+            return allowlist.indexOf(firstToken) !== -1;
+        }
+        return allowlist.indexOf(toolName) !== -1;
+    }
+
     // Decide whether the incoming tool call should be auto-rejected.
     // Returns one of:
     //   ""             — not a duplicate, allow the call
@@ -1582,12 +1610,15 @@ Singleton {
                             root._autoRejectToolCall(
                                 primary.function.name, callToolId, rejectReason);
                             toolAttached = true;
-                        } else if (Config.ai.toolAutoApprove) {
-                            // ── Auto-approve any tool ──
-                            // The user enabled auto-approve. Attach
-                            // the functionCall and immediately approve
-                            // it — the tool runs without showing an
-                            // approval card, regardless of tool name.
+                        } else if (root._shouldAutoApprove(primary.function.name, parsed)) {
+                            // ── Auto-approve gated by allowlist ──
+                            // When toolAutoApprove is on AND the tool
+                            // passes the allowlist (or the allowlist is
+                            // empty), attach the functionCall and approve
+                            // it without showing the approval card. The
+                            // allowlist keeps risky tools (e.g.
+                            // execute_command) gated behind manual
+                            // approval even when auto-approve is on.
                             let autoChat = Array.from(root.currentChat);
                             let autoLast = autoChat[autoChat.length - 1];
                             autoLast.functionCall = {
@@ -1640,6 +1671,28 @@ Singleton {
                             root._autoRejectToolCall(
                                 detected.name, callId, rejectReason);
                             toolAttached = true;
+                        } else if (root._shouldAutoApprove(detected.name, detected.args || {})) {
+                            // ── Auto-approve detected text tool call ──
+                            // Tiny-model fallback (granite / qwen / phi)
+                            // that emits commands in prose instead of
+                            // proper tool_calls deltas. With the
+                            // allowlist in place we can auto-execute
+                            // these without bothering the user — the
+                            // same gate as the native path.
+                            let callId = "call_" + Math.random().toString(36).slice(2);
+                            let newChat = Array.from(root.currentChat);
+                            let last = newChat[newChat.length - 1];
+                            last.functionCall = {
+                                name: detected.name,
+                                args: detected.args || {},
+                                tool_call_id: callId
+                            };
+                            last.toolCallId = callId;
+                            last.functionPending = true;
+                            newChat[newChat.length - 1] = last;
+                            root.currentChat = newChat;
+                            toolAttached = true;
+                            root.approveCommand(newChat.length - 1);
                         } else {
                             let callId = "call_" + Math.random().toString(36).slice(2);
                             let newChat = Array.from(root.currentChat);

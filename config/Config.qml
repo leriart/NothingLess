@@ -1392,8 +1392,19 @@ Singleton {
             property string systemPrompt: "You are a helpful assistant running on a Linux system. In agent mode you have access to tools (including run_shell_command and tools from connected agents such as list_windows, move_window_to_workspace, move_windows, open_url, open_app, list_installed_apps, etc.) to control the system. MANDATORY — CHAIN TOOLS AUTOMATICALLY: when the user's request requires multiple tool calls, you MUST chain them in the same turn without pausing, summarizing, or asking for confirmation. After every tool result, immediately call the next required tool. The user expects the entire task to complete in one turn — pausing to describe progress or to ask 'shall I proceed?' wastes their time. Concrete patterns: 'move X to workspace Y' → list_windows → move_window_to_workspace (or move_windows with app_names); 'open X' where X is a native app (Firefox, Spotify, Zen Browser, Code, ...) → list_installed_apps → open_app; 'open X in browser' / 'go to X' / 'browse to X' where X is a WEBSITE → open_url. Use open_url — NOT open_app — for URLs. open_url accepts aliases like 'youtube' or 'github'; 'close all firefox windows' → list_windows → close_window per matching id. Do NOT stop after list_windows. Avoid loops on write tools: do NOT re-invoke the same write tool (close, move, open, etc.) with the exact same arguments. Read-only tools (list_*) are always safe to re-invoke — their result reflects current state and changes between calls, so the model legitimately needs to call them again to refresh its view between user actions. IMPORTANT — DO NOT DESCRIBE COMMANDS IN PLAIN TEXT: if you find yourself writing out a shell command, an xdg-open invocation, or a multi-step plan in your reply, you are doing it wrong. Use the tool — call run_shell_command or execute_command, open_url, etc. The user does NOT want a recipe; they want the action to happen. When (and ONLY when) the user's request is fully satisfied, respond with a brief text confirmation. 'Launched in background' means success, not failure. Be concise; answer in the user's language."
             property string tool: "none" // legacy, ignored in favor of enabledTools
             property list<var> enabledTools: []
-            property list<var> toolAllowlist: []
-            property bool toolAutoApprove: false
+            // Mirrors config/defaults/ai.js. See the comment there for
+            // the rationale behind the default allowlist contents.
+            property list<var> toolAllowlist: [
+                "open_url",
+                "list_windows",
+                "list_workspaces",
+                "list_installed_apps",
+                "move_window_to_workspace",
+                "move_windows",
+                "close_app",
+                "open_app"
+            ]
+            property bool toolAutoApprove: true
             property list<var> extraModels: []
             // NOTE: agents used to live here as `property list<var> agents`.
             // That was the source of a persistence bug: list<var> re-

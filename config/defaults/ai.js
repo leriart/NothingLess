@@ -42,8 +42,25 @@ var data = {
         + "Be concise; answer in the user's language.",
     "tool": "none",
     "enabledTools": [],
-    "toolAllowlist": [],
-    "toolAutoApprove": false,
+    // Tools (or shell-command first tokens) that auto-approve when
+    // toolAutoApprove is on. Empty list = trust-mode (auto-approve
+    // everything). Defaults to the read-only desktop control surface
+    // plus URL launching — covers 'open YouTube in browser', 'list
+    // windows', 'move X to ws N' out of the box. Risky tools
+    // (execute_command, install_package, focus_window for snap focus
+    // race conditions) stay manual so the user still gets a chance
+    // to inspect before they run.
+    "toolAllowlist": [
+        "open_url",
+        "list_windows",
+        "list_workspaces",
+        "list_installed_apps",
+        "move_window_to_workspace",
+        "move_windows",
+        "close_app",
+        "open_app"
+    ],
+    "toolAutoApprove": true,
     "extraModels": [],
     "defaultModel": "gemini-2.0-flash",
     "sidebarWidth": 400,
