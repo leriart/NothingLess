@@ -1651,13 +1651,63 @@ def invoke_tool(name, arguments):
                              + "full URL ('https://example.com/path') or a known "
                              + "alias. Common aliases: " + suggestions + ", ..."
                 }
+        if not shutil.which("xdg-open"):
+            # xdg-utils isn't installed (some minimal Arch setups,
+            # nix-shell sandboxes, headless CI). Fall back to the
+            # DE-specific helpers where available, otherwise surface
+            # a clear error so the model knows to try a different tool.
+            for fallback in ("gio", "x-www-browser", "sensible-browser"):
+                if shutil.which(fallback):
+                    try:
+                        result = subprocess.run(
+                            [fallback, "open", resolved] if fallback == "gio"
+                            else [fallback, resolved],
+                            capture_output=True, text=True, timeout=30,
+                            env=os.environ
+                        )
+                        if result.returncode == 0:
+                            return {
+                                "content": "Opened '" + resolved
+                                         + "' via " + fallback + ".",
+                                "error": None
+                            }
+                    except (subprocess.TimeoutExpired, OSError):
+                        pass
+            return {
+                "content": "",
+                "error": "xdg-open not found on PATH and no fallback "
+                         + "(gio, x-www-browser, sensible-browser) is "
+                         + "available. Install xdg-utils or use "
+                         + "open_app / execute_command instead."
+            }
+
         try:
+            # 30s timeout. xdg-open normally returns within ~1s after
+            # dispatching the URL to the default browser, but on Wayland
+            # it can sit waiting for xdg-portal / the browser to register
+            # its D-Bus activation reply, which can take 10-20s on a
+            # cold launch. The browser itself usually starts successfully
+            # even if xdg-open times out — that's why 'Si lo abrio, pero
+            # me lanzo esos comandos a la ultima' in the bug report:
+            # YouTube was open on screen, the error was just about
+            # xdg-open's IPC reply, not the launch itself.
             result = subprocess.run(
                 ["xdg-open", resolved],
-                capture_output=True, text=True, timeout=8,
+                capture_output=True, text=True, timeout=30,
                 env=os.environ
             )
-        except (subprocess.TimeoutExpired, OSError) as exc:
+        except subprocess.TimeoutExpired:
+            # The URL is almost certainly already open in the browser at
+            # this point — xdg-open just didn't get a fast enough reply.
+            # Surface a non-fatal warning instead of a hard error so the
+            # agent doesn't retry with the same command.
+            return {
+                "content": "Dispatched '" + resolved + "' to the default "
+                         + "browser (xdg-open didn't return within 30s — the "
+                         + "browser is likely already opening the URL).",
+                "error": None
+            }
+        except OSError as exc:
             return {"content": "", "error": "xdg-open failed: " + str(exc)}
         if result.returncode != 0:
             return {
