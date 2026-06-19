@@ -588,6 +588,103 @@ Singleton {
             }
         }
 
+        // Pattern 9: Python-style tool call. Tiny models (granite-2b,
+        // phi-1.5, qwen-1.5, llama-3.2-1b) often emit a single line like
+        //     open_url('https://www.youtube.com')
+        //     move_window_to_workspace('1', '0x123')
+        //     list_windows()
+        // instead of a proper OpenAI tool_calls JSON object. The
+        // text looks like a function call but the API parses it as
+        // plain prose — without this fallback the tool never fires.
+        //
+        // We anchor on a known tool name so we don't false-positive
+        // on arbitrary function calls inside code snippets, and we
+        // require the `(` immediately after so we don't match
+        // identifiers followed by English text.
+        let pyMatch = text.match(/\b(list_windows|list_workspaces|list_installed_apps|move_window_to_workspace|move_windows|open_url|open_app|close_app|list_monitors|move_window_to_monitor|focus_window|close_window|toggle_window_floating|set_window_fullscreen|resize_window|move_window_direction|switch_workspace|toggle_special_workspace|focus_monitor|set_layout|execute_command|launch_program|check_program_installed|install_package|run_shell_command)\s*\(([^()]*)\)/i);
+        if (pyMatch) {
+            let pyTool = pyMatch[1];
+            let pyArgsRaw = pyMatch[2].trim();
+            // Strip surrounding quotes from each positional arg.
+            let stripQuotes = s => {
+                // Trim whitespace FIRST so the ^ anchor can see the
+                // leading quote — otherwise a leading space means
+                // `^['"]` never matches and only the trailing quote
+                // gets stripped, leaving a half-dequoted token. The
+                // `+` quantifier lets us eat consecutive quotes too.
+                let t = s.trim();
+                t = t.replace(/^['"]+/, "").replace(/['"]+$/, "");
+                return t;
+            };
+            let parts = pyArgsRaw === "" ? [] : pyArgsRaw.split(",").map(stripQuotes);
+            let pyArgs = {};
+            // Per-tool positional → named-arg mapping. Order matches
+            // the schema in the bridge / Ai.qml systemTools. Tools
+            // not listed here still get a generic pass-through so we
+            // catch future additions.
+            if (pyTool === "open_url" && parts[0]) pyArgs.url = parts[0];
+            else if (pyTool === "run_shell_command" && parts[0]) pyArgs.command = parts[0];
+            else if (pyTool === "execute_command" && parts[0]) pyArgs.command = parts[0];
+            else if (pyTool === "launch_program" && parts[0]) pyArgs.program_name = parts[0];
+            else if (pyTool === "check_program_installed" && parts[0]) pyArgs.program_name = parts[0];
+            else if (pyTool === "open_app" && parts[0]) pyArgs.app_name = parts[0];
+            else if (pyTool === "close_app" && parts[0]) pyArgs.app_name = parts[0];
+            else if (pyTool === "switch_workspace" && parts[0]) pyArgs.workspace_id = parts[0];
+            else if (pyTool === "focus_window") {
+                if (parts[0]) pyArgs.window_id = parts[0];
+                if (parts[1]) pyArgs.direction = parts[1];
+            }
+            else if (pyTool === "close_window" && parts[0]) pyArgs.window_id = parts[0];
+            else if (pyTool === "toggle_special_workspace" && parts[0]) pyArgs.name = parts[0];
+            else if (pyTool === "focus_monitor" && parts[0]) pyArgs.monitor_id = parts[0];
+            else if (pyTool === "set_layout" && parts[0]) pyArgs.name = parts[0];
+            else if (pyTool === "resize_window") {
+                if (parts[0]) pyArgs.width = parseInt(parts[0]) || 0;
+                if (parts[1]) pyArgs.height = parseInt(parts[1]) || 0;
+                if (parts[2]) pyArgs.window_id = parts[2];
+            }
+            else if (pyTool === "set_window_fullscreen") {
+                if (parts[0]) pyArgs.state = (parts[0].toLowerCase() === "true" || parts[0] === "1");
+                if (parts[1]) pyArgs.window_id = parts[1];
+            }
+            else if (pyTool === "move_window_to_workspace") {
+                if (parts[0]) pyArgs.workspace_id = parts[0];
+                if (parts[1]) pyArgs.window_id = parts[1];
+            }
+            else if (pyTool === "move_window_to_monitor") {
+                if (parts[0]) pyArgs.monitor_id = parts[0];
+                if (parts[1]) pyArgs.window_id = parts[1];
+            }
+            else if (pyTool === "move_window_direction") {
+                if (parts[0]) pyArgs.direction = parts[0];
+                if (parts[1]) pyArgs.window_id = parts[1];
+            }
+            else if (pyTool === "toggle_window_floating" && parts[0]) pyArgs.window_id = parts[0];
+            else if (pyTool === "list_installed_apps" && parts[0]) pyArgs.filter = parts[0];
+            else if (pyTool === "install_package" && parts[0]) pyArgs.package_name = parts[0];
+            else if (pyTool === "move_windows") {
+                // Multi-arg, handled by JSON in the schema. Best-effort:
+                // first positional = workspace_id if it doesn't look
+                // like an object, otherwise leave to the model.
+                if (parts[0] && !parts[0].startsWith("{")) {
+                    pyArgs.workspace_id = parts[0];
+                }
+            }
+            else {
+                // Generic fallback: try kw=value parsing, then
+                // collapse all parts into an `input` array so the
+                // tool at least sees the data.
+                for (let p of parts) {
+                    let kv = p.match(/^([a-z_][a-z_0-9]*)\s*=\s*(.+)$/i);
+                    if (kv) pyArgs[kv[1]] = stripQuotes(kv[2]);
+                }
+                if (Object.keys(pyArgs).length === 0 && parts.length > 0) {
+                    pyArgs.input = parts.join(", ");
+                }
+            }
+            return { name: pyTool, args: pyArgs };
+        }
+
         return null
     }
 
