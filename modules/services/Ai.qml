@@ -133,9 +133,10 @@ Singleton {
     property string ollamaLastError: ""
     property bool _ollamaFetchPending: false
     property bool _ollamaChatPending: false
-    // Max auto-continue nudges per user turn. Prevents infinite
-    // loops when a read-only tool returns info and the model
-    // responds with text instead of chaining the next tool.
+    // Max auto-continue nudges per user turn before switching to
+    // direct-action fallback. Set to 1: most tiny models (granite-2b,
+    // qwen-1.5, phi-1.5) can't chain even with a nudge, so one attempt
+    // + direct fallback is faster than three empty round-trips.
     // Reset in sendMessage() on every new user message.
     property int _autoContinueCount: 0
     readonly property string ollamaEnsureScript: Qt.resolvedUrl(
@@ -1973,7 +1974,7 @@ Singleton {
                             // as the text-response case: auto-continue.
                             let prevToolName = prev.name || "";
                             let isReadOnly = root._idempotentReadTools.indexOf(prevToolName) !== -1;
-                            if (isReadOnly && root._autoContinueCount < 3) {
+                            if (isReadOnly && root._autoContinueCount < 1) {
                                 root._autoContinueCount++;
                                 console.warn("[Ai] auto-continue #"
                                     + root._autoContinueCount + " after "
@@ -1996,7 +1997,7 @@ Singleton {
                                 Qt.callLater(root.makeRequest);
                                 return;
                             }
-                            if (isReadOnly && root._autoContinueCount >= 3
+                            if (isReadOnly && root._autoContinueCount >= 1
                                     && prevToolName === "list_windows") {
                                 let lastUser = "";
                                 for (let i = root.currentChat.length - 1; i >= 0; i--) {
@@ -2099,15 +2100,16 @@ Singleton {
                 //
                 // We detect this pattern and auto-inject a nudge
                 // asking the model to continue, with a hard cap of
-                // 3 per user turn so a genuinely confused model
-                // doesn't loop forever.
+                // 1 per user turn so a genuinely confused model
+                // doesn't loop forever. After 1 failed nudge, the
+                // _tryDirectMove fallback executes the action directly.
                 console.warn("[Ai] onExited check: toolAttached="
                     + toolAttached + " responseLen="
                     + root.responseBuffer.length
                     + " autoContinue=" + root._autoContinueCount
                     + " chatLen=" + root.currentChat.length);
                 if (!toolAttached && root.responseBuffer !== ""
-                        && root._autoContinueCount < 3
+                        && root._autoContinueCount < 1
                         && root.currentChat.length >= 2) {
                     let prevTool = root.currentChat[root.currentChat.length - 2];
                     console.warn("[Ai] prevTool check: role="
@@ -2156,7 +2158,7 @@ Singleton {
                 // Tiny models (granite-2b, phi-1.5) often never learn to
                 // chain from nudges alone. At this point the user has waited
                 // through 3 round-trips and the action still hasn't happened.
-                if (root._autoContinueCount >= 3
+                if (root._autoContinueCount >= 1
                         && !toolAttached
                         && root.currentChat.length >= 2) {
                     let prevTool = root.currentChat[root.currentChat.length - 2];
