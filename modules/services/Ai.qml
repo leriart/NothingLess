@@ -125,6 +125,42 @@ Singleton {
         }
     }
 
+    // ============================================
+    // OLLAMA LIFECYCLE
+    // ============================================
+
+    property string ollamaStatus: "unknown"
+    property string ollamaLastError: ""
+    property bool _ollamaFetchPending: false
+    readonly property string ollamaEnsureScript: Qt.resolvedUrl(
+        "../../scripts/ollama-ensure.sh").toString().replace("file://", "")
+
+    function ensureOllamaRunning() {
+        if (root.ollamaStatus === "starting") return;
+        root._ollamaFetchPending = false;
+        root.ollamaStatus = "starting";
+        root.ollamaLastError = "";
+        ollamaEnsureProcess.running = true;
+    }
+
+    function _ensureOllamaThenFetch() {
+        if (root.ollamaStatus === "starting") {
+            root._ollamaFetchPending = true;
+            return;
+        }
+        root._ollamaFetchPending = true;
+        root.ollamaStatus = "starting";
+        root.ollamaLastError = "";
+        ollamaEnsureProcess.running = true;
+    }
+
+    function restartOllama() {
+        root._ollamaFetchPending = false;
+        root.ollamaStatus = "starting";
+        root.ollamaLastError = "";
+        ollamaRestartProcess.running = true;
+    }
+
     function updateStrategy() {
         if (currentModel)
             currentStrategy = getStrategyForProvider(currentModel.provider);
@@ -2182,10 +2218,13 @@ for f in files:
         // fetch. Previously this branch was guarded by
         // KeyStore.hasKey("ollama"), which required an explicit
         // key entry and silently skipped Ollama entirely.
+        //
+        // We first ensure the daemon is actually up (via the
+        // ollama-ensure.sh helper which probes + tries systemctl
+        // + falls back to `ollama serve`) — this avoids the silent
+        // miss where the user has Ollama installed but not running.
         pendingFetches++;
-        fetchProcessOllama.command = ["bash", "-c",
-            "curl -s --connect-timeout 2 --max-time 3 http://127.0.0.1:11434/api/tags"];
-        fetchProcessOllama.running = true;
+        root._ensureOllamaThenFetch();
 
         // MiniMax
         let minimaxKey = KeyStore.getKey("minimax");
@@ -2432,6 +2471,50 @@ for f in files:
             }
             checkFetchCompletion();
         }
+    }
+
+    Process {
+        id: ollamaEnsureProcess
+        command: ["bash", root.ollamaEnsureScript]
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                root.ollamaStatus = "running";
+                if (root._ollamaFetchPending) {
+                    root._ollamaFetchPending = false;
+                    fetchProcessOllama.command = ["bash", "-c",
+                        "curl -s --connect-timeout 2 --max-time 3 http://127.0.0.1:11434/api/tags"];
+                    fetchProcessOllama.running = true;
+                }
+            } else {
+                root.ollamaStatus = "failed";
+                root.ollamaLastError = "ollama-ensure.sh exited " + exitCode;
+                console.warn("[Ai] Ollama failed to start (exit "
+                             + exitCode + ") — check ollama-ensure.sh log");
+                if (root._ollamaFetchPending) {
+                    root._ollamaFetchPending = false;
+                    checkFetchCompletion();
+                }
+            }
+        }
+    }
+
+    Process {
+        id: ollamaRestartProcess
+        command: ["bash", "-c",
+            "pkill -f 'ollama serve' 2>/dev/null; " +
+            "systemctl --user stop ollama 2>/dev/null; " +
+            "systemctl stop ollama 2>/dev/null; " +
+            "true"]
+        onExited: exitCode => {
+            ollamaRestartDelayTimer.restart();
+        }
+    }
+
+    Timer {
+        id: ollamaRestartDelayTimer
+        interval: 1500
+        repeat: false
+        onTriggered: root.ensureOllamaRunning()
     }
 
     Process {
