@@ -62,6 +62,10 @@ def _int(description):
     return {"type": "integer", "description": description}
 
 
+def _arr(items, description):
+    return {"type": "array", "items": items, "description": description}
+
+
 def _obj(props, required):
     return {
         "type": "object",
@@ -172,6 +176,58 @@ TOOLS = [
             "workspace_id": _str("Target workspace id."),
             "window_id": _str("Window id. Omit to move the active window.")
         }, ["workspace_id"])
+    },
+    {
+        "name": "move_windows",
+        "description": "Move one or more windows to one or more workspaces "
+                       "in a single batch operation. Two modes are supported, "
+                       "mutually exclusive:\n"
+                       "  (1) MANY-TO-ONE — provide `workspace_id` together "
+                       "with EITHER `window_ids` (list of explicit window "
+                       "ids obtained from list_windows) OR `app_names` (list "
+                       "of case-insensitive substrings matched against each "
+                       "window's app_id / title / wm_class). Every matching "
+                       "window is moved to the same target workspace. Useful "
+                       "for tasks like 'move all Firefox and Spotify windows "
+                       "to workspace 3'.\n"
+                       "  (2) MANY-TO-MANY — provide `assignments`, a list of "
+                       "{window_id, workspace_id} pairs. Each window is "
+                       "moved to its own target workspace in one call. Useful "
+                       "for distributing several windows across several "
+                       "workspaces without chaining individual move calls.\n"
+                       "Returns JSON with a `moved` list (successful moves), "
+                       "a `failed` list (per-window errors), and the total "
+                       "number of pairs that were attempted. A failure on one "
+                       "window does NOT abort the rest of the batch.",
+        "parameters": _obj({
+            "window_ids": _arr(
+                _str("Window id, e.g. '0x55c18cfa9170'."),
+                "List of explicit window ids to move. Use list_windows to "
+                "look up ids. Used only in many-to-one mode."
+            ),
+            "app_names": _arr(
+                _str("Substring to match against window.app_id, window.title "
+                     "or window.wm_class (case-insensitive). Examples: "
+                     "'Firefox', 'Spotify', 'code'."),
+                "Alternative to window_ids: every window whose app_id, title "
+                "or wm_class contains one of these substrings is moved to "
+                "the target workspace. Used only in many-to-one mode."
+            ),
+            "workspace_id": _str(
+                "Single target workspace id (e.g. '1', '4', or a workspace "
+                "name). Required when using window_ids or app_names."
+            ),
+            "assignments": _arr(
+                _obj({
+                    "window_id": _str("Window id to move."),
+                    "workspace_id": _str("Target workspace id for this window.")
+                }, ["window_id", "workspace_id"]),
+                "Per-window target list for many-to-many mode. Each item "
+                "maps one window to one workspace. Example: "
+                "[{\"window_id\":\"0x55..\",\"workspace_id\":\"2\"}, "
+                "{\"window_id\":\"0x56..\",\"workspace_id\":\"5\"}]."
+            )
+        }, [])
     },
     {
         "name": "toggle_special_workspace",
@@ -797,6 +853,131 @@ def invoke_tool(name, arguments):
         if wid:
             argv.append(wid)
         return _run_axctl(argv)
+
+    if name == "move_windows":
+        pairs = []
+
+        assignments = args.get("assignments")
+        if isinstance(assignments, list):
+            for item in assignments:
+                if not isinstance(item, dict):
+                    continue
+                wid = _str_arg(item, "window_id")
+                ws = _str_arg(item, "workspace_id")
+                if wid and ws:
+                    pairs.append((wid, ws))
+
+        if not pairs:
+            ws = _str_arg(args, "workspace_id")
+            if ws:
+                window_ids = args.get("window_ids")
+                if isinstance(window_ids, list):
+                    for wid in window_ids:
+                        if wid is None:
+                            continue
+                        wid_s = str(wid).strip()
+                        if wid_s:
+                            pairs.append((wid_s, ws))
+
+                if not pairs:
+                    app_names = args.get("app_names")
+                    if isinstance(app_names, list) and app_names:
+                        list_result = _run_axctl(["window", "list"])
+                        if list_result.get("error"):
+                            return list_result
+                        try:
+                            windows = json.loads(
+                                list_result.get("content", "[]")
+                            )
+                        except (TypeError, ValueError) as exc:
+                            return {
+                                "content": "",
+                                "error": "Could not parse axctl output: "
+                                         + str(exc)
+                            }
+                        needles = []
+                        for n in app_names:
+                            if n is None:
+                                continue
+                            n_s = str(n).strip().lower()
+                            if n_s:
+                                needles.append(n_s)
+                        if needles:
+                            for w in windows:
+                                if not isinstance(w, dict):
+                                    continue
+                                app_id = (w.get("app_id") or "").lower()
+                                title = (w.get("title") or "").lower()
+                                wmclass = (
+                                    w.get("wm_class")
+                                    or w.get("initial_class")
+                                    or ""
+                                ).lower()
+                                haystacks = [app_id, title, wmclass]
+                                hit = False
+                                for n in needles:
+                                    for h in haystacks:
+                                        if h and n in h:
+                                            hit = True
+                                            break
+                                    if hit:
+                                        break
+                                if hit:
+                                    wid = w.get("id")
+                                    if wid:
+                                        pairs.append((str(wid), ws))
+
+        if not pairs:
+            has_assignments = isinstance(args.get("assignments"), list)
+            has_window_ids = isinstance(args.get("window_ids"), list)
+            has_app_names = isinstance(args.get("app_names"), list)
+            ws = _str_arg(args, "workspace_id")
+            valid_input = (
+                has_assignments
+                or (has_window_ids and bool(ws))
+                or (has_app_names and bool(ws))
+            )
+            if not valid_input:
+                return {
+                    "content": "",
+                    "error": "move_windows needs one of: "
+                             "(a) 'assignments' (list of "
+                             "{window_id, workspace_id}); "
+                             "(b) 'window_ids' (list) + 'workspace_id'; "
+                             "(c) 'app_names' (list) + 'workspace_id'."
+                }
+            return {
+                "content": "",
+                "error": "move_windows found no windows to move — "
+                         "check that the supplied window_ids or app_names "
+                         "match open windows (use list_windows to verify)."
+            }
+
+        moved = []
+        failures = []
+        for wid, ws in pairs:
+            result = _run_axctl(["workspace", "move-to", ws, wid])
+            if result.get("error"):
+                failures.append({
+                    "window_id": wid,
+                    "workspace_id": ws,
+                    "error": result["error"]
+                })
+            else:
+                moved.append({
+                    "window_id": wid,
+                    "workspace_id": ws
+                })
+
+        summary = {
+            "requested": len(pairs),
+            "moved": moved,
+            "failed": failures
+        }
+        return {
+            "content": json.dumps(summary, ensure_ascii=False, indent=2),
+            "error": None
+        }
 
     if name == "toggle_special_workspace":
         name_arg = _str_arg(args, "name")

@@ -44,6 +44,7 @@ action pair maps directly to a documented axctl method.
 | `list_workspaces` | `axctl workspace list` | JSON list of every workspace |
 | `switch_workspace` | `axctl workspace switch <id>` | Focus a different workspace |
 | `move_window_to_workspace` | `axctl workspace move-to <ws_id> [win_id]` | Move window to a workspace |
+| `move_windows` | `axctl workspace move-to` (one call per window) | Batch-move windows to workspaces. Two modes: many-to-one (`window_ids` or `app_names` + a single `workspace_id`, every match lands on the same target) or many-to-many (`assignments` list of `{window_id, workspace_id}` pairs). Returns per-window success/failure JSON so one bad window does not abort the batch. |
 | `toggle_special_workspace` | `axctl workspace toggle-special <name>` | Toggle a Hyprland special workspace (e.g. `scratchpad`) |
 
 ### Monitor operations
