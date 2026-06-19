@@ -40,5 +40,6 @@ var data = {
     "defaultMode": "agent",
     "defaultAgentId": "",
     "customEndpoint": "",
-    "customCurlTemplate": ""
+    "customCurlTemplate": "",
+    "requestTimeoutSeconds": 120
 }

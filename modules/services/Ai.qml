@@ -230,6 +230,13 @@ Singleton {
     // now ("streaming…", "running tool…", "awaiting tool approval…").
     // Drives the status indicator in the sidebar header.
     property string streamingStatus: ""
+    // Wall-clock start of the current in-flight chat request. Set to
+    // Date.now() in makeRequest before firing curlProcess, reset to 0
+    // on every terminal path (curlProcess.onExited, watchdog, deadline).
+    // The wall-clock deadline in curlProcess.stdout.onRead uses this
+    // to detect streams that trickle bytes and so never trip curl's
+    // --max-time (inactivity) watchdog.
+    property int requestStartMs: 0
 
     // Throttle for streaming UI updates. Instead of reassigning
     // `currentChat` (which forces the sidebar ListView to re-layout
@@ -263,29 +270,44 @@ Singleton {
     property bool requestInFlight: false
     property bool requestQueued: false
 
-    // Watchdog: if `requestInFlight` stays true longer than our
-    // curl --max-time 90s (plus a 30s grace window), something
-    // is stuck — the curl onExited didn't fire or threw before
-    // clearing the flag. Auto-reset so the sidebar isn't
+    // Watchdog: if `requestInFlight` stays true longer than the
+    // configured timeout (default 120s, see Config.ai.requestTimeoutSeconds),
+    // something is stuck — the curl onExited didn't fire or threw
+    // before clearing the flag. Auto-reset so the sidebar isn't
     // permanently frozen. Also runs the queued request if any.
-    // Without this watchdog a single missed onExited would hang
-    // the AI pipeline forever.
+    // Without this watchdog a single missed onExited would hang the
+    // AI pipeline forever.
     //
-    // 90s gives local CPU models (e.g. Ollama running qwen2.5)
-    // enough time to generate a full response with tool calls.
-    // Previously 30s kicked in before curl's own --max-time
-    // and killed valid streaming requests on slower hardware.
+    // Mirrors Odysseus's two-layer timeout design:
+    //   - Inactivity: curl --max-time = requestTimeoutSeconds (kills
+    //     wedged/silent endpoints that stop sending bytes).
+    //   - Wall-clock deadline: max(timeout * 4, 1200) (catches the
+    //     rare streams that trickle bytes forever and so never trip
+    //     the inactivity timeout). For the default 120s this is
+    //     480s, but capped to 1200s on the lower end to cover
+    //     multi-round tool chains on slower hardware.
+    //
+    // The previous 90s default was too tight for small local
+    // Ollama models (qwen2.5:3b on CPU can take 60-90s for a
+    // single chat response with tools, and the requestWatchdog
+    // would fire just as the model finished streaming).
+    readonly property int _requestInactivityTimeoutMs:
+        Math.max(10000, (Config.ai.requestTimeoutSeconds || 120) * 1000)
+    readonly property int _requestWallClockDeadlineMs:
+        Math.max(_requestInactivityTimeoutMs * 4, 1200000)
     property Timer requestWatchdog: Timer {
-        interval: 90000
+        interval: root._requestInactivityTimeoutMs
         repeat: false
         onTriggered: {
             if (root.requestInFlight) {
-                console.warn("Ai.qml: requestInFlight stuck — resetting (90s watchdog)");
+                let secs = Math.round(root._requestInactivityTimeoutMs / 1000);
+                console.warn("Ai.qml: requestInFlight stuck — resetting ("
+                             + secs + "s inactivity watchdog)");
                 if (root.curlProcess && root.curlProcess.running) {
                     root.curlProcess.running = false;
                 }
                 root.requestInFlight = false;
-                root.streamingStatus = "request timed out";
+                root.streamingStatus = "request timed out after " + secs + "s";
                 root.isLoading = false;
                 root.streamingElapsedTimer.stop();
                 root.streamingStartedAt = 0;
@@ -299,12 +321,16 @@ Singleton {
                         && (!errChat[errChat.length - 1].content
                             || errChat[errChat.length - 1].content === "")) {
                     errChat[errChat.length - 1].content =
-                        "[Request timed out after 90s. The API may be unresponsive or the conversation may be malformed. Try again, or `/model` to switch.]";
+                        "[Request timed out after " + secs + "s. The API may be "
+                        + "unresponsive or the conversation may be malformed. "
+                        + "Try again, or `/model` to switch. Increase "
+                        + "`requestTimeoutSeconds` in AI settings for slow "
+                        + "local models.]";
                     errChat[errChat.length - 1].role = "system";
                 } else {
                     errChat.push({
                         role: "system",
-                        content: "[Request timed out after 90s.]"
+                        content: "[Request timed out after " + secs + "s.]"
                     });
                 }
                 root.currentChat = errChat;
@@ -1257,16 +1283,32 @@ Singleton {
                 .replace("{{API_KEY}}", getApiKey(currentModel));
         } else {
             // Timeouts:
-            //   --connect-timeout 5  → fail fast on TCP refusal
-            //   --max-time 90        → bound the whole transfer at 90s.
-            // 90s gives local CPU models enough headroom while
-            // surfacing real stalls before the user gets frustrated.
+            //   --connect-timeout 5   → fail fast on TCP refusal
+            //   --max-time <inactivity> → bound the transfer at the
+            //     configured inactivity timeout (default 120s, see
+            //     Config.ai.requestTimeoutSeconds). Kills wedged /
+            //     silent streams. Mirrors Odysseus's per-read
+            //     inactivity cap.
+            //   Wall-clock deadline = max(timeout * 4, 1200s) is
+            //     enforced separately inside curlProcess.stdout
+            //     .onRead — it catches the rare "one byte every 5s"
+            //     runaway that --max-time alone would not.
+            // The 120s default is generous enough for small Ollama
+            // models (qwen2.5:3b on CPU) on long tool-using
+            // conversations without freezing the sidebar if the
+            // model is genuinely stuck.
+            let timeoutSecs = Config.ai.requestTimeoutSeconds || 120;
             curlCmd = "curl -s --no-buffer -N -X POST"
                     + " --connect-timeout 5"
-                    + " --max-time 90"
+                    + " --max-time " + timeoutSecs
                     + " \"" + payload.endpoint + "\" "
                     + headerArgs + " -d @" + bodyPath;
         }
+
+        // Stamp the wall-clock start so curlProcess.stdout.onRead can
+        // apply the deadline cap. Cleared in every terminal path
+        // (onExited, watchdog, deadline hit) below.
+        root.requestStartMs = Date.now();
 
         curlProcess.command = ["/usr/bin/bash", "-c", curlCmd];
         curlProcess.running = true;
@@ -1314,6 +1356,56 @@ Singleton {
         // Use SplitParser for streaming — emits onRead per line
         stdout: SplitParser {
             onRead: data => {
+                // Wall-clock deadline — Odysseus's complementary cap
+                // for streams that trickle bytes forever and so never
+                // trip the inactivity timeout (curl --max-time).
+                // Computed at request start (root.requestStartMs) and
+                // re-checked on every chunk. The inactivity watchdog
+                // above kills truly silent streams; this kills the
+                // rare "one byte every 5s" runaway that would otherwise
+                // burn the wall-clock budget for many minutes.
+                if (root.requestStartMs > 0
+                        && Date.now() - root.requestStartMs
+                                > root._requestWallClockDeadlineMs) {
+                    let totalSecs = Math.round(
+                        root._requestWallClockDeadlineMs / 1000);
+                    console.warn("Ai.qml: stream exceeded wall-clock deadline ("
+                                 + totalSecs + "s) — cutting off");
+                    if (root.curlProcess && root.curlProcess.running) {
+                        root.curlProcess.running = false;
+                    }
+                    root.requestInFlight = false;
+                    root.streamingStatus = "request exceeded " + totalSecs
+                                            + "s wall-clock limit";
+                    root.isLoading = false;
+                    root.streamingElapsedTimer.stop();
+                    root.requestStartMs = 0;
+                    let errChat = Array.from(root.currentChat);
+                    if (errChat.length > 0
+                            && errChat[errChat.length - 1].role === "assistant"
+                            && (!errChat[errChat.length - 1].content
+                                || errChat[errChat.length - 1].content === "")) {
+                        errChat[errChat.length - 1].content =
+                            "[Stream exceeded the " + totalSecs
+                            + "s wall-clock limit. The model may be in a "
+                            + "runaway generation loop. Try a different "
+                            + "model or split the request into smaller pieces.]";
+                        errChat[errChat.length - 1].role = "system";
+                    } else {
+                        errChat.push({
+                            role: "system",
+                            content: "[Stream exceeded " + totalSecs
+                                     + "s wall-clock limit.]"
+                        });
+                    }
+                    root.currentChat = errChat;
+                    root.saveCurrentChat();
+                    if (root.requestQueued) {
+                        root.requestQueued = false;
+                        Qt.callLater(root.makeRequest);
+                    }
+                    return;
+                }
                 let result = root.currentStrategy.parseStreamChunk(data);
 
                 if (result.error) {
@@ -1386,6 +1478,7 @@ Singleton {
                 root.streamingStatus = "";
                 root.streamingElapsedTimer.stop();
                 root.streamingStartedAt = 0;
+                root.requestStartMs = 0;
                 root.requestInFlight = false;
                 root.requestQueued = false;
                 root.requestWatchdog.stop();

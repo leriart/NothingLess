@@ -1413,6 +1413,12 @@ Singleton {
             // Custom OpenAI-compatible provider
             property string customEndpoint: ""
             property string customCurlTemplate: ""
+            // Per-request inactivity timeout in seconds. Passed to
+            // curl --max-time on the chat stream. Mirrors Odysseus's
+            // `agent_stream_timeout_seconds` setting (default 300
+            // there, ours is 120 because the chat pipeline here
+            // already has its own retry + re-request machinery).
+            property int requestTimeoutSeconds: 120
         }
     }
 
