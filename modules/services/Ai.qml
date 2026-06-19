@@ -566,11 +566,25 @@ Singleton {
     // "ls /home" then "ls /etc") are legitimate multi-action prompts.
     readonly property int _maxToolCallsPerTurn: 5
 
+    // Read-only / idempotent tools. Their result reflects current
+    // system state (window list, workspace list, installed apps) and
+    // always changes between calls — re-invoking them is the model's
+    // normal way of refreshing its view between user actions, NOT a
+    // loop. They bypass the duplicate-fingerprint check entirely; the
+    // rate-limit still applies as a runaway-loop safety net.
+    readonly property var _idempotentReadTools: [
+        "list_windows",
+        "list_workspaces",
+        "list_monitors",
+        "list_installed_apps"
+    ]
+
     function _shouldAutoRejectToolCall(toolName, args) {
         if (!toolName) return "";
 
         let argsFp = root._normalizeToolArgs(args);
         let callCount = 0;
+        let isIdempotent = root._idempotentReadTools.indexOf(toolName) !== -1;
 
         for (let i = root.currentChat.length - 1; i >= 0; i--) {
             let m = root.currentChat[i];
@@ -583,8 +597,9 @@ Singleton {
                 if (m.functionPending === true) continue;
 
                 callCount++;
-                // Exact (normalized) duplicate of a previous call
-                if (m.functionPending === false) {
+                // Exact (normalized) duplicate of a previous call.
+                // Skipped for read-only tools — see _idempotentReadTools.
+                if (!isIdempotent && m.functionPending === false) {
                     let prevFp = root._normalizeToolArgs(m.functionCall.args);
                     if (prevFp === argsFp) {
                         return "duplicate";
