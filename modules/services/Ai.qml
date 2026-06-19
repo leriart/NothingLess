@@ -747,6 +747,72 @@ Singleton {
         return allowlist.indexOf(toolName) !== -1;
     }
 
+    // Direct-execute a 'move X to workspace Y' intent when the
+    // model exhausts auto-continues and still can't chain. Parses
+    // the list_windows result for matching windows and the user
+    // message for the target workspace, then calls move_windows
+    // (or move_window_to_workspace if only one match) directly
+    // through the agent — no model round-trip needed.
+    function _tryDirectMove(userMsg, listResult) {
+        try {
+            let windows = JSON.parse(listResult || "[]");
+            if (!Array.isArray(windows) || windows.length === 0) {
+                root._autoContinueCount = 99; // give up
+                return;
+            }
+            // Extract target workspace from user message
+            let wsMatch = userMsg.match(/workspace\s+(\d+|[a-z]\w*)/i)
+                       || userMsg.match(/ws\s*(\d+)/i)
+                       || userMsg.match(/al\s+(\d+)/i);
+            let targetWs = wsMatch ? wsMatch[1] : "1";
+
+            // Match windows by keyword in user message
+            let keywords = userMsg.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            let matched = [];
+            for (let w of windows) {
+                let text = (w.app_id + " " + w.title).toLowerCase();
+                for (let kw of keywords) {
+                    if (text.indexOf(kw) !== -1) {
+                        matched.push(w.id);
+                        break;
+                    }
+                }
+            }
+            if (matched.length === 0) {
+                // Broad match: pick first non-system window
+                matched = windows.filter(w => w.app_id && w.app_id !== "")
+                                .map(w => w.id).slice(0, 1);
+            }
+            if (matched.length === 0) return;
+
+            console.warn("[Ai] _tryDirectMove: " + matched.length
+                + " window(s) → workspace " + targetWs);
+
+            let contChat = Array.from(root.currentChat);
+            // Remove the last assistant message (model's fluff text)
+            // so the direct action result is the only response
+            if (contChat.length > 0
+                    && contChat[contChat.length - 1].role === "assistant") {
+                contChat[contChat.length - 1].content =
+                    "[Direct action — moving " + matched.length
+                    + " window(s) to workspace " + targetWs + "]";
+            }
+            root.currentChat = contChat;
+            root.saveCurrentChat();
+
+            root._autoContinueCount = 99;
+            // Use move_windows with explicit window_ids
+            let toolArgs = { window_ids: matched, workspace_id: targetWs };
+            root.agentToolRegistry.invoke("move_windows", toolArgs, function(result) {
+                let output = result.error || result.content || "Done";
+                root._onToolFinished("move_windows", "", output, !!result.error);
+            });
+        } catch (e) {
+            console.warn("[Ai] _tryDirectMove failed: " + e);
+            root._autoContinueCount = 99;
+        }
+    }
+
     // Decide whether the incoming tool call should be auto-rejected.
     // Returns one of:
     //   ""             — not a duplicate, allow the call
@@ -1996,6 +2062,9 @@ Singleton {
                         let isInfo = root._idempotentReadTools.indexOf(toolName) !== -1;
                         if (isInfo) {
                             root._autoContinueCount++;
+                            console.warn("[Ai] auto-continue #"
+                                + root._autoContinueCount + " after "
+                                + toolName + " (model returned text, no tool call)");
                             let contChat = Array.from(root.currentChat);
                             contChat.push({
                                 role: "system",
@@ -2017,6 +2086,33 @@ Singleton {
                             Qt.callLater(root.makeRequest);
                             return;
                         }
+                    }
+                }
+
+                // Fallback: after 3 auto-continues failed, if the model
+                // still can't chain list_windows → move_window_to_workspace,
+                // directly execute the move using the data we already have.
+                // Tiny models (granite-2b, phi-1.5) often never learn to
+                // chain from nudges alone. At this point the user has waited
+                // through 3 round-trips and the action still hasn't happened.
+                if (root._autoContinueCount >= 3
+                        && !toolAttached
+                        && root.currentChat.length >= 2) {
+                    let prevTool = root.currentChat[root.currentChat.length - 2];
+                    let lastUser = "";
+                    for (let i = root.currentChat.length - 1; i >= 0; i--) {
+                        if (root.currentChat[i].role === "user") {
+                            lastUser = root.currentChat[i].content || "";
+                            break;
+                        }
+                    }
+                    if (prevTool && prevTool.role === "function"
+                            && prevTool.name === "list_windows"
+                            && /move|mover|mueve|mueva|moveme|movelo/i.test(lastUser)) {
+                        console.warn("[Ai] auto-continue exhausted — "
+                            + "direct-executing move from list_windows data");
+                        root._tryDirectMove(lastUser, prevTool.content);
+                        return;
                     }
                 }
 
