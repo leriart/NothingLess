@@ -804,6 +804,9 @@ Singleton {
             // Use move_windows with explicit window_ids
             let toolArgs = { window_ids: matched, workspace_id: targetWs };
             root.agentToolRegistry.invoke("move_windows", toolArgs, function(result) {
+                console.warn("[Ai] _tryDirectMove result: "
+                    + (result.error ? "error=" + result.error
+                       : "content=" + (result.content || "").substring(0, 80)));
                 let output = result.error || result.content || "Done";
                 root._onToolFinished("move_windows", "", output, !!result.error);
             });
@@ -2052,14 +2055,24 @@ Singleton {
                 // asking the model to continue, with a hard cap of
                 // 3 per user turn so a genuinely confused model
                 // doesn't loop forever.
+                console.warn("[Ai] onExited check: toolAttached="
+                    + toolAttached + " responseLen="
+                    + root.responseBuffer.length
+                    + " autoContinue=" + root._autoContinueCount
+                    + " chatLen=" + root.currentChat.length);
                 if (!toolAttached && root.responseBuffer !== ""
                         && root._autoContinueCount < 3
                         && root.currentChat.length >= 2) {
                     let prevTool = root.currentChat[root.currentChat.length - 2];
+                    console.warn("[Ai] prevTool check: role="
+                        + (prevTool ? prevTool.role : "null")
+                        + " name=" + (prevTool ? prevTool.name : "null")
+                        + " is_error=" + (prevTool ? prevTool.is_error : "null"));
                     if (prevTool && prevTool.role === "function"
                             && !prevTool.is_error) {
                         let toolName = prevTool.name || "";
                         let isInfo = root._idempotentReadTools.indexOf(toolName) !== -1;
+                        console.warn("[Ai] isInfo=" + isInfo + " for " + toolName);
                         if (isInfo) {
                             root._autoContinueCount++;
                             console.warn("[Ai] auto-continue #"
@@ -2114,6 +2127,14 @@ Singleton {
                         console.warn("[Ai] auto-continue exhausted — "
                             + "direct-executing move from list_windows data");
                         root.requestInFlight = false;
+                        let actChat = Array.from(root.currentChat);
+                        if (actChat.length > 0
+                                && actChat[actChat.length - 1].role === "assistant") {
+                            actChat[actChat.length - 1].content =
+                                "[Direct action — moving to workspace...]";
+                        }
+                        root.currentChat = actChat;
+                        root.saveCurrentChat();
                         root._tryDirectMove(lastUser, prevTool.content);
                         return;
                     }
