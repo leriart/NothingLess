@@ -2081,6 +2081,8 @@ Singleton {
                             });
                             root.currentChat = contChat;
                             root.saveCurrentChat();
+                            root.requestInFlight = false;
+                            root.requestQueued = false;
                             root.isLoading = true;
                             root.lastError = "";
                             Qt.callLater(root.makeRequest);
@@ -2111,6 +2113,7 @@ Singleton {
                             && /move|mover|mueve|mueva|moveme|movelo/i.test(lastUser)) {
                         console.warn("[Ai] auto-continue exhausted — "
                             + "direct-executing move from list_windows data");
+                        root.requestInFlight = false;
                         root._tryDirectMove(lastUser, prevTool.content);
                         return;
                     }
