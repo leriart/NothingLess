@@ -127,6 +127,13 @@ Item {
             cfg.headers = hdrs;
             cfg.toolsPath = "/tools";
             cfg.invokePath = "/invoke";
+            // Capability hints for bridges that adapt tool surface to
+            // model size (NothingClaw uses these to query Ollama's
+            // /api/show and pick a tier). Other agents ignore them.
+            let m = (newAgentModel.text || "").trim();
+            if (m) cfg.model = m;
+            let mh = (newAgentModelHost.text || "").trim();
+            if (mh) cfg.modelHost = mh;
         }
         return cfg;
     }
@@ -140,6 +147,8 @@ Item {
         newAgentCommand.text = "";
         argsArea.text = "";
         newAgentHeaders.text = "";
+        newAgentModel.text = "";
+        newAgentModelHost.text = "";
         shellPasteField.text = "";
         shellPasteField.visible = false;
         pasteButton.visible = true;
@@ -164,6 +173,8 @@ Item {
             } catch (e) {
                 newAgentHeaders.text = "";
             }
+            newAgentModel.text = conn.model || "";
+            newAgentModelHost.text = conn.modelHost || "";
         }
         newAgentSectionTitle.text = "Editing: " + (conn.name || "agent");
     }
@@ -1501,6 +1512,8 @@ Item {
                                     headers: {},
                                     toolsPath: "/tools",
                                     invokePath: "/tools",
+                                    model: "",
+                                    modelHost: "http://127.0.0.1:11434",
                                     process: {
                                         command: "python3",
                                         args: [root.nothingclawServerPath],
@@ -1750,6 +1763,55 @@ Item {
                                 anchors.rightMargin: -parent.padding
                                 anchors.topMargin: -parent.padding
                                 anchors.bottomMargin: -parent.padding
+                            }
+                        }
+
+                        // Capability hints — sent as X-Model-Name /
+                        // X-Model-Host on the tools discovery request.
+                        // Bridges that adapt their tool surface to the
+                        // model (NothingClaw queries Ollama /api/show
+                        // for the real parameter_size) use these to
+                        // pick a tier; other agents ignore them.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            TextField {
+                                id: newAgentModel
+                                Layout.fillWidth: true
+                                placeholderText: "Model name (e.g. qwen2.5:3b) — optional, for capability-aware tools"
+                                font.family: Config.theme.font
+                                color: Colors.overSurface
+                                padding: 6
+                                background: StyledRect {
+                                    variant: "internalbg"
+                                    radius: Styling.radius(4)
+                                    border.width: newAgentModel.activeFocus ? 2 : 0
+                                    border.color: Styling.srItem("primary")
+                                    anchors.fill: parent
+                                    anchors.leftMargin: -parent.padding
+                                    anchors.rightMargin: -parent.padding
+                                    anchors.topMargin: -parent.padding
+                                    anchors.bottomMargin: -parent.padding
+                                }
+                            }
+                            TextField {
+                                id: newAgentModelHost
+                                Layout.preferredWidth: 220
+                                placeholderText: "Model host (optional)"
+                                font.family: Config.theme.font
+                                color: Colors.overSurface
+                                padding: 6
+                                background: StyledRect {
+                                    variant: "internalbg"
+                                    radius: Styling.radius(4)
+                                    border.width: newAgentModelHost.activeFocus ? 2 : 0
+                                    border.color: Styling.srItem("primary")
+                                    anchors.fill: parent
+                                    anchors.leftMargin: -parent.padding
+                                    anchors.rightMargin: -parent.padding
+                                    anchors.topMargin: -parent.padding
+                                    anchors.bottomMargin: -parent.padding
+                                }
                             }
                         }
                     }

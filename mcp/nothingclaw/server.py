@@ -28,6 +28,7 @@ agent profile.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -73,6 +74,286 @@ def _obj(props, required):
         "required": list(required),
         "additionalProperties": False
     }
+
+
+# ---------------------------------------------------------------------------
+# Capability tiers
+# ---------------------------------------------------------------------------
+#
+# Different model sizes cope with different tool counts. A 1B param local
+# model can't reliably pick between 23 tools; a 70B model can. We serve
+# a different subset per tier and let the agent either ask for a specific
+# one (?capability=) or let us auto-detect from the model name.
+#
+# Tiers are additive — each higher tier is a superset of the previous one
+# plus a few extras. Names align with the common heuristic ranges:
+#   tiny    ≤3B params     (~4 tools)
+#   small   3B–13B / Ollama (~8 tools)  ← default for local models
+#   medium  13B–30B        (~14 tools)
+#   large   30B+ / API     (all 23)
+#
+# Inspired by Odysseus's intent-based tool selection but kept as a static
+# lookup table — no embeddings, no RAG, no async wait. Tradeoff: the agent
+# has to live with a hardcoded subset per tier instead of getting exactly
+# the 8 most-relevant tools, but it's deterministic, fast, and works on
+# any CPU-only local model without extra deps.
+
+_TOOL_TIERS = {
+    "tiny": [
+        "list_windows",
+        "list_installed_apps",
+        "move_window_to_workspace",
+        "execute_command",
+    ],
+    "small": [
+        "list_windows",
+        "list_installed_apps",
+        "list_workspaces",
+        "move_window_to_workspace",
+        "move_windows",
+        "open_app",
+        "close_app",
+        "execute_command",
+    ],
+    "medium": [
+        # Everything in small, plus:
+        "list_monitors",
+        "focus_window",
+        "close_window",
+        "switch_workspace",
+        "move_window_to_monitor",
+    ],
+    # "large" serves the full set — see TOOLS below.
+}
+
+
+# Pre-computed union of each tier with everything below it. Avoids
+# recomputing the additive merge on every GET /tools request.
+_TIER_NAMES = {
+    "tiny": _TOOL_TIERS["tiny"],
+    "small": _TOOL_TIERS["tiny"] + _TOOL_TIERS["small"],
+    "medium": (_TOOL_TIERS["tiny"]
+               + _TOOL_TIERS["small"]
+               + _TOOL_TIERS["medium"]),
+}
+
+
+_CLOUD_MODEL_HINTS = {
+    # OpenAI
+    "gpt-5": "large",
+    "gpt-4o": "large",
+    "gpt-4-turbo": "large",
+    "gpt-4": "large",
+    "o1-preview": "large",
+    "o1-mini": "medium",
+    "o3-mini": "medium",
+    "gpt-3.5-turbo": "medium",
+    # Anthropic
+    "claude-3-opus": "large",
+    "claude-3.5-sonnet": "large",
+    "claude-3-sonnet": "medium",
+    "claude-3.5-haiku": "medium",
+    "claude-3-haiku": "medium",
+    # Google
+    "gemini-1.5-pro": "large",
+    "gemini-1.5-flash": "medium",
+    "gemini-2.0-pro": "large",
+    "gemini-2.0-flash": "medium",
+    # Mistral / Groq
+    "mistral-large": "large",
+    "mistral-medium": "medium",
+    "mistral-small": "medium",
+    "mixtral-8x7b": "medium",
+    "llama-3.1-70b": "large",
+    "llama-3.1-405b": "large",
+    # DeepSeek
+    "deepseek-chat": "large",
+    "deepseek-reasoner": "large",
+    "deepseek-coder": "medium",
+}
+
+
+_LOCAL_HOST_HINTS = ("localhost", "127.0.0.1", "host.docker.internal", "::1")
+
+
+# Cache for Ollama /api/show responses. Model metadata is essentially
+# static (parameter size, family, context length don't change at runtime),
+# so a short TTL avoids re-querying on every /tools hit when the agent
+# reconnects frequently. 5 min is long enough that bursts of model
+# lookups are cheap, short enough that a freshly-pulled model with a
+# bigger parameter size takes effect quickly.
+_OLLAMA_SHOW_CACHE = {}
+_OLLAMA_SHOW_TTL = 300
+
+
+def _ollama_show(model_name, endpoint="http://127.0.0.1:11434"):
+    """Query Ollama's /api/show for `model_name`. Returns parsed JSON or None.
+
+    Returns None on any failure (network, timeout, model not found,
+    malformed JSON). Callers should fall back to name-based heuristics
+    when None is returned — Ollama might be remote, down, or serving
+    a non-Ollama backend the agent is talking to.
+
+    The Ollama /api/show payload exposes ground-truth capability info
+    that name parsing can't reliably recover from:
+
+      details.parameter_size   "7B" / "13B" / "2.5B"
+      details.family           "qwen2" / "llama" / ...
+      details.quantization_level
+      capabilities             ["completion", "tools", ...]
+      model_info.<family>.context_length   32768
+
+    Of these, parameter_size is the one we map to a tool tier.
+    """
+    if not model_name:
+        return None
+    cache_key = (str(model_name).strip().lower(), endpoint.strip().lower())
+    cached = _OLLAMA_SHOW_CACHE.get(cache_key)
+    if cached is not None:
+        ts, payload = cached
+        if (time.time() - ts) < _OLLAMA_SHOW_TTL:
+            return payload
+    url = endpoint.rstrip("/") + "/api/show"
+    try:
+        result = subprocess.run(
+            ["curl", "-s", "--max-time", "3", "-X", "POST", url,
+             "-H", "Content-Type: application/json",
+             "-d", json.dumps({"name": model_name})],
+            capture_output=True, text=True, timeout=4
+        )
+    except (subprocess.TimeoutExpired, OSError, Exception):
+        return None
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    try:
+        data = json.loads(result.stdout)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(data, dict) or "error" in data:
+        return None
+    _OLLAMA_SHOW_CACHE[cache_key] = (time.time(), data)
+    return data
+
+
+def _parse_ollama_param_size(size_str):
+    """Convert Ollama's parameter_size ('7B', '2.5B', '500M') to float billions.
+
+    Returns None for unparseable input. We accept M (millions) and K
+    (thousands) for completeness, though Ollama typically reports in B.
+    """
+    if not size_str:
+        return None
+    m = re.match(r"^\s*(\d+(?:\.\d+)?)\s*([BMK]?)\s*$", str(size_str).strip().upper())
+    if not m:
+        return None
+    value = float(m.group(1))
+    unit = m.group(2)
+    if unit == "M":
+        return value / 1000.0
+    if unit == "K":
+        return value / 1_000_000.0
+    return value
+
+
+def _params_to_tier(params_b):
+    """Map a parameter count in billions to one of our tool tiers."""
+    if params_b is None:
+        return None
+    if params_b <= 3:
+        return "tiny"
+    if params_b <= 13:
+        return "small"
+    if params_b <= 30:
+        return "medium"
+    return "large"
+
+
+def _detect_capability(model_name, host=""):
+    """Return a tier name ('tiny'|'small'|'medium'|'large') for the model.
+
+    Resolution order:
+      1. Known cloud model name (substring match against _CLOUD_MODEL_HINTS).
+      2. Ollama /api/show — if the host looks like an Ollama endpoint
+         we ask the daemon directly for `details.parameter_size`.
+         This is the ground truth: name parsing fails on fine-tuned
+         names ("my-llama-fork-v3") or models without a size suffix.
+      3. Parameter-size suffix on the model name (e.g. "7b" → small).
+      4. Local-provider keyword in the name.
+      5. Fallback: 'small' (safe default for a local bridge).
+
+    The host arg is optional; if empty we assume the standard local
+    Ollama endpoint (127.0.0.1:11434). Agents can override via
+    X-Model-Host / ?host= so a remote Ollama on a GPU box is also
+    detectable.
+    """
+    if not model_name:
+        return "small"
+    name_lower = model_name.lower().strip()
+
+    # 1. Known cloud models (substring on the model name).
+    for needle, tier in _CLOUD_MODEL_HINTS.items():
+        if needle in name_lower:
+            return tier
+
+    # 2. Ollama /api/show — the reliable path for local models.
+    #    Skip the network call if the name obviously points to a
+    #    non-Ollama backend (a 'gpt-' prefix, an anthropic name, etc.)
+    #    to avoid hanging on every /tools call when the daemon is down.
+    ollama_endpoint = host if (host and "11434" in host) else "http://127.0.0.1:11434"
+    skip_ollama = any(p in name_lower
+                      for p in ("gpt-", "claude", "gemini", "mistral-",
+                                "groq/", "deepseek-chat", "deepseek-reasoner",
+                                "minimax", "/v1", "openai.com", "anthropic.com"))
+    if not skip_ollama:
+        show = _ollama_show(model_name, ollama_endpoint)
+        if show:
+            details = show.get("details") or {}
+            params_b = _parse_ollama_param_size(details.get("parameter_size"))
+            tier = _params_to_tier(params_b)
+            if tier:
+                return tier
+            # Ollama responded but no parseable parameter_size — fall
+            # through to name heuristics below instead of defaulting.
+
+    # 3. Parameter size suffix on the model name. Common Ollama/HF
+    #    naming: ":7b", ":13b", "Llama-3.2-3B-Instruct", "Qwen2.5-7B".
+    size_match = re.search(r"(\d+(?:\.\d+)?)\s*([bm])\b", name_lower)
+    if size_match:
+        size = float(size_match.group(1))
+        unit = size_match.group(2)
+        params_b = size if unit == "b" else size / 1000.0
+        if params_b <= 3:
+            return "tiny"
+        if params_b <= 13:
+            return "small"
+        if params_b <= 30:
+            return "medium"
+        return "large"
+
+    # 4. Provider hints. Local providers default to 'small' unless we
+    #    have evidence otherwise.
+    local_providers = ("ollama", "llama.cpp", "llamacpp", "lm-studio",
+                      "lmstudio", "kobold", "oobabooga", "local")
+    if any(p in name_lower for p in local_providers):
+        return "small"
+
+    # 5. Fallback: small. The bridge runs locally, so defaulting to the
+    #    safer tier means a misconfigured agent gets 8 tools instead of 23.
+    return "small"
+
+
+def _filter_tools_for_capability(tier):
+    """Return TOOLS filtered to the given tier.
+
+    Tiers are cumulative: 'medium' = tiny + small + medium extras.
+    'large' returns the full TOOLS list.
+    """
+    if not tier or tier == "large":
+        return list(TOOLS)
+    if tier not in _TIER_NAMES:
+        return list(TOOLS)
+    names = set(_TIER_NAMES[tier])
+    return [t for t in TOOLS if t["name"] in names]
 
 
 TOOLS = [
@@ -412,6 +693,56 @@ def _run_axctl(argv, timeout=15):
             return {"content": "", "error": err}
         return {"content": out or "Success", "error": None}
     return {"content": "", "error": err or ("axctl exited with code " + str(result.returncode))}
+
+
+def _compact_windows(windows):
+    """Strip a window entry down to the fields a tool-calling LLM actually
+    needs to pick the right window: id, app_id, title, workspace_id.
+
+    Local small models struggle with the full axctl payload (per-window
+    metadata: monitor_id, x/y/width/height, is_focused, is_floating,
+    is_fullscreen, pinned, is_hidden). Those fields burn ~250 chars
+    per window that the model has to keep in context for no benefit.
+    Mirrors the 'pre-format results' pattern Odysseus uses for its
+    read tools — the caller can still get the full payload by passing
+    `verbose=true` to list_windows.
+    """
+    out = []
+    for w in windows:
+        if not isinstance(w, dict):
+            continue
+        entry = {
+            "id": w.get("id"),
+            "app_id": w.get("app_id"),
+            "title": w.get("title"),
+            "workspace_id": w.get("workspace_id"),
+        }
+        out.append({k: v for k, v in entry.items() if v is not None})
+    return out
+
+
+def _compact_apps(apps):
+    """Reduce an .desktop catalog entry to fields useful for tool picking.
+
+    The full .desktop export has 12+ fields per app (generic_name,
+    comment, icon path, categories, wmclass, desktop_file path). For
+    200+ apps that's 28KB+ of JSON — way past what a small local model
+    can parse in a single tool result. We keep: id (for matching),
+    name (for display), source (so the LLM knows it's a flatpak etc.),
+    command (so it can verify what would actually run).
+    """
+    out = []
+    for a in apps:
+        if not isinstance(a, dict):
+            continue
+        entry = {
+            "id": a.get("id"),
+            "name": a.get("name"),
+            "source": a.get("source"),
+            "command": a.get("command"),
+        }
+        out.append({k: v for k, v in entry.items() if v})
+    return out
 
 
 def _str_arg(args, key, default=None):
@@ -817,7 +1148,20 @@ def invoke_tool(name, arguments):
 
     # ── Introspection ────────────────────────────────────────────────
     if name == "list_windows":
-        return _run_axctl(["window", "list"])
+        result = _run_axctl(["window", "list"])
+        if result.get("error"):
+            return result
+        try:
+            windows = json.loads(result.get("content", "[]"))
+        except (TypeError, ValueError):
+            return result
+        verbose = _bool_arg(args, "verbose")
+        if not verbose:
+            windows = _compact_windows(windows)
+        return {
+            "content": json.dumps(windows, ensure_ascii=False, indent=2),
+            "error": None
+        }
     if name == "list_workspaces":
         return _run_axctl(["workspace", "list"])
     if name == "list_monitors":
@@ -1217,6 +1561,9 @@ def invoke_tool(name, arguments):
                 "content": "[]",
                 "error": None
             }
+        verbose = _bool_arg(args, "verbose")
+        if not verbose:
+            catalog = _compact_apps(catalog)
         try:
             return {"content": json.dumps(catalog, ensure_ascii=False, indent=2), "error": None}
         except (TypeError, ValueError) as exc:
@@ -1358,7 +1705,40 @@ class NothingClawHandler(BaseHTTPRequestHandler):
         if self.path.split("?", 1)[0] != "/tools":
             self._send_json(404, {"error": "Not found", "content": ""})
             return
-        self._send_json(200, TOOLS)
+        query = {}
+        try:
+            from urllib.parse import urlparse, parse_qs
+            query = parse_qs(urlparse(self.path).query)
+        except Exception:
+            query = {}
+
+        # Capability resolution. Precedence (highest first):
+        #   1. ?capability= header X-Capability (manual override).
+        #   2. Auto-detect from X-Model-Name + X-Model-Host (or query params).
+        #   3. ?lite=true (legacy shortcut → 'small').
+        #   4. Default 'small' (safe for a local bridge).
+        explicit = (query.get("capability", [None])[0]
+                    or self.headers.get("X-Capability", "").strip().lower()
+                    or None)
+        model_name = (query.get("model", [None])[0]
+                      or self.headers.get("X-Model-Name", "").strip()
+                      or "")
+        model_host = (query.get("host", [None])[0]
+                      or self.headers.get("X-Model-Host", "").strip()
+                      or "")
+        lite = bool(query.get("lite"))
+
+        if explicit in ("tiny", "small", "medium", "large"):
+            tier = explicit
+        elif model_name:
+            tier = _detect_capability(model_name, model_host)
+        elif lite:
+            tier = "small"
+        else:
+            tier = "small"
+
+        payload = _filter_tools_for_capability(tier)
+        self._send_json(200, payload)
 
     def do_POST(self):
         if self.path.split("?", 1)[0] != "/tools":

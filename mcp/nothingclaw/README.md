@@ -94,15 +94,106 @@ The HTTP contract matches the standard NothingLess **http-bridge**
 protocol:
 
 ```
-GET  /tools   → JSON list of tool definitions
-POST /tools   → { "name": "<tool>", "arguments": { ... } }
-                Response: { "content": "...", "error": null }
+GET  /tools                              → JSON list of tool definitions (auto-detected tier)
+GET  /tools?lite=true                    → 8 tools (legacy alias for capability=small)
+GET  /tools?capability={tiny|small|medium|large}  → manual tier override
+GET  /tools?model=<name>                 → auto-detect from model name
+GET  /tools -H "X-Model-Name: <name>"    → same, via header
+GET  /tools -H "X-Model-Host: <url>"     → override where Ollama is queried
+POST /tools                              → { "name": "<tool>", "arguments": { ... } }
+                                            Response: { "content": "...", "error": null }
 ```
 
 Read tools (`list_windows`, `list_workspaces`, `list_monitors`,
 `list_installed_apps`) return JSON strings. Write tools return
 `Success` on stdout (or the axctl JSON output when relevant) and
 surface stderr as `error` when axctl returns non-zero.
+
+## Tuning for small local models
+
+NothingClaw borrows a few patterns from how [Odysseus](https://github.com/pewdiepie-archdaemon/odysseus)
+handles chat with limited local models (llama.cpp, Ollama on CPU,
+etc.):
+
+### Capability tiers
+
+Tools are served in tiers that match what each model size can
+realistically choose between:
+
+| Tier | Tool count | Models |
+|------|-----------|--------|
+| `tiny`  | 4  | ≤3B params (e.g. granite3.1-dense:2b, qwen2.5:0.5b) |
+| `small` | 8  | 3B–13B / local Ollama (e.g. qwen2.5:3b, llama3.2:3b, mistral:7b) |
+| `medium`| 13 | 13B–30B / small cloud (gpt-3.5-turbo, claude-3-haiku, gemini-2.0-flash) |
+| `large` | 23 | 30B+ / strong cloud (gpt-4o, claude-3-opus, deepseek-chat) |
+
+The `tiny` set covers just the essentials (`list_windows`,
+`list_installed_apps`, `move_window_to_workspace`,
+`execute_command`). Each higher tier is a superset of the previous
+one plus a few extras.
+
+### How the tier is picked
+
+Resolution order, highest precedence first:
+
+1. `?capability=…` query param or `X-Capability` header — manual
+   override.
+2. `?model=…` query param or `X-Model-Name` header — the agent
+   passes the active model name. The bridge then queries Ollama's
+   `/api/show` for the real `details.parameter_size` and maps that
+   to a tier. This is the ground truth path — name parsing fails
+   on fine-tuned names like `my-llama-fork-v3` or models without
+   a size suffix. Cloud models (GPT, Claude, Gemini, DeepSeek,
+   Mistral) are matched by name against a known list since those
+   endpoints don't expose `/api/show`.
+3. `?lite=true` — legacy shortcut, equivalent to `capability=small`.
+4. Default — `small`. The bridge runs locally so a misconfigured
+   agent gets 8 tools instead of 23.
+
+The Ollama lookup is cached for 5 minutes per `(model, endpoint)`
+pair — model metadata doesn't change at runtime, so bursts of
+discovery requests stay cheap. The cache key includes the endpoint
+so a remote Ollama on a GPU box doesn't poison the local cache.
+
+NothingLess's `HttpAgentClient` automatically passes `X-Model-Name`
+when the agent profile has a `model` field set (the AI settings
+panel exposes this), so the auto-detection works without any
+extra config from the user — set the model name in the agent
+profile and the bridge handles the rest.
+
+### Compact tool results
+
+- **`list_windows` and `list_installed_apps` return compact JSON
+  by default** — only the fields the LLM needs to chain the next
+  call (id, app_id, title, workspace_id for windows; id, name,
+  source, command for apps). Full axctl payload (geometry,
+  is_floating, is_fullscreen, pinned, icon path, etc.) is dropped
+  to keep tool results small. Pass `"verbose": true` in arguments
+  to get the raw payload when needed.
+
+### Robustness
+
+- **axctl silent-failure detection** — `_run_axctl` treats stderr
+  lines starting with `Error:` as a failure even when exit code is
+  0, so a failed `move-to` surfaces as `failed` instead of being
+  reported as `moved`.
+- **Workspace-name resolution** — non-numeric `workspace_id`
+  arguments are resolved to the real ID via `axctl workspace list`
+  before dispatch. Hyprland allows `name:code` workspaces but
+  axctl's `move-to` only accepts IDs.
+- **Post-move verification + 200ms retry** — `move_windows`
+  re-lists windows after the move to confirm each one actually
+  changed workspace; this catches the EVENT_WINDOW_MOVED
+  propagation race in axctl's cache.
+
+For a small Ollama model that previously timed out on
+`list_installed_apps` (28 KB JSON output eating the entire context
+window), the compact mode drops it to ~10 KB and the lite tool
+list shrinks the system prompt by ~7 KB — together enough to fit
+multi-turn agent flows on a 4 K-context local model. With the
+Ollama-backed tier detection, a 2B param model gets 4 tools
+instead of 23 without the user having to know the model's
+parameter size in advance.
 
 ## Configuration overrides
 

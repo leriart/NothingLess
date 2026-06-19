@@ -21,6 +21,15 @@ QtObject {
     property var headers: ({})
     property string toolsPath: "/tools"
     property string invokePath: "/invoke"
+    // Optional. When set, the client sends X-Model-Name / X-Model-Host
+    // headers on the tools discovery request so the bridge can pick a
+    // capability-aware tool subset (see _detect_capability in the
+    // NothingClaw server). Most useful for local Ollama — the bridge
+    // queries Ollama's /api/show for the real parameter_size instead
+    // of guessing from the model name. Has no effect on agents that
+    // don't understand the header.
+    property string model: ""
+    property string modelHost: ""
 
     function start(baseEndpoint, hdrs, tPath, iPath) {
         if (baseEndpoint) endpoint = baseEndpoint;
@@ -33,6 +42,11 @@ QtObject {
             return;
         }
         _discoverTools();
+    }
+
+    function setModel(modelName, host) {
+        if (modelName !== undefined) root.model = modelName || "";
+        if (host !== undefined) root.modelHost = host || "";
     }
 
     function stop() {
@@ -72,6 +86,15 @@ QtObject {
     function _discoverTools() {
         let url = endpoint.replace(/\/+$/, "") + "/" + toolsPath.replace(/^\/+/, "");
         let hdrArgs = _buildHeaderArgs(headers);
+        // Send the model identifier if the user configured one on the
+        // agent profile. The bridge uses it to pick a tool subset sized
+        // to the model's capability tier — small local models get 4-8
+        // tools, large cloud models get all 23. Bridges that don't
+        // understand the header ignore it, so this is safe even for
+        // non-NothingClaw HTTP agents.
+        let modelArgs = "";
+        if (root.model) modelArgs += " -H " + _shQuote("X-Model-Name: " + root.model);
+        if (root.modelHost) modelArgs += " -H " + _shQuote("X-Model-Host: " + root.modelHost);
         // Same timeouts as invokeTool: 5s to connect, 15s total.
         // Without these, an unreachable Odysseus / OpenClaw /
         // custom MCP endpoint would freeze the agent connection at
@@ -80,7 +103,7 @@ QtObject {
         // resolve past "connecting".
         discoveryProcess.command = ["bash", "-c",
             "curl -s --connect-timeout 5 --max-time 15 "
-            + _shQuote(url) + " " + hdrArgs];
+            + _shQuote(url) + " " + hdrArgs + modelArgs];
         discoveryProcess.running = true;
     }
 
