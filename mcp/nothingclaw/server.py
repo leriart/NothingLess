@@ -100,6 +100,7 @@ def _obj(props, required):
 
 _TOOL_TIERS = {
     "tiny": [
+        "manage_memory",
         "list_windows",
         "list_installed_apps",
         "move_window_to_workspace",
@@ -107,6 +108,7 @@ _TOOL_TIERS = {
         "execute_command",
     ],
     "small": [
+        "manage_memory",
         "list_windows",
         "list_installed_apps",
         "list_workspaces",
@@ -138,6 +140,171 @@ _TIER_NAMES = {
                + _TOOL_TIERS["small"]
                + _TOOL_TIERS["medium"]),
 }
+
+
+# ---------------------------------------------------------------------------
+# Semantic tool ranking (Odysseus-inspired, dependency-free)
+# ---------------------------------------------------------------------------
+#
+# Mimics Odysseus's RAG-based tool selection without requiring ChromaDB /
+# fastembed / an Ollama embedding model. Builds a keyword index from tool
+# names and descriptions on first use, then scores every tool by keyword
+# overlap with the user's query. Handles Spanish intent mapping so a query
+# like "mueve la ventana al workspace 3" boosts the right tools.
+
+_TOOL_INDEX = None  # [(tool_name, set_of_keywords, score_weight), ...]
+
+
+_INTENT_MAP = {
+    # Spanish → English keyword expansion
+    "mover": "move", "mueve": "move", "movido": "move",
+    "mueva": "move", "moveme": "move", "movelo": "move",
+    "abrir": "open", "abre": "open", "abrir": "open",
+    "cerrar": "close", "cierra": "close", "cierre": "close",
+    "navegador": "browser", "browser": "browser",
+    "web": "browser", "internet": "browser",
+    "buscar": "search", "busca": "search",
+    "ventana": "window", "ventanas": "window",
+    "workspace": "workspace", "workspaces": "workspace",
+    "escritorio": "workspace", "pantalla": "monitor",
+    "monitor": "monitor", "monitores": "monitor",
+    "programa": "app", "app": "app", "apps": "app",
+    "aplicacion": "app", "aplicación": "app",
+    "aplicaciones": "app",
+    "url": "url", "link": "url", "enlace": "url",
+    "pagina": "url", "página": "url", "web": "url",
+    "lista": "list", "listar": "list",
+    "instalado": "installed", "instalada": "installed",
+    "instalados": "installed", "instaladas": "installed",
+    "paquete": "package", "paquetes": "package",
+    "instalar": "install", "instala": "install",
+    "comando": "command", "ejecutar": "execute",
+    "ejecuta": "execute", "correr": "execute",
+    "tema": "layout", "layout": "layout",
+    "flotante": "floating", "flotar": "floating",
+    "pantalla": "fullscreen", "completa": "fullscreen",
+    "completo": "fullscreen", "fullscreen": "fullscreen",
+    "tamaño": "resize", "tamano": "resize", "resize": "resize",
+    "foco": "focus", "enfocar": "focus", "enfoca": "focus",
+    "direccion": "direction", "dirección": "direction",
+    "arriba": "direction", "abajo": "direction",
+    "izquierda": "direction", "derecha": "direction",
+    "especial": "special", "scratchpad": "special",
+    "cambiar": "switch", "cambia": "switch",
+    "todos": "all", "varios": "batch", "batch": "batch",
+    "multiple": "batch", "multiples": "batch",
+}
+
+
+_DOMAIN_TOOLS = {
+    # Odysseus's _DOMAIN_TOOL_MAP equivalent — when a query clearly
+    # maps to a domain, seed those tools even if keywords don't overlap.
+    "window": ["list_windows", "focus_window", "close_window",
+               "move_window_to_workspace", "move_windows",
+               "move_window_direction", "move_window_to_monitor",
+               "toggle_window_floating", "set_window_fullscreen",
+               "resize_window", "toggle_window_direction"],
+    "workspace": ["list_workspaces", "switch_workspace",
+                  "move_window_to_workspace", "move_windows",
+                  "toggle_special_workspace"],
+    "monitor": ["list_monitors", "focus_monitor",
+                "move_window_to_monitor"],
+    "app": ["list_installed_apps", "open_app", "close_app",
+            "launch_program", "check_program_installed"],
+    "url": ["open_url", "execute_command"],
+    "system": ["execute_command", "check_program_installed",
+               "launch_program", "install_package"],
+    "layout": ["set_layout", "toggle_window_floating",
+               "set_window_fullscreen", "resize_window"],
+    "batch": ["move_windows", "close_app"],
+}
+
+
+def _build_tool_index():
+    """Build a keyword index from tool names + descriptions. Lazy, cached."""
+    global _TOOL_INDEX
+    if _TOOL_INDEX is not None:
+        return
+    _TOOL_INDEX = []
+    for t in TOOLS:
+        name = t["name"]
+        desc = t.get("description", "")
+        params = t.get("parameters", {}).get("properties", {})
+        text = name + " " + desc
+        for pname, pinfo in params.items():
+            if isinstance(pinfo, dict):
+                text += " " + pname + " " + pinfo.get("description", "")
+        words = set(re.findall(r"[a-z_][a-z_0-9]{2,}", text.lower()))
+        for part in name.split("_"):
+            if len(part) >= 3:
+                words.add(part)
+        # Boost keywords from the tool's name
+        _TOOL_INDEX.append((name, words))
+
+
+def _rank_tools_by_query(query, top_k=8):
+    """Return tool names ranked by keyword relevance to `query`.
+
+    No embeddings, no ChromaDB, no extra dependencies. Uses:
+      1. Direct keyword overlap with tool descriptions
+      2. Spanish→English intent expansion (_INTENT_MAP)
+      3. Domain seeding (_DOMAIN_TOOLS) — when keywords clearly
+         point to a domain, its tools get a bonus
+      4. Name parts — "move_window_to_workspace" boosts "move",
+         "window", "workspace" individually
+
+    Falls back to TOOLS names when the index hasn't been built yet
+    (first call builds it lazily).
+    """
+    _build_tool_index()
+    if not _TOOL_INDEX or not query:
+        if not query:
+            return [t["name"] for t in TOOLS]
+        return [t["name"] for t in TOOLS][:top_k]
+
+    # Tokenize and expand query
+    raw = query.lower().strip()
+    qwords = set(re.findall(r"[a-z0-9]{2,}", raw))
+
+    # Spanish → English expansion
+    for word in list(qwords):
+        if word in _INTENT_MAP:
+            qwords.add(_INTENT_MAP[word])
+
+    # Domain detection: which domains are active?
+    active_domains = set()
+    for domain, keywords in {
+        "window": {"window", "window", "move", "focus", "close", "resize", "float", "mover", "ventana", "mueve"},
+        "workspace": {"workspace", "switch", "desktop", "escritorio"},
+        "monitor": {"monitor", "screen", "pantalla", "display"},
+        "app": {"app", "open", "close", "launch", "install", "abrir", "abre", "programa", "aplicacion"},
+        "url": {"url", "link", "browser", "navegador", "web", "pagina", "http"},
+        "system": {"exec", "shell", "command", "run", "comando", "ejecutar"},
+        "layout": {"layout", "theme", "tema"},
+        "batch": {"batch", "all", "multiple", "todos", "varios", "multiples"},
+    }.items():
+        if qwords & keywords:
+            active_domains.add(domain)
+
+    # Score every tool
+    scores = []
+    for name, words in _TOOL_INDEX:
+        score = len(qwords & words)  # Direct keyword overlap
+        # Name part bonus
+        for part in name.split("_"):
+            if part in qwords:
+                score += 3
+        # Domain bonus — when the query is about windows and this
+        # tool is a window tool, give it a boost. Mirrors Odysseus's
+        # domain seeding in _DOMAIN_TOOL_MAP.
+        for domain in active_domains:
+            if domain in _DOMAIN_TOOLS and name in _DOMAIN_TOOLS[domain]:
+                score += 2
+        if score > 0:
+            scores.append((name, score))
+
+    scores.sort(key=lambda x: (-x[1], x[0]))
+    return [name for name, _ in scores[:top_k]]
 
 
 _CLOUD_MODEL_HINTS = {
@@ -655,6 +822,23 @@ TOOLS = [
             "app_name": _str("App name or window title substring (case-insensitive). "
                              "Matches against window.app_id first, then window.title.")
         }, ["app_name"])
+    },
+    {
+        "name": "manage_memory",
+        "description": "Persistent key-value memory for the agent. Survives "
+                       "bridge restarts. Use it to remember user preferences, "
+                       "recent context ('last workspace used'), or anything the "
+                       "agent should recall across sessions. Actions: "
+                       "'set' (write a key), 'get' (read a key), 'delete' "
+                       "(remove a key), 'list' (show all keys). File-backed in "
+                       "~/.local/share/nothingless/nothingclaw_memory.json. "
+                       "Mirrors Odysseus's manage_memory tool.",
+        "parameters": _obj({
+            "action": _str_enum(["set", "get", "delete", "list"],
+                                "Memory action to perform."),
+            "key": _str("Memory key (set/get/delete)."),
+            "value": _str("Memory value (set only).")
+        }, ["action"])
     }
 ]
 
@@ -1817,12 +2001,52 @@ def invoke_tool(name, arguments):
         }
         return {"content": json.dumps(summary, ensure_ascii=False, indent=2), "error": None}
 
+    # ── Memory ──────────────────────────────────────────────────────
+    if name == "manage_memory":
+        mem_dir = os.path.expanduser(os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share")) + "/nothingless")
+        os.makedirs(mem_dir, exist_ok=True)
+        mem_path = mem_dir + "/nothingclaw_memory.json"
+        action = _str_arg(args, "action")
+        if not action or action not in ("set", "get", "delete", "list"):
+            return {"content": "", "error": "manage_memory needs action=set|get|delete|list"}
+        store = {}
+        try:
+            with open(mem_path, "r") as fp: store = json.load(fp)
+        except (FileNotFoundError, json.JSONDecodeError): store = {}
+        if action == "list":
+            if not store: return {"content": "Memory is empty.", "error": None}
+            lines = ["Memory entries (" + str(len(store)) + "):"]
+            for k, v in sorted(store.items()):
+                vs = str(v)
+                if len(vs) > 120: vs = vs[:117] + "..."
+                lines.append("  " + k + " = " + vs)
+            return {"content": "\n".join(lines), "error": None}
+        if action == "get":
+            key = _str_arg(args, "key")
+            if not key: return {"content": "", "error": "manage_memory get needs key"}
+            if key not in store: return {"content": "", "error": "Key '" + key + "' not found"}
+            return {"content": json.dumps(store[key], ensure_ascii=False), "error": None}
+        if action == "set":
+            key = _str_arg(args, "key")
+            if not key: return {"content": "", "error": "manage_memory set needs key"}
+            value = _str_arg(args, "value") or ""
+            store[key] = {"value": value, "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+            try:
+                with open(mem_path, "w") as fp: json.dump(store, fp, ensure_ascii=False, indent=2)
+            except OSError as e: return {"content": "", "error": "Memory write failed: " + str(e)}
+            return {"content": key + " = " + value, "error": None}
+        if action == "delete":
+            key = _str_arg(args, "key")
+            if not key: return {"content": "", "error": "manage_memory delete needs key"}
+            if key not in store: return {"content": "", "error": "Key '" + key + "' not found"}
+            del store[key]
+            try:
+                with open(mem_path, "w") as fp: json.dump(store, fp, ensure_ascii=False, indent=2)
+            except OSError as e: return {"content": "", "error": "Memory write failed: " + str(e)}
+            return {"content": "Deleted: " + key, "error": None}
+
     return {"content": "", "error": "Tool '" + str(name) + "' not found"}
 
-
-# ---------------------------------------------------------------------------
-# HTTP request handler
-# ---------------------------------------------------------------------------
 
 class NothingClawHandler(BaseHTTPRequestHandler):
     server_version = "NothingClaw/1.0"
@@ -1867,17 +2091,35 @@ class NothingClawHandler(BaseHTTPRequestHandler):
                       or self.headers.get("X-Model-Host", "").strip()
                       or "")
         lite = bool(query.get("lite"))
+        q = (query.get("q", [None])[0] or "").strip()
 
-        if explicit in ("tiny", "small", "medium", "large"):
-            tier = explicit
-        elif model_name:
-            tier = _detect_capability(model_name, model_host)
-        elif lite:
-            tier = "small"
+        if q:
+            names = _rank_tools_by_query(q, top_k=8)
+            # Always-available info tools (Odysseus's ALWAYS_AVAILABLE
+            # equivalent). The model needs list_windows to discover IDs
+            # before calling move / close / focus. Without them, the
+            # model can see move_window_to_workspace but has no way to
+            # find the window_id argument.
+            always = {"manage_memory", "list_windows", "list_installed_apps",
+                      "move_window_to_workspace", "open_url"}
+            # Prepend always tools, then the ranked ones (deduped)
+            seen = set(always)
+            ordered = list(always)
+            for n in names:
+                if n not in seen:
+                    ordered.append(n)
+                    seen.add(n)
+            payload = [t for t in TOOLS if t["name"] in ordered]
         else:
-            tier = "small"
-
-        payload = _filter_tools_for_capability(tier)
+            if explicit in ("tiny", "small", "medium", "large"):
+                tier = explicit
+            elif model_name:
+                tier = _detect_capability(model_name, model_host)
+            elif lite:
+                tier = "small"
+            else:
+                tier = "small"
+            payload = _filter_tools_for_capability(tier)
         self._send_json(200, payload)
 
     def do_POST(self):
