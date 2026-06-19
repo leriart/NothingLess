@@ -536,6 +536,50 @@ Singleton {
             } catch (e) {}
         }
 
+        // Pattern 7: tiny-model prose descriptions. Small local LLMs
+        // (granite-2b, qwen-0.5b, phi-1.5, etc.) often fail to emit
+        // proper tool_calls deltas and instead narrate a multi-step
+        // plan in plain text:
+        //   "1. Execute shell command: xdg-open https://youtube.com
+        //    2. Create a file /tmp/youtube.desktop ...
+        //    3. Launch the browser to open YouTube using: xdg-open ..."
+        // If we don't catch this, the user sees a verbose recipe
+        // instead of an executed action. We look for the first
+        // runnable command in the text — anywhere in the response,
+        // not just after a verb — and route it through
+        // run_shell_command. We anchor on (^|\n|:\s) so we don't
+        // match mid-word. Skip lines that are obviously explanatory
+        // ("use xdg-open to open...") by requiring a real command
+        // shape: binary followed by an argument that isn't a
+        // conjunction.
+        let runnables = text.match(/(?:^|[\n:]\s*)(xdg-open\s+\S+|setsid\s+\S+|nohup\s+\S+|bash\s+-c\s+\S+|firefox\s+\S+|chromium\s+\S+|google-chrome\s+\S+|code\s+\S+|notify-send\s+\S+|systemctl\s+\S+)/i);
+        if (runnables) {
+            let cmd = runnables[1].trim();
+            // Only treat as tool call if the command is actually a
+            // recognized opener — avoid false positives on mentions
+            // like "you can use xdg-open".
+            let openerRe = /^(xdg-open|setsid|nohup|bash\s+-c|firefox|chromium|google-chrome|code|notify-send|systemctl)/i;
+            if (openerRe.test(cmd)) {
+                return { name: "run_shell_command", args: { command: cmd } };
+            }
+        }
+
+        // Pattern 8: 'open <url> in browser' / 'go to <url>' style. Tiny
+        // models often narrate this as "I would open https://...
+        // in the default browser using xdg-open" without ever
+        // calling a tool. We catch the explicit URL mention and
+        // route it through the agent's open_url tool (which has
+        // alias expansion and a clean error path).
+        let urlRe = /(?:open|go to|browse to|visit|navigate to|abre|abrir)\s+(https?:\/\/\S+|(?:www\.)?[a-z0-9-]+(?:\.[a-z]{2,})(?:\/\S*)?|youtube|github|gmail|google|reddit|twitter|stackoverflow)/i;
+        let urlMatch = text.match(urlRe);
+        if (urlMatch) {
+            let raw = urlMatch[1];
+            // Skip obvious non-URL fragments
+            if (!/^(the|a|my|this|that)$/i.test(raw)) {
+                return { name: "open_url", args: { url: raw } };
+            }
+        }
+
         return null
     }
 

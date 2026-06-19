@@ -103,6 +103,7 @@ _TOOL_TIERS = {
         "list_windows",
         "list_installed_apps",
         "move_window_to_workspace",
+        "open_url",
         "execute_command",
     ],
     "small": [
@@ -111,6 +112,7 @@ _TOOL_TIERS = {
         "list_workspaces",
         "move_window_to_workspace",
         "move_windows",
+        "open_url",
         "open_app",
         "close_app",
         "execute_command",
@@ -610,18 +612,36 @@ TOOLS = [
         }, [])
     },
     {
+        "name": "open_url",
+        "description": "Open a URL in the user's default browser via xdg-open. "
+                       "USE THIS for any 'open X in browser' / 'go to X' / "
+                       "'browse to X' request. Accepts full URLs ('https://youtube.com') "
+                       "or short aliases ('youtube', 'github', 'gmail') that this "
+                       "bridge auto-expands. Do NOT use open_app for URLs — open_app "
+                       "launches NATIVE desktop apps (Firefox, Spotify, etc.) and "
+                       "will not interpret a website URL.",
+        "parameters": _obj({
+            "url": _str("URL or short alias. Examples: 'https://youtube.com', "
+                        "'youtube.com', 'youtube', 'github.com/Leriart', 'gmail'.")
+        }, ["url"])
+    },
+    {
         "name": "open_app",
-        "description": "Open a GUI application by name. Searches the installed-apps "
-                       "catalog (native .desktop files + flatpak + snap + AppImage) "
-                       "and launches the matching entry. PREFER THIS OVER "
-                       "launch_program for GUI apps — it resolves the right "
-                       "Exec= line, finds apps by display name (e.g. 'Zen Browser'), "
-                       "and supports flatpak/snap packages that 'command not found' "
-                       "would never reach. Use check_program_installed first if you "
-                       "want to confirm something exists before opening it.",
+        "description": "Open a NATIVE GUI application by name (Firefox, Zen Browser, "
+                       "Spotify, Code, etc.). Searches the installed-apps catalog "
+                       "(.desktop files + flatpak + snap + AppImage) and launches "
+                       "the matching entry. PREFER THIS OVER launch_program for "
+                       "GUI apps — it resolves the right Exec= line, finds apps by "
+                       "display name, and supports flatpak/snap packages that "
+                       "'command not found' would never reach. "
+                       "FOR URLs / WEBSITES use open_url instead — this tool "
+                       "does NOT accept URLs and will launch the wrong app if you "
+                       "pass one. Use check_program_installed first if you want to "
+                       "confirm something exists before opening it.",
         "parameters": _obj({
             "app_name": _str("App display name (e.g. 'Firefox', 'Zen Browser', "
-                             "'Code', 'Spotify'). Case-insensitive substring match.")
+                             "'Code', 'Spotify'). Case-insensitive substring match. "
+                             "DO NOT pass URLs here — use open_url for those.")
         }, ["app_name"])
     },
     {
@@ -1568,6 +1588,87 @@ def invoke_tool(name, arguments):
             return {"content": json.dumps(catalog, ensure_ascii=False, indent=2), "error": None}
         except (TypeError, ValueError) as exc:
             return {"content": "", "error": "Failed to encode catalog: " + str(exc)}
+
+    if name == "open_url":
+        url = _str_arg(args, "url")
+        if not url:
+            return {"content": "", "error": "open_url needs a url argument"}
+        url_aliases = {
+            "youtube": "https://www.youtube.com",
+            "yt": "https://www.youtube.com",
+            "youtu": "https://www.youtube.com",
+            "youtubemusic": "https://music.youtube.com",
+            "ytmusic": "https://music.youtube.com",
+            "github": "https://github.com",
+            "gh": "https://github.com",
+            "gmail": "https://mail.google.com",
+            "mail": "https://mail.google.com",
+            "google": "https://www.google.com",
+            "calendar": "https://calendar.google.com",
+            "maps": "https://maps.google.com",
+            "drive": "https://drive.google.com",
+            "docs": "https://docs.google.com",
+            "reddit": "https://www.reddit.com",
+            "twitter": "https://twitter.com",
+            "x": "https://twitter.com",
+            "wikipedia": "https://wikipedia.org",
+            "wiki": "https://wikipedia.org",
+            "stackoverflow": "https://stackoverflow.com",
+            "so": "https://stackoverflow.com",
+            "chatgpt": "https://chat.openai.com",
+            "gemini": "https://gemini.google.com",
+            "perplexity": "https://www.perplexity.ai",
+            "hackernews": "https://news.ycombinator.com",
+            "hn": "https://news.ycombinator.com",
+            "archwiki": "https://wiki.archlinux.org",
+            "arch": "https://archlinux.org",
+            "man": "https://man.archlinux.org",
+            "aur": "https://aur.archlinux.org",
+            "github.io": "https://github.io",
+        }
+        raw = url.strip()
+        key = raw.lower()
+        for prefix in ("https://", "http://", "www."):
+            if key.startswith(prefix):
+                key = key[len(prefix):]
+        key = key.split("/", 1)[0]
+        resolved = url_aliases.get(key, None)
+        if resolved is None:
+            # No alias matched. If it looks like a real host
+            # (contains a dot, e.g. 'example.com' or 'reddit.com/r/foo')
+            # we trust it and prepend https://. Otherwise refuse —
+            # we don't want to open 'https://spotify' just because the
+            # user said "spotify" without an alias.
+            if "." in key:
+                resolved = raw
+                if "://" not in resolved:
+                    resolved = "https://" + resolved
+            else:
+                suggestions = ", ".join(sorted(url_aliases.keys())[:8])
+                return {
+                    "content": "",
+                    "error": "Unknown URL or alias '" + raw + "'. Pass a "
+                             + "full URL ('https://example.com/path') or a known "
+                             + "alias. Common aliases: " + suggestions + ", ..."
+                }
+        try:
+            result = subprocess.run(
+                ["xdg-open", resolved],
+                capture_output=True, text=True, timeout=8,
+                env=os.environ
+            )
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            return {"content": "", "error": "xdg-open failed: " + str(exc)}
+        if result.returncode != 0:
+            return {
+                "content": "",
+                "error": "xdg-open exited " + str(result.returncode)
+                         + ": " + (result.stderr.strip() or "no stderr")
+            }
+        return {
+            "content": "Opened '" + resolved + "' in the user's default browser.",
+            "error": None
+        }
 
     if name == "open_app":
         query = _str_arg(args, "app_name")
