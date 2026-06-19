@@ -404,6 +404,12 @@ def _run_axctl(argv, timeout=15):
     out = result.stdout.strip()
     err = result.stderr.strip()
     if result.returncode == 0:
+        # axctl sometimes writes "Error: …" to stderr but still exits 0
+        # (a known axctl.c quirk for invalid workspace targets and similar).
+        # Treat that as a failure so the caller can surface it instead of
+        # reporting "Success" while the move silently didn't happen.
+        if err and any(line.startswith("Error:") for line in err.splitlines()):
+            return {"content": "", "error": err}
         return {"content": out or "Success", "error": None}
     return {"content": "", "error": err or ("axctl exited with code " + str(result.returncode))}
 
@@ -431,6 +437,42 @@ def _bool_arg(args, key, default=None):
         if val.lower() in ("false", "0", "no", "off"):
             return False
     return default
+
+
+def _resolve_workspace_id(ws_arg):
+    """Resolve a workspace name to its numeric ID via `axctl workspace list`.
+
+    Hyprland workspaces can be named (e.g. "code", "web") but axctl's
+    `workspace move-to` only accepts IDs. If the caller passes a name,
+    we look it up and return the matching ID. Numeric IDs are returned
+    unchanged so we don't add an IPC roundtrip in the common case.
+
+    Returns the original arg unchanged if lookup fails.
+    """
+    if ws_arg is None:
+        return ws_arg
+    s = str(ws_arg).strip()
+    if not s:
+        return ws_arg
+    if s.isdigit():
+        return s
+    list_result = _run_axctl(["workspace", "list"])
+    if list_result.get("error"):
+        return ws_arg
+    try:
+        workspaces = json.loads(list_result.get("content", "[]"))
+    except (TypeError, ValueError):
+        return ws_arg
+    for w in workspaces:
+        if not isinstance(w, dict):
+            continue
+        wid = w.get("id")
+        wname = w.get("name")
+        if wid is not None and str(wid) == s:
+            return s
+        if wname is not None and str(wname) == s:
+            return str(wid) if wid is not None else s
+    return ws_arg
 
 
 # ---------------------------------------------------------------------------
@@ -865,11 +907,12 @@ def invoke_tool(name, arguments):
                 wid = _str_arg(item, "window_id")
                 ws = _str_arg(item, "workspace_id")
                 if wid and ws:
-                    pairs.append((wid, ws))
+                    pairs.append((wid, _resolve_workspace_id(ws)))
 
         if not pairs:
             ws = _str_arg(args, "workspace_id")
             if ws:
+                ws_resolved = _resolve_workspace_id(ws)
                 window_ids = args.get("window_ids")
                 if isinstance(window_ids, list):
                     for wid in window_ids:
@@ -877,7 +920,7 @@ def invoke_tool(name, arguments):
                             continue
                         wid_s = str(wid).strip()
                         if wid_s:
-                            pairs.append((wid_s, ws))
+                            pairs.append((wid_s, ws_resolved))
 
                 if not pairs:
                     app_names = args.get("app_names")
@@ -925,7 +968,7 @@ def invoke_tool(name, arguments):
                                 if hit:
                                     wid = w.get("id")
                                     if wid:
-                                        pairs.append((str(wid), ws))
+                                        pairs.append((str(wid), ws_resolved))
 
         if not pairs:
             has_assignments = isinstance(args.get("assignments"), list)
@@ -968,6 +1011,69 @@ def invoke_tool(name, arguments):
                     "window_id": wid,
                     "workspace_id": ws
                 })
+
+        verify_result = _run_axctl(["window", "list"])
+        if verify_result.get("error"):
+            return {
+                "content": "",
+                "error": "move_to calls returned but verification failed: "
+                         + str(verify_result.get("error"))
+            }
+        try:
+            verify_windows = json.loads(verify_result.get("content", "[]"))
+        except (TypeError, ValueError):
+            verify_windows = []
+        current_ws = {}
+        for w in verify_windows:
+            if isinstance(w, dict) and w.get("id") is not None:
+                current_ws[str(w["id"])] = w.get("workspace_id")
+        verified_moved = []
+        actually_failed = []
+        for entry in moved:
+            wid = entry["window_id"]
+            target_ws = entry["workspace_id"]
+            actual_ws = current_ws.get(wid)
+            if actual_ws is not None and str(actual_ws) == str(target_ws):
+                verified_moved.append(entry)
+            elif actual_ws is None:
+                verified_moved.append(entry)
+            else:
+                actually_failed.append({
+                    "window_id": wid,
+                    "workspace_id": target_ws,
+                    "error": "axctl reported Success but window is still on "
+                             "workspace " + str(actual_ws)
+                })
+        moved = verified_moved
+        failures.extend(actually_failed)
+        time.sleep(0.2)
+        retry_result = _run_axctl(["window", "list"])
+        if retry_result.get("error"):
+            return {
+                "content": "",
+                "error": "post-move verification retry failed: "
+                         + str(retry_result.get("error"))
+            }
+        try:
+            retry_windows = json.loads(retry_result.get("content", "[]"))
+        except (TypeError, ValueError):
+            retry_windows = []
+        retry_ws = {}
+        for w in retry_windows:
+            if isinstance(w, dict) and w.get("id") is not None:
+                retry_ws[str(w["id"])] = w.get("workspace_id")
+        revisited_moved = []
+        resurrected = []
+        for entry in failures:
+            wid = entry["window_id"]
+            target_ws = entry["workspace_id"]
+            actual_ws = retry_ws.get(wid)
+            if actual_ws is not None and str(actual_ws) == str(target_ws):
+                resurrected.append(entry)
+            else:
+                revisited_moved.append(entry)
+        moved.extend(resurrected)
+        failures = revisited_moved
 
         summary = {
             "requested": len(pairs),
