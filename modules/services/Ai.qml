@@ -132,12 +132,14 @@ Singleton {
     property string ollamaStatus: "unknown"
     property string ollamaLastError: ""
     property bool _ollamaFetchPending: false
+    property bool _ollamaChatPending: false
     readonly property string ollamaEnsureScript: Qt.resolvedUrl(
         "../../scripts/ollama-ensure.sh").toString().replace("file://", "")
 
     function ensureOllamaRunning() {
         if (root.ollamaStatus === "starting") return;
         root._ollamaFetchPending = false;
+        root._ollamaChatPending = false;
         root.ollamaStatus = "starting";
         root.ollamaLastError = "";
         ollamaEnsureProcess.running = true;
@@ -154,8 +156,20 @@ Singleton {
         ollamaEnsureProcess.running = true;
     }
 
+    function _ensureOllamaThenChat() {
+        if (root.ollamaStatus === "starting") {
+            root._ollamaChatPending = true;
+            return;
+        }
+        root._ollamaChatPending = true;
+        root.ollamaStatus = "starting";
+        root.ollamaLastError = "";
+        ollamaEnsureProcess.running = true;
+    }
+
     function restartOllama() {
         root._ollamaFetchPending = false;
+        root._ollamaChatPending = false;
         root.ollamaStatus = "starting";
         root.ollamaLastError = "";
         ollamaRestartProcess.running = true;
@@ -983,6 +997,26 @@ Singleton {
         // --max-time 90s (e.g. bodyFileView stuck), reset the
         // flag and bail so the sidebar isn't permanently hung.
         root.requestWatchdog.restart();
+
+        // Ollama lifecycle: before sending the chat request, ensure
+        // the local daemon is actually up. The model fetch already
+        // does this (via _ensureOllamaThenFetch) but Ollama can fall
+        // over between the fetch and the user's first message, or
+        // the user can kill it mid-session. Without this gate the
+        // curl would fail with "Network error" after the 90s watchdog
+        // (matching the [GIN] 500 + 1m30s the user saw). We keep the
+        // requestInFlight flag set so the re-entrancy guard does not
+        // queue a second makeRequest while we wait for the ensure
+        // script — it will be cleared and the request resumed in
+        // ollamaEnsureProcess.onExited via _ollamaChatPending.
+        if (currentModel && currentModel.provider === "ollama"
+                && root.ollamaStatus !== "running"
+                && root.ollamaStatus !== "starting") {
+            isLoading = true;
+            streamingStatus = "starting Ollama…";
+            root._ensureOllamaThenChat();
+            return;
+        }
 
         let apiKey = getApiKey(currentModel);
         if (!currentModel) {
@@ -2485,6 +2519,10 @@ for f in files:
                         "curl -s --connect-timeout 2 --max-time 3 http://127.0.0.1:11434/api/tags"];
                     fetchProcessOllama.running = true;
                 }
+                if (root._ollamaChatPending) {
+                    root._ollamaChatPending = false;
+                    Qt.callLater(root.makeRequest);
+                }
             } else {
                 root.ollamaStatus = "failed";
                 root.ollamaLastError = "ollama-ensure.sh exited " + exitCode;
@@ -2493,6 +2531,14 @@ for f in files:
                 if (root._ollamaFetchPending) {
                     root._ollamaFetchPending = false;
                     checkFetchCompletion();
+                }
+                if (root._ollamaChatPending) {
+                    root._ollamaChatPending = false;
+                    root.lastError = "Ollama failed to start: "
+                                     + root.ollamaLastError;
+                    root.streamingStatus = "";
+                    root.isLoading = false;
+                    root.requestInFlight = false;
                 }
             }
         }
