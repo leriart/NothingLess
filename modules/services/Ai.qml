@@ -1965,11 +1965,57 @@ Singleton {
                         let newChat = Array.from(root.currentChat);
                         if (followupToTool) {
                             // Empty completion after a successful
-                            // tool run. Don't surface an alarming
-                            // error — the tool already did the work.
-                            // Just remove the empty placeholder so
-                            // the chat doesn't render a confusing
-                            // empty bubble.
+                            // tool run. For write tools (move, close,
+                            // open_app), the action already happened
+                            // — just remove the empty placeholder.
+                            // For read-only tools (list_*), the model
+                            // got data but didn't chain — same pattern
+                            // as the text-response case: auto-continue.
+                            let prevToolName = prev.name || "";
+                            let isReadOnly = root._idempotentReadTools.indexOf(prevToolName) !== -1;
+                            if (isReadOnly && root._autoContinueCount < 3) {
+                                root._autoContinueCount++;
+                                console.warn("[Ai] auto-continue #"
+                                    + root._autoContinueCount + " after "
+                                    + prevToolName + " (model returned empty)");
+                                newChat.push({
+                                    role: "system",
+                                    content: "[Auto-continue #"
+                                             + root._autoContinueCount
+                                             + " — the user's request is "
+                                             + "not fulfilled yet. The "
+                                             + prevToolName + " result "
+                                             + "above has the data. Call "
+                                             + "the NEXT tool to ACT on it.]"
+                                });
+                                root.currentChat = newChat;
+                                root.saveCurrentChat();
+                                root.requestInFlight = false;
+                                root.requestQueued = false;
+                                root.isLoading = true;
+                                Qt.callLater(root.makeRequest);
+                                return;
+                            }
+                            if (isReadOnly && root._autoContinueCount >= 3
+                                    && prevToolName === "list_windows") {
+                                let lastUser = "";
+                                for (let i = root.currentChat.length - 1; i >= 0; i--) {
+                                    if (root.currentChat[i].role === "user") {
+                                        lastUser = root.currentChat[i].content || "";
+                                        break;
+                                    }
+                                }
+                                if (/move|mover|mueve|mueva/i.test(lastUser)) {
+                                    newChat[newChat.length - 1].content =
+                                        "[Direct action — moving...]";
+                                    root.currentChat = newChat;
+                                    root.saveCurrentChat();
+                                    root.requestInFlight = false;
+                                    console.warn("[Ai] empty+exhausted — direct move");
+                                    root._tryDirectMove(lastUser, prev.content);
+                                    return;
+                                }
+                            }
                             newChat.pop();
                         } else {
                             // Genuinely empty response (no tool call
