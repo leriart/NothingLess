@@ -343,12 +343,20 @@ Singleton {
         }
     }
 
-    // Timer that fires when an agent tool invocation takes too
-    // long (10s). If the HTTP call or command agent doesn't respond
-    // within this window, we synthesise a timeout error so the chat
-    // doesn't hang forever on "running tool: …".
+    // Timer that fires when an agent tool invocation takes too long.
+// If the HTTP call or command agent doesn't respond within this
+// window, we synthesise a timeout error so the chat doesn't hang
+// forever on "running tool: …".
+//
+// Must be LONGER than the bridge's curl --max-time (25s in
+// HttpAgentClient.qml) and the server-side subprocess timeout
+// (up to 30s for open_url which spawns xdg-open and waits for
+// Wayland portal activation). 35s gives a 5s margin over the
+// longest server-side path so the model sees the real result
+// instead of a synthetic timeout error while the URL is still
+// being dispatched in the background.
     property Timer agentToolInvokeTimeout: Timer {
-        interval: 10000
+        interval: 35000
         repeat: false
         property var onFire: null
         onTriggered: {
@@ -949,15 +957,22 @@ Singleton {
 
             // Gate: if the agent is unreachable or the HTTP
             // endpoint never responds, the invoke callback will
-            // never fire. The timeout timer below synthesises a
-            // failure after 15s so the chat doesn't hang.
+            // never fire. The timeout timer below (default 35s,
+            // see agentToolInvokeTimeout.interval) synthesises a
+            // failure so the chat doesn't hang. 35s leaves room
+            // for the bridge's 25s curl --max-time plus a 5s
+            // buffer for xdg-open on cold-launch Wayland.
             var finished = false;
             root.agentToolInvokeTimeout.stop();
             root.agentToolInvokeTimeout.onFire = function() {
                 if (!finished) {
                     finished = true;
+                    let secs = Math.round(root.agentToolInvokeTimeout.interval / 1000);
                     _onToolFinished(toolName, toolCallId,
-                        "Tool invocation timed out after 15s — the agent may be unreachable.",
+                        "Tool invocation timed out after " + secs
+                        + "s — the agent may be unreachable or the tool "
+                        + "is taking too long. The action may still have "
+                        + "happened in the background.",
                         true);
                 }
             };

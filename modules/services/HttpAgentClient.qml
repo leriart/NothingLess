@@ -71,11 +71,15 @@ QtObject {
         invokeProcess.command = [
             "bash", "-c",
             // --connect-timeout: stop trying to connect after 5s
-            // --max-time:        bound the whole transfer at 25s
-            // The Ai.qml agentToolInvokeTimeout still adds an
-            // outer 10s safety net, so the user always sees
-            // feedback within ~10s even if curl stalls.
-            "curl -s --connect-timeout 5 --max-time 25 -X POST "
+            // --max-time:        bound the whole transfer at 45s
+            // The Ai.qml agentToolInvokeTimeout (35s) is the outer
+            // safety net; this curl --max-time needs to be LARGER
+            // than that or curl will kill the call before the
+            // agent timer has a chance to surface a real timeout
+            // error. 45s leaves room for the longest server-side
+            // tool (open_url spawns xdg-open and can wait up to
+            // 30s for Wayland portal activation) plus transport.
+            "curl -s --connect-timeout 5 --max-time 45 -X POST "
             + _shQuote(url) + " " + hdrArgs
             + " -H 'Content-Type: application/json' -d @" + bodyPath
             + "; rm -f " + bodyPath
