@@ -139,6 +139,8 @@ Singleton {
     // + direct fallback is faster than three empty round-trips.
     // Reset in sendMessage() on every new user message.
     property int _autoContinueCount: 0
+    // Saved state of the last _tryDirectMove so "regresalo"/"return" works
+    property var _lastMove: null
     readonly property string ollamaEnsureScript: Qt.resolvedUrl(
         "../../scripts/ollama-ensure.sh").toString().replace("file://", "")
 
@@ -812,40 +814,47 @@ Singleton {
         try {
             let windows = JSON.parse(listResult || "[]");
             if (!Array.isArray(windows) || windows.length === 0) {
-                root._autoContinueCount = 99; // give up
+                root._autoContinueCount = 99;
                 return;
             }
-            // Extract target workspace from user message
             let wsMatch = userMsg.match(/workspace\s+(\d+|[a-z]\w*)/i)
                        || userMsg.match(/ws\s*(\d+)/i)
                        || userMsg.match(/al\s+(\d+)/i);
             let targetWs = wsMatch ? wsMatch[1] : "1";
 
-            // Match windows by keyword in user message
             let keywords = userMsg.toLowerCase().split(/\s+/).filter(w => w.length > 2);
             let matched = [];
+            let prevWsMap = {};  // window_id → previous workspace_id
             for (let w of windows) {
                 let text = (w.app_id + " " + w.title).toLowerCase();
                 for (let kw of keywords) {
                     if (text.indexOf(kw) !== -1) {
                         matched.push(w.id);
+                        prevWsMap[w.id] = w.workspace_id || "1";
                         break;
                     }
                 }
             }
             if (matched.length === 0) {
-                // Broad match: pick first non-system window
                 matched = windows.filter(w => w.app_id && w.app_id !== "")
                                 .map(w => w.id).slice(0, 1);
+                for (let w of windows) {
+                    if (matched.includes(w.id)) prevWsMap[w.id] = w.workspace_id || "1";
+                }
             }
             if (matched.length === 0) return;
 
             console.warn("[Ai] _tryDirectMove: " + matched.length
                 + " window(s) → workspace " + targetWs);
 
+            // Save for undo/return via _tryDirectReturn
+            root._lastMove = {
+                window_ids: matched,
+                prev_ws: prevWsMap,
+                target_ws: targetWs
+            };
+
             let contChat = Array.from(root.currentChat);
-            // Remove the last assistant message (model's fluff text)
-            // so the direct action result is the only response
             if (contChat.length > 0
                     && contChat[contChat.length - 1].role === "assistant") {
                 contChat[contChat.length - 1].content =
@@ -856,7 +865,6 @@ Singleton {
             root.saveCurrentChat();
 
             root._autoContinueCount = 99;
-            // Use move_windows with explicit window_ids
             let toolArgs = { window_ids: matched, workspace_id: targetWs };
             root.agentToolRegistry.invoke("move_windows", toolArgs, function(result) {
                 console.warn("[Ai] _tryDirectMove result: "
@@ -869,6 +877,31 @@ Singleton {
             console.warn("[Ai] _tryDirectMove failed: " + e);
             root._autoContinueCount = 99;
         }
+    }
+
+    // Undo/return the last direct move. Reads root._lastMove set by
+    // _tryDirectMove and moves the same windows back to their
+    // previous workspaces. Clears _lastMove after execution.
+    function _tryDirectReturn() {
+        let last = root._lastMove;
+        if (!last || !last.window_ids || last.window_ids.length === 0) return;
+        root._lastMove = null;
+        // Use the first prev_ws as the target (most moves target one ws)
+        let prevWs = "1";
+        for (let wid of last.window_ids) {
+            if (last.prev_ws && last.prev_ws[wid]) {
+                prevWs = last.prev_ws[wid];
+                break;
+            }
+        }
+        console.warn("[Ai] _tryDirectReturn: " + last.window_ids.length
+            + " window(s) → workspace " + prevWs);
+        root._autoContinueCount = 99;
+        let toolArgs = { window_ids: last.window_ids, workspace_id: prevWs };
+        root.agentToolRegistry.invoke("move_windows", toolArgs, function(result) {
+            let output = result.error || result.content || "Done";
+            root._onToolFinished("move_windows", "", output, !!result.error);
+        });
     }
 
     // Decide whether the incoming tool call should be auto-rejected.
@@ -1318,6 +1351,31 @@ Singleton {
         shellCmdWasCancelled = false;
         // Reset auto-continue for the new user turn
         root._autoContinueCount = 0;
+        // Short undos: "regresalo", "return it", "undo" → reverse
+        // the last _tryDirectMove without calling the model at all.
+        if (/^(regresa(lo)?|return|undo|devu[eé]lve(lo)?|deshaz)\s*$/i.test(text.trim())
+                && root._lastMove) {
+            let prevWs = "1";
+            let last = root._lastMove;
+            for (let wid of last.window_ids) {
+                if (last.prev_ws && last.prev_ws[wid]) { prevWs = last.prev_ws[wid]; break; }
+            }
+            root._lastMove = null;
+            let userMsg = { role: "user", content: text };
+            let newChat = Array.from(currentChat);
+            newChat.push(userMsg);
+            newChat.push({ role: "system", content: "[Undo — returning "
+                + last.window_ids.length + " window(s) to workspace "
+                + prevWs + "]" });
+            currentChat = newChat;
+            saveCurrentChat();
+            let toolArgs = { window_ids: last.window_ids, workspace_id: prevWs };
+            root.agentToolRegistry.invoke("move_windows", toolArgs, function(result) {
+                let output = result.error || result.content || "Done";
+                root._onToolFinished("move_windows", "", output, !!result.error);
+            });
+            return;
+        }
         isLoading = true;
         lastError = "";
         let userMsg = {
