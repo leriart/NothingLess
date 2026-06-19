@@ -31,7 +31,32 @@ Popup {
         enableShadow: true
     }
 
+    // Resolved path to the bundled NothingClaw bridge — used by the
+    // preset below to declare a shell-managed `process` block so the
+    // shell spawns the bridge on demand (no install step).
+    readonly property string nothingclawServerPath:
+        Qt.resolvedUrl("../../mcp/nothingclaw/server.py")
+            .toString().replace("file://", "")
+    readonly property string nothingclawDirPath:
+        Qt.resolvedUrl("../../mcp/nothingclaw/")
+            .toString().replace("file://", "")
+
     property var presets: [
+        {
+            id: "preset-nothingclaw",
+            label: "NothingClaw",
+            description: "Bundled HTTP bridge — shell-managed, no install needed",
+            icon: Icons.robot,
+            type: "http-bridge",
+            endpoint: "http://127.0.0.1:8000",
+            toolsPath: "/tools",
+            invokePath: "/tools",
+            process: {
+                command: "python3",
+                args: [root.nothingclawServerPath],
+                cwd: root.nothingclawDirPath
+            }
+        },
         {
             id: "preset-odysseus",
             label: "Odysseus",
@@ -150,7 +175,8 @@ Popup {
             endpoint: formEndpoint,
             headers: parsedHeaders,
             toolsPath: formToolsPath,
-            invokePath: formInvokePath
+            invokePath: formInvokePath,
+            process: (p.process && typeof p.process === "object") ? p.process : ({})
         };
     }
 

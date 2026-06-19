@@ -14,6 +14,12 @@ import QtQuick
     `status` and `discoveredTools` back into the connection. The
     AgentToolRegistry reads `discoveredTools` to populate the
     in-memory tool list that the AI sees.
+
+    `process` is an optional embedded process descriptor
+    ({ command, args, cwd, env }). When present, AgentManager
+    spawns the process on connect, kills it on disconnect, and the
+    UI exposes Start/Stop controls that operate on the process
+    independently of the HTTP/stdio client.
 */
 QtObject {
     id: root
@@ -29,10 +35,17 @@ QtObject {
     property var headers: ({})
     property string toolsPath: "/tools"
     property string invokePath: "/invoke"
+    // Optional shell-managed process descriptor. Shape:
+    //   { command: "python3", args: ["server.py"], cwd: "/abs/path", env: {KEY: "VAL"} }
+    // command is required; everything else is optional.
+    property var process: ({})
 
-    // ── Live state (mutated by the client) ──
-    // status: "connecting" | "connected" | "disconnected" | "error"
+    // ── Live state (mutated by the client + AgentManager) ──
+    // status:   "connecting" | "connected" | "disconnected" | "error"
+    // procState: "stopped" | "starting" | "running" | "stopping" | "error"
     property string status: "disconnected"
     property string statusMessage: ""
+    property string procState: "stopped"
+    property string procMessage: ""
     property var discoveredTools: []
 }

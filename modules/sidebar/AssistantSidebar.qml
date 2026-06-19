@@ -992,28 +992,186 @@ Item {
 
                                 bottomMargin: mainChatArea.isWelcome ? 0 : inputContainer.height
 
-                                property bool _scrollPending: false
-                                function _scheduleScrollToEnd() {
-                                    if (_scrollPending) return;
-                                    _scrollPending = true;
-                                    Qt.callLater(() => {
-                                        _scrollPending = false;
-                                        positionViewAtEnd();
-                                    });
+                                // ── "Stick to bottom" behaviour ─────────────────
+                                // The chat follows new messages by default. When the
+                                // user scrolls up to read history we honour that and
+                                // stop yanking them down on every token; a small
+                                // "↓ Latest" button lets them re-anchor when ready.
+                                property bool _stickToBottom: true
+                                property bool _userScrolledUp: false
+                                readonly property real _maxContentY: Math.max(0, contentHeight - height)
+                                readonly property real _distanceFromBottom: _maxContentY - contentY
+                                readonly property bool _atBottom: _distanceFromBottom < 4
+
+                                // Smooth scroll animation. We don't bind it via
+                                // `Behavior on contentY` because that would also
+                                // fire on every WheelHandler tick from the user —
+                                // which would feel laggy. Instead we explicitly
+                                // start it from `_animateToBottom`.
+                                NumberAnimation {
+                                    id: contentYAnim
+                                    target: chatView
+                                    property: "contentY"
+                                    duration: Anim.standardNormal
+                                    easing.type: Easing.OutCubic
+                                    easing.bezierCurve: Anim.easing("standard").bezierCurve
+                                    // If the user grabs the scrollbar / wheel mid-
+                                    // animation, kill it so the gesture feels direct.
+                                    onStarted: chatView._userScrolledUp = false
                                 }
 
-                                onCountChanged: _scheduleScrollToEnd()
+                                function _animateToBottom(immediate) {
+                                    if (!visible || height <= 0 || count === 0) return;
+                                    const target = chatView._maxContentY;
+                                    if (Math.abs(contentY - target) < 1) {
+                                        contentY = target;
+                                        return;
+                                    }
+                                    if (immediate || !Anim.animationsEnabled) {
+                                        contentYAnim.stop();
+                                        contentY = target;
+                                        return;
+                                    }
+                                    contentYAnim.stop();
+                                    contentYAnim.from = contentY;
+                                    contentYAnim.to = target;
+                                    contentYAnim.start();
+                                }
 
-                                // Auto-scroll while streaming content grows, but only if
-                                // the user hasn't scrolled up to read history.
+                                // Detect the user scrolling away from the bottom.
+                                // We only flip _stickToBottom to false once the
+                                // gesture is settled (movementEnded) so a tiny
+                                // jitter at the bottom doesn't disable the
+                                // auto-follow.
+                                onMovementEnded: {
+                                    if (!_atBottom) {
+                                        _userScrolledUp = true;
+                                        _stickToBottom = false;
+                                    } else if (_userScrolledUp) {
+                                        // User scrolled back to the bottom manually
+                                        // — re-engage stickiness.
+                                        _stickToBottom = true;
+                                        _userScrolledUp = false;
+                                    }
+                                }
+
+                                // New messages arrive. SNAP to the bottom — don't animate.
+                                //
+                                // Rationale: when the AI message finalises or a new user message
+                                // lands, contentHeight usually jumps by hundreds of pixels (markdown
+                                // re-render, code block collapse, etc.). Animating across that much
+                                // distance feels like the chat is fighting against the user; a clean
+                                // snap matches the expected behaviour of ChatGPT / Claude / Gemini
+                                // and removes the "se va hacia arriba de golpe" jolt. Streaming
+                                // tokens still animate smoothly via the streaming follower below.
+                                onCountChanged: {
+                                    if (_stickToBottom && visible && height > 0 && count > 0) {
+                                        // callLater so the new delegate is laid
+                                        // out before the centering read its
+                                        // position. Centering (not End) is
+                                        // the user's preferred behaviour: the
+                                        // new message lands in the middle of
+                                        // the viewport, not glued to the
+                                        // bottom edge.
+                                        Qt.callLater(function() {
+                                            positionViewAtIndex(count - 1, ListView.Center);
+                                        });
+                                    }
+                                }
+
+                                // Streaming follower — centers the last
+                                // delegate at ~30 fps while the AI is
+                                // streaming. Using positionViewAtIndex(idx,
+                                // ListView.Center) keeps the message being
+                                // typed in the middle of the viewport instead
+                                // of pinned to the bottom edge, which the
+                                // user finds easier to read while tokens
+                                // are arriving.
+                                Timer {
+                                    id: streamFollower
+                                    interval: 32
+                                    repeat: true
+                                    running: chatView._stickToBottom
+                                            && !chatView._userScrolledUp
+                                            && Ai.isLoading
+                                            && chatView.visible
+                                            && chatView.count > 0
+                                    onTriggered: chatView.positionViewAtIndex(
+                                        chatView.count - 1, ListView.Center)
+                                }
+
+                                // Final-snap on stream completion. When the
+                                // AI finishes, isLoading goes true→false and
+                                // the streaming follower above stops. But the
+                                // last message is typically re-rendered at
+                                // that moment — raw text collapses into
+                                // Markdown, code blocks fold/unfold, tool
+                                // result cards lay out — which can grow the
+                                // delegate by hundreds of px after the
+                                // follower has already stopped. Without this
+                                // catch the chat ends up parked mid-content
+                                // and the message can drift away from the
+                                // viewport center.
                                 Connections {
                                     target: Ai
-                                    function onStreamingContentChanged() {
-                                        if (Ai.isLoading && chatView.atYEnd) {
-                                            chatView._scheduleScrollToEnd()
+                                    function onIsLoadingChanged() {
+                                        if (!Ai.isLoading
+                                                && chatView._stickToBottom
+                                                && !chatView._userScrolledUp
+                                                && chatView.visible
+                                                && chatView.count > 0) {
+                                            // Two snaps, ~32 ms apart, so we
+                                            // catch both the first layout pass
+                                            // (Markdown expansion) and any
+                                            // follow-up relayout (code-block
+                                            // syntax highlighting).
+                                            Qt.callLater(function() {
+                                                chatView.positionViewAtIndex(
+                                                    chatView.count - 1,
+                                                    ListView.Center);
+                                                Qt.callLater(function() {
+                                                    chatView.positionViewAtIndex(
+                                                        chatView.count - 1,
+                                                        ListView.Center);
+                                                });
+                                            });
                                         }
                                     }
                                 }
+
+                                // Reset stickiness when the user switches chats
+                                // — new chat should anchor to the bottom.
+                                Connections {
+                                    target: Ai
+                                    function onCurrentChatIdChanged() {
+                                        chatView._stickToBottom = true;
+                                        chatView._userScrolledUp = false;
+                                        // Center the last message of the new
+                                        // chat (matches the rest of the chat
+                                        // behaviour) instead of pinning to
+                                        // the bottom.
+                                        Qt.callLater(function() {
+                                            if (chatView.count > 0)
+                                                chatView.positionViewAtIndex(
+                                                    chatView.count - 1,
+                                                    ListView.Center);
+                                        });
+                                    }
+                                }
+
+                                // Initial layout pass: center the last
+                                // message (no animation — avoids a 240 ms
+                                // slide on chat reopen).
+                                Component.onCompleted: Qt.callLater(function() {
+                                    if (count > 0)
+                                        positionViewAtIndex(count - 1, ListView.Center);
+                                })
+
+                                // (jump-to-bottom button is hoisted out of
+                                // chatView below — anchoring inside the
+                                // ListView made it clip against the view's
+                                // own bounds and sometimes disappear off-
+                                // screen entirely.)
 
                                 delegate: Item {
                                     id: messageDelegate
@@ -1695,6 +1853,118 @@ Item {
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+
+                        // ── Jump-to-bottom button ─────────────────────
+                        // Sibling of the chat ColumnLayout + inputContainer
+                        // inside mainChatArea. Anchoring inside chatView
+                        // (the ListView) clipped it against the view's
+                        // own bounds — chatView has clip: true and the
+                        // button would silently disappear when the input
+                        // bar grew. Hoisted to mainChatArea so the anchor
+                        // resolves cleanly against inputContainer.top
+                        // and z is well above the chat ColumnLayout fill.
+                        Item {
+                            id: jumpToBottomAnchor
+                            width: jumpToBottomBtn.implicitWidth
+                            height: jumpToBottomBtn.implicitHeight
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: inputContainer.top
+                            anchors.bottomMargin: 12
+                            z: 50
+
+                            readonly property bool _shouldShow:
+                                chatView._userScrolledUp
+                                && chatView.count > 0
+                                && chatView.visible
+                                && !mainChatArea.isWelcome
+
+                            // Both opacity and scale ride a single
+                            // `popupOpacity` so the fade and the pop-in
+                            // animate in lockstep. `visible` only flips
+                            // off when opacity has finished draining —
+                            // otherwise QML tears the item down the
+                            // instant the condition stops being true and
+                            // the fade-out never plays.
+                            property real popupOpacity: _shouldShow ? 1 : 0
+                            opacity: popupOpacity
+                            scale: 0.92 + 0.08 * popupOpacity
+                            visible: popupOpacity > 0.01
+                            transformOrigin: Item.Bottom
+
+                            Behavior on popupOpacity {
+                                enabled: Anim.animationsEnabled
+                                NumberAnimation {
+                                    duration: Anim.standardSmall
+                                    easing.type: Easing.OutCubic
+                                    easing.bezierCurve: Anim.easing("standard").bezierCurve
+                                }
+                            }
+
+                            StyledRect {
+                                anchors.fill: parent
+                                variant: "popup"
+                                radius: Styling.radius(8)
+                                enableShadow: true
+                            }
+
+                            Button {
+                                id: jumpToBottomBtn
+                                anchors.fill: parent
+                                flat: true
+                                padding: 0
+                                leftPadding: 12
+                                rightPadding: 12
+                                topPadding: 6
+                                bottomPadding: 6
+                                hoverEnabled: true
+
+                                contentItem: RowLayout {
+                                    spacing: 4
+                                    anchors.centerIn: parent
+                                    Text {
+                                        text: Icons.caretDown
+                                        font.family: Icons.font
+                                        font.pixelSize: 11
+                                        color: Styling.srItem("overprimary")
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
+                                    Text {
+                                        text: "Latest"
+                                        font.family: Config.theme.font
+                                        font.pixelSize: 11
+                                        font.weight: Font.Medium
+                                        color: Colors.overSurface
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
+                                }
+
+                                background: null
+
+                                onClicked: {
+                                    chatView._stickToBottom = true;
+                                    chatView._userScrolledUp = false;
+                                    chatView._animateToBottom(false);
+                                }
+                            }
+                        }
+
+                        // Keep the last message glued to the bottom of
+                        // the visible chat area while the input bar
+                        // grows (user typing multi-line) or shrinks
+                        // (attachments toggled). Without this the
+                        // bottomMargin bound to inputContainer.height
+                        // makes the view's effective bottom shrink but
+                        // contentY stays put — so the latest message
+                        // visibly scrolls upward while the user types.
+                        Connections {
+                            target: inputContainer
+                            function onHeightChanged() {
+                                if (chatView._stickToBottom
+                                        && !chatView._userScrolledUp) {
+                                    chatView._animateToBottom(false);
                                 }
                             }
                         }

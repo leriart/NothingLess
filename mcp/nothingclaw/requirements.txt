@@ -1,0 +1,7 @@
+# NothingClaw has no Python dependencies.
+# The bridge is implemented entirely with the Python standard library
+# (http.server, subprocess, shutil) so it can be spawned directly by
+# the NothingLess shell without any pip install step.
+#
+# This file is kept so that nothingless-style tooling that auto-discovers
+# requirements.txt does not flag the directory as broken.

@@ -270,6 +270,33 @@ Singleton {
         if (p.headers !== undefined && (typeof p.headers !== "object" || Array.isArray(p.headers))) {
             return "headers must be an object";
         }
+        // Optional embedded process descriptor: command is required,
+        // args must be an array of strings, cwd/env are optional
+        // strings / objects. An empty / missing `process` is valid and
+        // means the agent has no shell-managed lifecycle.
+        if (p.process !== undefined && p.process !== null) {
+            const proc = p.process;
+            if (typeof proc !== "object" || Array.isArray(proc)) {
+                return "process must be an object";
+            }
+            if (typeof proc.command !== "string" || proc.command.length === 0) {
+                return "process.command is required (string)";
+            }
+            if (proc.args !== undefined && !Array.isArray(proc.args)) {
+                return "process.args must be an array of strings";
+            }
+            for (let i = 0; i < (proc.args || []).length; i++) {
+                if (typeof proc.args[i] !== "string") {
+                    return "process.args[" + i + "] must be a string";
+                }
+            }
+            if (proc.cwd !== undefined && typeof proc.cwd !== "string") {
+                return "process.cwd must be a string";
+            }
+            if (proc.env !== undefined && (typeof proc.env !== "object" || Array.isArray(proc.env))) {
+                return "process.env must be an object";
+            }
+        }
         return null;
     }
 
@@ -369,6 +396,20 @@ Singleton {
     // Strip runtime-only fields and apply defaults so the on-disk
     // JSON is clean and round-trips safely.
     function _normalizeForDisk(p) {
+        // `process` is optional and only persisted when actually
+        // populated. Anything missing / empty reduces to {} so the
+        // AgentManager can simply check `process && process.command`.
+        let proc = {};
+        if (p.process && typeof p.process === "object" && !Array.isArray(p.process)
+                && typeof p.process.command === "string" && p.process.command.length > 0) {
+            proc = {
+                command: p.process.command,
+                args: Array.isArray(p.process.args) ? p.process.args : [],
+                cwd: typeof p.process.cwd === "string" ? p.process.cwd : "",
+                env: (p.process.env && typeof p.process.env === "object" && !Array.isArray(p.process.env))
+                    ? p.process.env : {}
+            };
+        }
         return {
             id: p.id,
             name: p.name,
@@ -379,7 +420,8 @@ Singleton {
             endpoint: p.endpoint || "",
             headers: p.headers || {},
             toolsPath: p.toolsPath || "/tools",
-            invokePath: p.invokePath || "/invoke"
+            invokePath: p.invokePath || "/invoke",
+            process: proc
         };
     }
 
@@ -445,7 +487,8 @@ Singleton {
             endpoint: "",
             headers: {},
             toolsPath: "/tools",
-            invokePath: "/invoke"
+            invokePath: "/invoke",
+            process: {}
         };
     }
 }

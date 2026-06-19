@@ -417,7 +417,7 @@ Item {
 
                     Text {
                         visible: root.selectedId !== "" && root.parseError === ""
-                        text: Icons.info + "  Schema: id, name, type (http-bridge | mcp-sse | command | mcp-stdio), enabled, command, args[], endpoint, headers{}, toolsPath, invokePath"
+                        text: Icons.info + "  Schema: id, name, type (http-bridge | mcp-sse | command | mcp-stdio), enabled, command, args[], endpoint, headers{}, toolsPath, invokePath, process{command, args[], cwd, env{}}"
                         font.family: Config.theme.font
                         font.pixelSize: Styling.fontSize(-3)
                         color: Colors.outline

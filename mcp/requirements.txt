@@ -1,3 +1,0 @@
-starlette
-uvicorn
-python-multipart

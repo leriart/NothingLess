@@ -21,6 +21,17 @@ Item {
     property bool jsonPreviewExpanded: false
 
     // Per-agent JSON inspector toggle map: { agentId: bool }
+
+    // Resolved absolute path to the bundled NothingClaw bridge
+    // server. The preset chips below use this to pre-fill the
+    // profile's `process` block so the shell can spawn the bridge
+    // directly with no install step.
+    readonly property string nothingclawServerPath:
+        Qt.resolvedUrl("../../../mcp/nothingclaw/server.py")
+            .toString().replace("file://", "")
+    readonly property string nothingclawDirPath:
+        Qt.resolvedUrl("../../../mcp/nothingclaw/")
+            .toString().replace("file://", "")
     property var agentJsonExpanded: ({})
 
     // ── Helpers ────────────────────────────────────────────────────────
@@ -1143,6 +1154,54 @@ Item {
                                     Layout.fillWidth: true
                                 }
 
+                                // Shell-managed process indicator. Visible only when
+                                // the profile declares an embedded `process` block
+                                // (the same condition that makes the Start/Stop buttons
+                                // appear below). Reads `procState` / `procMessage` off
+                                // the AgentConnection, both written by AgentManager.
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+                                    visible: Ai.agentManager && Ai.agentManager.hasManagedProcess(agentItem.conn.id)
+
+                                    Text {
+                                        text: {
+                                            let s = agentItem.conn.procState || "stopped";
+                                            if (s === "running") return Icons.play;
+                                            if (s === "starting" || s === "stopping") return Icons.circle;
+                                            if (s === "error") return Icons.cancel;
+                                            return Icons.pause;
+                                        }
+                                        font.family: Icons.font
+                                        font.pixelSize: 11
+                                        color: {
+                                            let s = agentItem.conn.procState || "stopped";
+                                            if (s === "running") return Colors.success;
+                                            if (s === "error") return Colors.error;
+                                            return Colors.outline;
+                                        }
+                                    }
+
+                                    Text {
+                                        text: "Process: " + (agentItem.conn.procState || "stopped")
+                                        font.family: Config.theme.font
+                                        font.pixelSize: 11
+                                        color: Colors.outline
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                    }
+                                }
+
+                                Text {
+                                    visible: !!(agentItem.conn.procMessage)
+                                    text: "⚠ " + (agentItem.conn.procMessage || "")
+                                    font.family: Config.theme.font
+                                    font.pixelSize: 11
+                                    color: Colors.error
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                }
+
                                 Text {
                                     visible: !!(agentItem.conn.statusMessage)
                                     text: "⚠ " + (agentItem.conn.statusMessage || "")
@@ -1231,6 +1290,97 @@ Item {
                                                 anchors.rightMargin: connToggleBtn.rightPadding
                                                 anchors.topMargin: connToggleBtn.topPadding
                                                 anchors.bottomMargin: connToggleBtn.bottomPadding
+                                            }
+                                        }
+                                    }
+
+                                    // Manual Start/Stop for shell-managed processes.
+                                    // Lets the user run the bridge on demand without
+                                    // opening an AI session, and recover cleanly when
+                                    // the child process exits unexpectedly.
+                                    Button {
+                                        id: procStartBtn
+                                        visible: Ai.agentManager && Ai.agentManager.hasManagedProcess(agentItem.conn.id)
+                                        text: {
+                                            let s = agentItem.conn.procState || "stopped";
+                                            if (s === "running" || s === "starting") return "Stop";
+                                            return "Start";
+                                        }
+                                        onClicked: {
+                                            let s = agentItem.conn.procState || "stopped";
+                                            if (s === "running" || s === "starting") {
+                                                Ai.agentManager.stopProcess(agentItem.conn.id);
+                                            } else {
+                                                Ai.agentManager.startProcess(agentItem.conn.id);
+                                            }
+                                        }
+                                        background: StyledRect {
+                                            variant: procStartBtn.down
+                                                ? "oversecondary"
+                                                : (procStartBtn.hovered ? "secondaryfocus" : "secondary")
+                                            radius: Styling.radius(4)
+                                        }
+                                        contentItem: Item {
+                                            implicitWidth: procStartLabel.implicitWidth + procStartBtn.leftPadding + procStartBtn.rightPadding
+                                            implicitHeight: procStartLabel.implicitHeight + procStartBtn.topPadding + procStartBtn.bottomPadding
+                                            Text {
+                                                id: procStartLabel
+                                                text: procStartBtn.text
+                                                color: Colors.overSecondary
+                                                font.family: Config.theme.font
+                                                font.pixelSize: 11
+                                                horizontalAlignment: Text.AlignHCenter
+                                                verticalAlignment: Text.AlignVCenter
+                                                anchors.fill: parent
+                                                anchors.leftMargin: procStartBtn.leftPadding
+                                                anchors.rightMargin: procStartBtn.rightPadding
+                                                anchors.topMargin: procStartBtn.topPadding
+                                                anchors.bottomMargin: procStartBtn.bottomPadding
+                                            }
+                                        }
+                                    }
+
+                                    // "Reset" — kill any orphan process holding the
+                                    // agent's port and re-spawn. Surfaced when the
+                                    // managed process is in `error` (the typical case
+                                    // is "Address already in use" from a previous shell
+                                    // session that didn't get cleaned up). On
+                                    // success the button auto-hides because the new
+                                    // process reports `running` instead of `error`.
+                                    Button {
+                                        id: procResetBtn
+                                        visible: {
+                                            if (!Ai.agentManager) return false;
+                                            if (!Ai.agentManager.hasManagedProcess(agentItem.conn.id)) return false;
+                                            let s = agentItem.conn.procState || "stopped";
+                                            return s === "error";
+                                        }
+                                        text: "Reset"
+                                        ToolTip.visible: hovered
+                                        ToolTip.text: "Kill any orphaned bridge process holding the port, then respawn"
+                                        onClicked: Ai.agentManager.resetProcess(agentItem.conn.id)
+                                        background: StyledRect {
+                                            variant: procResetBtn.down
+                                                ? "overerror"
+                                                : (procResetBtn.hovered ? "errorfocus" : "error")
+                                            radius: Styling.radius(4)
+                                        }
+                                        contentItem: Item {
+                                            implicitWidth: procResetLabel.implicitWidth + procResetBtn.leftPadding + procResetBtn.rightPadding
+                                            implicitHeight: procResetLabel.implicitHeight + procResetBtn.topPadding + procResetBtn.bottomPadding
+                                            Text {
+                                                id: procResetLabel
+                                                text: procResetBtn.text
+                                                color: Colors.overError
+                                                font.family: Config.theme.font
+                                                font.pixelSize: 11
+                                                horizontalAlignment: Text.AlignHCenter
+                                                verticalAlignment: Text.AlignVCenter
+                                                anchors.fill: parent
+                                                anchors.leftMargin: procResetBtn.leftPadding
+                                                anchors.rightMargin: procResetBtn.rightPadding
+                                                anchors.topMargin: procResetBtn.topPadding
+                                                anchors.bottomMargin: procResetBtn.bottomPadding
                                             }
                                         }
                                     }
@@ -1328,10 +1478,49 @@ Item {
                         }
                     }
                     
-                    // Quick-preset buttons
+// Quick-preset buttons
                     Flow {
                         Layout.fillWidth: true
                         spacing: 6
+
+                        // NothingClaw — bundled HTTP bridge shipped under mcp/nothingclaw/.
+                        // Endpoint matches the default port in server.py; tools/invoke paths
+                        // match the stdlib HTTP routes defined there. The
+                        // `process` block tells AgentManager to spawn the
+                        // bridge itself when the agent is connected, so no
+                        // install step is needed.
+                        Button {
+                            text: "+ NothingClaw"
+                            onClicked: {
+                                Ai.agentManager.addConnection({
+                                    id: "agent_nothingclaw_" + Date.now(),
+                                    name: "NothingClaw",
+                                    type: "http-bridge",
+                                    enabled: true,
+                                    endpoint: "http://127.0.0.1:8000",
+                                    headers: {},
+                                    toolsPath: "/tools",
+                                    invokePath: "/tools",
+                                    process: {
+                                        command: "python3",
+                                        args: [root.nothingclawServerPath],
+                                        cwd: root.nothingclawDirPath
+                                    }
+                                });
+                            }
+                            background: StyledRect {
+                                variant: parent.hovered ? "primaryfocus" : "primary"
+                                radius: Styling.radius(4)
+                            }
+                            contentItem: Text {
+                                text: parent.text
+                                color: Colors.overPrimary
+                                font.family: Config.theme.font
+                                font.pixelSize: 11
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
 
                         Button {
                             text: "+ Odysseus"
