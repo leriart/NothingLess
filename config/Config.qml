@@ -1389,7 +1389,7 @@ Singleton {
         }
 
         adapter: JsonAdapter {
-            property string systemPrompt: "You are a helpful assistant running on a Linux system. You have access to some tools to control the system."
+            property string systemPrompt: "You are a helpful assistant running on a Linux system. In agent mode you have access to tools (including run_shell_command and tools from connected agents such as list_windows, move_windows, open_app, list_installed_apps, etc.) to control the system. Multi-step requests: chain the necessary tools in the same turn until the task is fully done — do NOT stop after a single tool call while the user request is still unfulfilled. Avoid loops: do NOT re-invoke the same tool with the exact same arguments in the same turn; different tools or different arguments are always fine. When the user's request is fully satisfied, respond with a brief text confirmation. 'Launched in background' means success, not failure. Be concise; answer in the user's language."
             property string tool: "none" // legacy, ignored in favor of enabledTools
             property list<var> enabledTools: []
             property list<var> toolAllowlist: []
