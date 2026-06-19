@@ -679,7 +679,31 @@ def _detect_package_manager():
     return ("sudo pacman -S --noconfirm", "pacman")
 
 
-def _run_axctl(argv, timeout=15):
+def _fire_and_forget(argv):
+    """Spawn a subprocess detached from the bridge and return True if spawn succeeded.
+
+    Returns False on FileNotFoundError (binary missing) or OSError
+    (permission denied, etc.). Does NOT wait for the process to finish
+    — use for GUI launchers (xdg-open, gio open, ...) where the
+    user only cares that the binary could be launched, not whether the
+    URL eventually finishes loading. The process runs in a new session
+    so it won't be killed when the bridge shuts down.
+    """
+    try:
+        subprocess.Popen(
+            argv,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            env=os.environ
+        )
+        return True
+    except (FileNotFoundError, OSError):
+        return False
+
+
+def _run_axctl(argv, timeout=5):
     """Run `AXCTL <argv>` and return a (content, error) pair.
 
     axctl prints Success on stdout for write operations and pretty-
@@ -1658,21 +1682,14 @@ def invoke_tool(name, arguments):
             # a clear error so the model knows to try a different tool.
             for fallback in ("gio", "x-www-browser", "sensible-browser"):
                 if shutil.which(fallback):
-                    try:
-                        result = subprocess.run(
-                            [fallback, "open", resolved] if fallback == "gio"
-                            else [fallback, resolved],
-                            capture_output=True, text=True, timeout=30,
-                            env=os.environ
-                        )
-                        if result.returncode == 0:
-                            return {
-                                "content": "Opened '" + resolved
-                                         + "' via " + fallback + ".",
-                                "error": None
-                            }
-                    except (subprocess.TimeoutExpired, OSError):
-                        pass
+                    if _fire_and_forget([fallback, "open", resolved]
+                                        if fallback == "gio"
+                                        else [fallback, resolved]):
+                        return {
+                            "content": "Dispatched '" + resolved
+                                     + "' via " + fallback + ".",
+                            "error": None
+                        }
             return {
                 "content": "",
                 "error": "xdg-open not found on PATH and no fallback "
@@ -1681,43 +1698,15 @@ def invoke_tool(name, arguments):
                          + "open_app / execute_command instead."
             }
 
-        try:
-            # 30s timeout. xdg-open normally returns within ~1s after
-            # dispatching the URL to the default browser, but on Wayland
-            # it can sit waiting for xdg-portal / the browser to register
-            # its D-Bus activation reply, which can take 10-20s on a
-            # cold launch. The browser itself usually starts successfully
-            # even if xdg-open times out — that's why 'Si lo abrio, pero
-            # me lanzo esos comandos a la ultima' in the bug report:
-            # YouTube was open on screen, the error was just about
-            # xdg-open's IPC reply, not the launch itself.
-            result = subprocess.run(
-                ["xdg-open", resolved],
-                capture_output=True, text=True, timeout=30,
-                env=os.environ
-            )
-        except subprocess.TimeoutExpired:
-            # The URL is almost certainly already open in the browser at
-            # this point — xdg-open just didn't get a fast enough reply.
-            # Surface a non-fatal warning instead of a hard error so the
-            # agent doesn't retry with the same command.
+        if _fire_and_forget(["xdg-open", resolved]):
             return {
-                "content": "Dispatched '" + resolved + "' to the default "
-                         + "browser (xdg-open didn't return within 30s — the "
-                         + "browser is likely already opening the URL).",
+                "content": "Dispatched '" + resolved + "' to the default browser.",
                 "error": None
             }
-        except OSError as exc:
-            return {"content": "", "error": "xdg-open failed: " + str(exc)}
-        if result.returncode != 0:
-            return {
-                "content": "",
-                "error": "xdg-open exited " + str(result.returncode)
-                         + ": " + (result.stderr.strip() or "no stderr")
-            }
         return {
-            "content": "Opened '" + resolved + "' in the user's default browser.",
-            "error": None
+            "content": "",
+            "error": "xdg-open failed to launch (binary not found or "
+                     + "spawn error). Try install xdg-utils."
         }
 
     if name == "open_app":
