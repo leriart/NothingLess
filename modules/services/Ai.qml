@@ -1149,6 +1149,28 @@ Singleton {
         currentChat = newChat;
     }
 
+    // Enqueue a system note into the chat so the user sees it AFTER
+    // the current streaming turn completes (if one is in flight) or
+    // immediately (if idle). Used for the "tools disabled" notice
+    // so we don't write into currentChat mid-stream and trigger a
+    // ListView re-layout that scrolls the in-progress answer away.
+    property bool _forceTextOnlyNotified: false
+    property var _pendingSystemNotes: []
+    function _enqueueSystemNote(text) {
+        _pendingSystemNotes = (_pendingSystemNotes || []).concat([text]);
+        Qt.callLater(_drainPendingSystemNotes);
+    }
+    function _drainPendingSystemNotes() {
+        if (root.isLoading) return;
+        if (!_pendingSystemNotes || _pendingSystemNotes.length === 0) return;
+        let notes = _pendingSystemNotes;
+        _pendingSystemNotes = [];
+        for (let i = 0; i < notes.length; i++) {
+            pushSystemMessage(notes[i]);
+        }
+        saveCurrentChat();
+    }
+
     function _onToolFinished(toolName, toolCallId, result, isError) {
         let newChat = Array.from(currentChat);
         // Prefer the id captured at approval time (lastToolCallId)
@@ -1405,6 +1427,9 @@ Singleton {
             }
             let toolArgs = { window_ids: last.window_ids, workspace_id: prevWs };
             let callId = "call_undo_" + Date.now();
+            // Drain any queued system notes BEFORE the undo
+            // injection so the user sees the latest state.
+            root._drainPendingSystemNotes();
             let newChat = Array.from(currentChat);
             newChat.push({ role: "user", content: text });
             newChat.push({
@@ -1439,6 +1464,10 @@ Singleton {
         newChat.push(userMsg);
         currentChat = newChat;
         saveCurrentChat();
+        // Drain pending system notes (e.g. "text-only mode"
+        // notification) so the user sees the latest state before
+        // the AI starts streaming its reply.
+        _drainPendingSystemNotes();
         makeRequest();
     }
 
@@ -1678,9 +1707,31 @@ Singleton {
         // intent detection (handled by the bubble's _detectTextToolCall
         // pass in OpenAiCompatibleStrategy).
         let toolsForRequest = activeTools;
+        let wasForceTextOnly = false;
         if (root.activeCapabilities
                 && root.activeCapabilities.supportsTools === false) {
             toolsForRequest = [];
+            wasForceTextOnly = !!root.activeCapabilities.forceTextOnly;
+        }
+
+        // One-shot system message when we first downgrade a session
+        // to text-only mode. We key off `wasForceTextOnly` (only true
+        // for the explicit tiny-model / empirical-downgrade path) so
+        // a cloud API that happens to be slow doesn't trigger this.
+        // The user gets one message per session per downgrade event;
+        // a `_forceTextOnlyNotified` flag stops it from spamming on
+        // every turn after.
+        if (wasForceTextOnly && !root._forceTextOnlyNotified) {
+            root._forceTextOnlyNotified = true;
+            let ps = "Text-only mode: " + (currentModel ? currentModel.model : "this model")
+                + " doesn't reliably support tool calling (too small, "
+                + "or returned empty with tools in the request). "
+                + "Agent commands will use plain-text intent detection "
+                + "(`list_windows()` etc.) where possible; some commands "
+                + "may not work until you switch to a larger model.";
+            root._enqueueSystemNote(ps);
+        } else if (!wasForceTextOnly) {
+            root._forceTextOnlyNotified = false;
         }
 
         let bodyOpts = root._currentToolChoice
@@ -2464,9 +2515,18 @@ Singleton {
                 let wasEmpty = !toolAttached
                         && (!root.responseBuffer
                             || root.responseBuffer.length === 0);
+                // Pass whether we ASKED for tools so the probe can
+                // distinguish "model returned empty because we
+                // insisted on a tool call" (Gemma2:2b symptom) from
+                // "model returned empty because the user just said
+                // goodbye". Only the first case means we should
+                // disable tools for next time.
+                let toolsRequested = root.activeCapabilities
+                        ? root.activeCapabilities.supportsTools !== false
+                        : (root.activeTools && root.activeTools.length > 0);
                 root.capabilityProbe.recordOutcome(
                     root.currentModel, usedTools, hadReasoning,
-                    hadInlineThink, wasEmpty);
+                    hadInlineThink, wasEmpty, toolsRequested);
             }
 
             // Clear the in-flight guard and, if a second
@@ -2479,6 +2539,14 @@ Singleton {
             if (root.requestQueued) {
                 root.requestQueued = false;
                 Qt.callLater(root.makeRequest);
+            } else {
+                // Drain queued system notes now that the chat is idle
+                // — most importantly the "Text-only mode" notice that
+                // the probe emits when it downgrades a too-small model.
+                // Without this the notice only appears after the next
+                // user message, which looks like the AI ignored the
+                // downgrade.
+                Qt.callLater(root._drainPendingSystemNotes);
             }
         }
     }

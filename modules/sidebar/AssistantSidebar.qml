@@ -1122,10 +1122,69 @@ Item {
                         // (the original status strip was disabled for that
                         // reason). The icon + label swap inside it without
                         // touching the parent's height.
+                        // ── Text-only-mode pill ─────────────────────────
+                        // Persistent indicator shown when the active
+                        // model has been flagged `forceTextOnly` by
+                        // the capability probe. The streaming status
+                        // banner above handles the "what's happening
+                        // right now" feedback; this handles "what mode
+                        // are we in" feedback. Two separate concerns,
+                        // two separate pills.
+                        Item {
+                            id: textOnlyPill
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: inputContainer.top
+                            anchors.bottomMargin: statusBanner.visible
+                                ? statusBanner.height + 12 : 6
+                            width: pillRow.implicitWidth + 24
+                            height: visible ? 24 : 0
+                            visible: statusBanner.textOnlyMode
+                            opacity: visible ? 1 : 0
+                            clip: true
+                            z: 4
+
+                            Behavior on opacity {
+                                AnimatedBehavior { type: "standard"; size: "fast" }
+                            }
+                            Behavior on height {
+                                AnimatedBehavior { type: "spatial"; size: "fast" }
+                            }
+                            Behavior on anchors.bottomMargin {
+                                AnimatedBehavior { type: "spatial"; size: "fast" }
+                            }
+
+                            StyledRect {
+                                anchors.fill: parent
+                                variant: "internalbg"
+                                radius: Styling.radius(12)
+
+                                RowLayout {
+                                    id: pillRow
+                                    anchors.centerIn: parent
+                                    spacing: 6
+
+                                    Text {
+                                        text: Icons.textAa
+                                        font.family: Icons.font
+                                        font.pixelSize: 11
+                                        color: Colors.outline
+                                    }
+                                    Text {
+                                        text: "Text-only mode · model too small for tools"
+                                        color: Colors.outline
+                                        font.family: Config.theme.font
+                                        font.pixelSize: 10
+                                        font.weight: Font.Medium
+                                    }
+                                }
+                            }
+                        }
+
                         Item {
                             id: statusBanner
                             anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottom: inputContainer.top
+                            anchors.bottom: textOnlyPill.visible
+                                ? textOnlyPill.top : inputContainer.top
                             anchors.bottomMargin: 6
                             width: Math.min(parent.width - 24, inputContainer.width)
                             height: visible ? 32 : 0
@@ -1160,6 +1219,19 @@ Item {
                                 // first token). Show a "thinking" affordance.
                                 return "thinking";
                             }
+
+                            // True when the active model has been flagged
+                            // `forceTextOnly` by the capability probe —
+                            // either because Ollama reports a tiny parameter
+                            // count (≤2B, e.g. Gemma2:2b / qwen2.5:0.5b)
+                            // or because recordOutcome() saw an empty
+                            // response with tools in the request body. The
+                            // sidebar shows a persistent text-only pill so
+                            // the user understands why their agent-mode
+                            // commands run without tool calls.
+                            readonly property bool textOnlyMode:
+                                Ai.activeCapabilities
+                                    && Ai.activeCapabilities.supportsTools === false
 
                             // Tool name when running a tool — pulled from
                             // pendingToolCall.functionCall.name first (more
@@ -1410,6 +1482,7 @@ Item {
                                     ? 0
                                     : inputContainer.height
                                           + (statusBanner.visible ? statusBanner.height + 6 : 0)
+                                          + (textOnlyPill.visible ? textOnlyPill.height + 6 : 0)
 
                                 // ── "Stick to bottom" behaviour ─────────────────
                                 // The chat follows new messages by default. When the

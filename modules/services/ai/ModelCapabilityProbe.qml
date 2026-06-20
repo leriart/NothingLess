@@ -110,7 +110,7 @@ QtObject {
     //                    symptom). Helps us learn which families need
     //                    the nudge layer.
     function recordOutcome(modelObj, usedTools, hadReasoning,
-            hadInlineThink, wasEmpty) {
+            hadInlineThink, wasEmpty, toolsRequested) {
         let k = _cacheKey(modelObj);
         let caps = cache[k];
         if (!caps) return;
@@ -131,6 +131,21 @@ QtObject {
         // provider's required-mode (which the model ignored).
         if (wasEmpty && caps.supportsToolChoiceRequired) {
             updated.supportsToolChoiceRequired = false;
+        }
+        // The big one: if we ASKED for tools and the model returned
+        // empty, the model can't reliably use the tools schema. This
+        // is the Gemma2:2b symptom — it claims `tools` capability but
+        // returns empty the moment the request body includes the
+        // tools field. Downgrade to text-only mode and let the
+        // text-intent detector (which handles plain-text `tool(...)`
+        // calls many small models emit) take over.
+        if (wasEmpty && toolsRequested && caps.supportsTools) {
+            console.warn("[ModelCapabilityProbe] " + (modelObj.model || "")
+                + " returned empty with tools in the request — "
+                + "downgrading to text-only mode (will retry without "
+                + "tools on the next turn).");
+            updated.supportsTools = false;
+            updated.forceTextOnly = true;
         }
         updated.probedAt = Date.now();
         cache[k] = updated;
@@ -241,6 +256,7 @@ QtObject {
         // Parameter size comes back as e.g. "7B" or "2.5B" — use it
         // as a tier hint for the strategy's prompt-budget heuristic.
         let paramSize = (data && data.details && data.details.parameter_size) || "";
+        let paramBillions = _parseParamBillions(paramSize);
 
         let family = (data && data.details && data.details.family) || "";
         let familyLower = String(family).toLowerCase();
@@ -253,6 +269,22 @@ QtObject {
             || familyLower.indexOf("gemma") >= 0
             || familyLower.indexOf("deepseek") >= 0
             || familyLower.indexOf("minimax") >= 0;
+
+        // Tiny models (≤2B parameters) reliably fail to use tools.
+        // Gemma2:2b is the canonical example: it lists `tools` in
+        // /api/show but returns empty completions the moment it sees
+        // a tools field with structured schemas. Force-disable tools
+        // for these and let Ai.qml fall back to text-only intent
+        // detection (which still works for tiny models — they often
+        // emit tool calls as plain text in fenced blocks).
+        let tooSmallForTools = paramBillions > 0 && paramBillions <= 2.0;
+        if (tooSmallForTools && tools) {
+            console.warn("[ModelCapabilityProbe] " + (modelObj.model || "")
+                + " reports tools capability but is only "
+                + (paramBillions.toFixed(1)) + "B params — "
+                + "disabling tools; falling back to text-only mode.");
+            tools = false;
+        }
 
         let rec = {
             supportsTools: tools,
@@ -270,11 +302,35 @@ QtObject {
             contextLength: ctx,
             defaultTemperature: 0.7,
             parameterSize: paramSize,
+            // `forceTextOnly` is the explicit signal to Ai.qml: tools
+            // are off not because of a probe miss, but because the
+            // model is too small to use them. The sidebar surfaces
+            // this as a "Text-only mode (model too small for tools)"
+            // status pill so the user understands why agent-mode
+            // commands run without tool calls.
+            forceTextOnly: tooSmallForTools,
             source: "ollama",
             probedAt: Date.now()
         };
         cache[key] = rec;
         capabilityUpdated(modelObj, rec);
+    }
+
+    // Parse Ollama's parameter_size string ("2B", "7B", "27B",
+    // "500M", "1.5B") into a float in billions. Returns 0 when the
+    // string isn't a recognised size — callers treat 0 as "unknown"
+    // so we don't accidentally force-disable tools on a server we
+    // couldn't measure.
+    function _parseParamBillions(sizeStr) {
+        if (!sizeStr) return 0;
+        let s = String(sizeStr).trim().toUpperCase();
+        let m = s.match(/^(\d+(?:\.\d+)?)\s*([BMK]?)$/);
+        if (!m) return 0;
+        let n = parseFloat(m[1]);
+        let unit = m[2];
+        if (unit === "M") return n / 1000.0;
+        if (unit === "K") return n / 1000000.0;
+        return n;  // "B" or no unit
     }
 
     // ────────────────────────────────────────────────────────────────
