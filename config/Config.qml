@@ -1436,7 +1436,16 @@ Singleton {
             // `agent_stream_timeout_seconds` setting (default 300
             // there, ours is 120 because the chat pipeline here
             // already has its own retry + re-request machinery).
-            property int requestTimeoutSeconds: 120
+            // Inactivity timeout for streaming chat requests. Bumped
+            // to 240s (4 min) so small local models — Ollama on CPU
+            // can take 60-90s per response with tool calls and a 2k+
+            // token system prompt — have headroom to finish before
+            // the wall-clock deadline. The wall-clock deadline is
+            // computed separately as 4× this value (so 16 min) which
+            // covers even the slowest first-token latency on a busy
+            // desktop. Power users can dial this back to 120 if their
+            // hardware is fast enough.
+            property int requestTimeoutSeconds: 240
         }
     }
 

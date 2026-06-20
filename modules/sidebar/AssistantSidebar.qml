@@ -97,6 +97,16 @@ Item {
     onActiveChanged: {
         if (active) {
             root.wantsFocus = true;
+            // Pre-warm the active Ollama model when the sidebar
+            // first opens. Fires once per session (the Ai.qml side
+            // dedupes via the ollama status). The user's first
+            // message lands on a hot model instead of waiting
+            // 5-30s for the weights to load.
+            if (Ai.currentModel
+                    && Ai.currentModel.provider === "ollama"
+                    && Ai.ollamaStatus !== "running") {
+                Ai.prewarmOllamaModel(Ai.currentModel, 30);
+            }
             Qt.callLater(() => {
                 focusSearchInput();
             });

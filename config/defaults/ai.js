@@ -99,5 +99,5 @@ var data = {
     "defaultAgentId": "",
     "customEndpoint": "",
     "customCurlTemplate": "",
-    "requestTimeoutSeconds": 120
+    "requestTimeoutSeconds": 240
 }

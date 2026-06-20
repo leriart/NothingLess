@@ -194,6 +194,48 @@ Singleton {
         ollamaEnsureProcess.running = true;
     }
 
+    // Pre-warm a model into Ollama's KV cache. Sends a tiny
+    // completion request that:
+    //   • Loads the model weights into RAM (if not already loaded)
+    //     — Ollama lazy-loads and the first real chat request would
+    //     otherwise pay 5-30s of model-load latency.
+    //   • Establishes the keep_alive window so the model stays hot
+    //     for `keepAliveMinutes` after the last activity. Without
+    //     this Ollama unloads the model after 5 min of idle, and
+    //     the next chat request eats the same load penalty.
+    //   • Returns immediately if the model is already loaded —
+    //     Ollama returns the cached response in <50ms.
+    //
+    // Safe to call repeatedly. Errors are silently ignored — we
+    // don't want a failed pre-warm to surface a chat error.
+    function prewarmOllamaModel(modelObj, keepAliveMinutes) {
+        if (!modelObj || modelObj.provider !== "ollama") return;
+        let endpoint = (modelObj.endpoint || "http://localhost:11434").trim();
+        endpoint = endpoint.replace(/\/v1\/?$/, "").replace(/\/+$/, "");
+        let url = endpoint + "/api/generate";
+        let minutes = Math.max(1, Math.min(1440, keepAliveMinutes || 30));
+        let payload = {
+            model: modelObj.model,
+            prompt: "hi",
+            stream: false,
+            keep_alive: minutes + "m"
+        };
+        try {
+            let req = new XMLHttpRequest();
+            req.open("POST", url, true);
+            req.setRequestHeader("Content-Type", "application/json");
+            req.timeout = 3000;  // hard cap so a slow load never blocks startup
+            req.onreadystatechange = function() {
+                if (req.readyState !== XMLHttpRequest.DONE) return;
+                if (req.status >= 200 && req.status < 300) {
+                    console.log("[Ai.qml] prewarmed " + modelObj.model
+                        + " (keep_alive=" + minutes + "m)");
+                }
+            };
+            req.send(JSON.stringify(payload));
+        } catch (e) { /* silent — pre-warm is best-effort */ }
+    }
+
     function _ensureOllamaThenFetch() {
         if (root.ollamaStatus === "starting") {
             root._ollamaFetchPending = true;
@@ -241,6 +283,12 @@ Singleton {
                 root.activeCapabilities = null;
                 let apiKey = root.getApiKey(currentModel);
                 root.capabilityProbe.probe(currentModel, apiKey);
+            }
+            // Pre-warm Ollama models — loads the weights into RAM and
+            // extends keep_alive so the next user message isn't
+            // delayed by 5-30s of model-load time. Fire-and-forget.
+            if (currentModel.provider === "ollama") {
+                prewarmOllamaModel(currentModel, 30);
             }
         }
     }
@@ -364,6 +412,12 @@ Singleton {
     // default-mode request isn't accidentally pinned to "required".
     property string _pendingToolChoice: ""
     property string _currentToolChoice: ""
+    // Parallel tool counter. The OpenAI spec allows a model to
+    // emit multiple tool_calls in one assistant turn; we dispatch
+    // them concurrently and only fire makeRequest when ALL of them
+    // have completed. Decremented in _onToolFinishedParallel when
+    // a parallel result lands.
+    property int _parallelToolPending: 0
     //
     // Mirrors Odysseus's two-layer timeout design:
     //   - Inactivity: curl --max-time = requestTimeoutSeconds (kills
@@ -378,8 +432,52 @@ Singleton {
     // Ollama models (qwen2.5:3b on CPU can take 60-90s for a
     // single chat response with tools, and the requestWatchdog
     // would fire just as the model finished streaming).
+    //
+    // Per-tier multiplier on top of the configured inactivity
+    // timeout. Small / tiny CPU models need more time per token
+    // because they share the limited RAM with the OS; large cloud
+    // models are fast enough that the configured timeout is
+    // generous. Multiplier is applied on top of the configured
+    // base — users who set 60s on a fast cloud model aren't forced
+    // into 240s just because they sometimes use a small Ollama
+    // model.
+    readonly property real _tierTimeoutMultiplier: {
+        // Try to detect the active model. When no model is selected
+        // yet (boot time, model-switch), return 1.0 — the configured
+        // base applies.
+        if (!currentModel) return 1.0;
+        // Use the existing capability probe result when available;
+        // fall back to a quick size estimate from the model name.
+        let p = (capabilityProbe && capabilityProbe.cachedFor(currentModel))
+            || null;
+        if (p && p.parameterSize) {
+            let sizeStr = String(p.parameterSize).toUpperCase();
+            let m = sizeStr.match(/^(\d+(?:\.\d+)?)\s*([BMK]?)$/);
+            if (m) {
+                let n = parseFloat(m[1]);
+                let unit = m[2];
+                let bn = unit === "M" ? n / 1000
+                    : unit === "K" ? n / 1000000 : n;
+                if (bn > 0 && bn <= 2.0) return 2.5;
+                if (bn > 0 && bn <= 8.0) return 1.6;
+                if (bn > 0 && bn <= 32.0) return 1.1;
+                return 1.0;
+            }
+        }
+        // Substring fallback when no probe data yet (e.g. cloud
+        // model names that don't have parameter sizes).
+        let n = (currentModel.model || "").toLowerCase();
+        if (n.indexOf("mini") >= 0 || n.indexOf("haiku") >= 0
+                || n.indexOf("nano") >= 0 || n.indexOf(":0.") >= 0
+                || n.indexOf(":1.") >= 0 || n.indexOf(":2b") >= 0
+                || n.indexOf(":3b") >= 0 || n.indexOf("small") >= 0)
+            return 2.0;
+        return 1.0;
+    }
     readonly property int _requestInactivityTimeoutMs:
-        Math.max(10000, (Config.ai.requestTimeoutSeconds || 120) * 1000)
+        Math.max(10000,
+            Math.round((Config.ai.requestTimeoutSeconds || 240) * 1000
+                * root._tierTimeoutMultiplier))
     readonly property int _requestWallClockDeadlineMs:
         Math.max(_requestInactivityTimeoutMs * 4, 1200000)
     property Timer requestWatchdog: Timer {
@@ -1171,13 +1269,300 @@ Singleton {
         saveCurrentChat();
     }
 
+    // Pick a tier label ("tiny" / "small" / "medium" / "large" / "")
+    // from the active model's probed parameter size. Returns "" when
+    // we don't have enough info — callers should default to medium.
+    // Compress the chat history to keep the most recent `maxTurns`
+    // exchanges. A "turn" here is one (user + assistant) pair plus
+    // any tool-result messages that attach to the assistant's
+    // tool_call. We pair user messages with their assistant
+    // response so the model never sees a user message without its
+    // paired reply (which would confuse tool-call pairing).
+    function _compressChatForTier(messages, maxTurns) {
+        if (!messages || messages.length === 0) return messages || [];
+        if (maxTurns <= 0) return messages;
+        // Walk from the END counting user/assistant pairs.
+        let kept = [];
+        let userAssistantPairs = 0;
+        for (let i = messages.length - 1; i >= 0; i--) {
+            let m = messages[i];
+            kept.unshift(m);
+            if (m && (m.role === "user" || m.role === "assistant")) {
+                userAssistantPairs++;
+                if (userAssistantPairs >= maxTurns * 2) break;
+            }
+        }
+        return kept;
+    }
+
+    function _maybeCompactSystemPrompt(prompt) {
+        // For tiny / small local models the full prompt (~700 chars)
+        // can be ~30% of their 4k context window. Strip the verbose
+        // "Tips" footer, the casual-message guidance, the
+        // investigation-style examples, and the deep-research
+        // framing — keep just the operational rules + the chain
+        // contract that actually changes model behaviour. Returns
+        // the prompt unchanged for medium / large tiers where the
+        // token cost is negligible and the verbose guidance is
+        // cheap to keep.
+        let tier = root._modelTier();
+        if (tier !== "tiny" && tier !== "small") return prompt;
+
+        // Strip the "## Response style" / "## Casual messages" /
+        // "## Memory" / "## Empty responses are NEVER acceptable"
+        // sections — they're useful for big models but cost tokens
+        // the small ones need for the actual chain. Keep just the
+        // rule headers that gate behaviour:
+        //   - ## Core rules (always)
+        //   - ## Multi-step chains (always — the chain contract)
+        //   - ## Tool selection (always)
+        let lines = String(prompt).split("\n");
+        let out = [];
+        let keep = true;
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+            // Drop sections that small models don't reliably follow
+            // but pay for in token cost.
+            if (line.indexOf("## Response style") === 0
+                    || line.indexOf("## Casual messages") === 0
+                    || line.indexOf("## Memory:") === 0
+                    || line.indexOf("## Empty responses are NEVER acceptable") === 0
+                    || line.indexOf("## Tips") === 0
+                    || line.indexOf("Tip:") === 0
+                    || line.indexOf("💡") === 0) {
+                keep = false;
+                continue;
+            }
+            // Keep sections that gate actual behaviour.
+            if (line.indexOf("## ") === 0) keep = true;
+            if (keep) out.push(line);
+        }
+        // The keep-state above can over-strip when a "##" section
+        // sits below a dropped one without a blank line. Hard-stop
+        // at the first "## Empty responses" or "## Tips" header
+        // and copy only up to that point.
+        let result = out.join("\n").trimEnd();
+        // Hard cap: even the kept rules should fit in ~1500 chars
+        // for tiny models — drop tail after a hard ceiling.
+        let hardCap = tier === "tiny" ? 1200 : 1800;
+        if (result.length > hardCap) {
+            result = result.substring(0, hardCap);
+            let lastBreak = result.lastIndexOf(". ");
+            if (lastBreak > hardCap * 0.7)
+                result = result.substring(0, lastBreak + 1);
+        }
+        return result;
+    }
+
+    function _modelTier() {
+        if (!activeCapabilities || !activeCapabilities.parameterSize)
+            return "";
+        let sizeStr = String(activeCapabilities.parameterSize).toUpperCase();
+        let m = sizeStr.match(/^(\d+(?:\.\d+)?)\s*([BMK]?)$/);
+        if (!m) return "";
+        let n = parseFloat(m[1]);
+        let unit = m[2];
+        let bn = unit === "M" ? n / 1000
+            : unit === "K" ? n / 1000000 : n;
+        if (bn <= 2.0) return "tiny";
+        if (bn <= 8.0) return "small";
+        if (bn <= 32.0) return "medium";
+        return "large";
+    }
+
+    function _truncateToolResult(toolName, content) {
+        // Cap in characters. We approximate 4 chars per token (matches
+        // the latin ratio in context_budget.py from the NothingClaw
+        // bridge) and reserve the per-tier budget the strategy uses
+        // for the model's own response — the tool result shouldn't
+        // be larger than what the model can produce in reply.
+        let tier = root._modelTier() || "small";
+        let perTierTokens = ({
+            "tiny": 600, "small": 1500, "medium": 3000, "large": 6000
+        })[tier];
+        let charCap = Math.max(800, perTierTokens * 4);
+
+        // Cheap pre-check — most tool results fit.
+        if (content.length <= charCap) return content;
+
+        // Some tools naturally produce multi-line output (JSON
+        // arrays, log files). Slice at a paragraph boundary when we
+        // can, falling back to a line / word / hard cut.
+        let cut = content.substring(0, charCap);
+        for (let sep of ["\n\n", "\n", ". "]) {
+            let idx = cut.lastIndexOf(sep);
+            if (idx > charCap * 0.5) {
+                cut = cut.substring(0, idx + sep.length).rstrip();
+                break;
+            }
+        }
+        let note = "\n\n[…truncated to fit the model's context budget. "
+            + "Total result was " + content.length + " chars / ~"
+            + Math.round(content.length / 4) + " tokens. Call the tool "
+            + "again with a narrower query for more detail…]";
+        return cut + note;
+    }
+
+    // Dispatch a single tool call — the parallel path calls this N
+    // times in a row, with `_parallelToolPending` counting down so
+    // we only fire makeRequest after ALL the results have landed.
+    // Mirrors the agentToolRegistry.invoke → onResult → result-pass
+    // chain that approveCommand() does for the single-call path.
+    function _invokeToolCall(toolName, args, toolCallId) {
+        // Set lastToolCallId so _onToolFinished picks the correct id.
+        // Don't clear it after each invocation — the next one
+        // overwrites it; _onToolFinished clears it on the LAST result
+        // via the parallel-counter gate below.
+        root.lastToolCallId = toolCallId;
+        if (toolName === "run_shell_command") {
+            commandExecutionProc.originalCommand = args.command || "";
+            commandExecutionProc.detached = root._shouldDetach(args.command || "");
+            let cmd;
+            if (commandExecutionProc.detached) {
+                cmd = "setsid nohup bash -c '"
+                    + (args.command || "").replace(/'/g, "'\\''") + "'"
+                    + " </dev/null >/tmp/null 2>&1 &";
+            } else {
+                cmd = "timeout " + root.shellCommandTimeoutSeconds + " bash -c '"
+                    + (args.command || "").replace(/'/g, "'\\''") + "'";
+            }
+            commandExecutionProc.command = ["bash", "-c", cmd];
+            commandExecutionProc.targetIndex = -1;
+            commandExecutionProc.running = true;
+            root.streamingStatus = commandExecutionProc.detached
+                ? "launched: " + toolName
+                : "running tool: " + toolName;
+        } else if (root.agentToolRegistry
+                && root.agentToolRegistry.hasTool(toolName)) {
+            root.streamingStatus = "running tool: " + toolName;
+            // Timeout wrapper so a hung agent doesn't lock the chat.
+            var finished = false;
+            var timerKey = "pt_" + Date.now() + "_"
+                + Math.random().toString(36).slice(2, 8);
+            root.agentToolInvokeTimeout.stop();
+            root.agentToolInvokeTimeout.onFire = function() {
+                if (finished) return;
+                finished = true;
+                root._onToolFinishedParallel(toolName, toolCallId,
+                    "Tool invocation timed out after "
+                    + Math.round(root.agentToolInvokeTimeout.interval / 1000)
+                    + "s — the agent may be unreachable or the tool "
+                    + "is taking too long. The action may still have "
+                    + "happened in the background.",
+                    true);
+            };
+            root.agentToolInvokeTimeout.restart();
+            root.agentToolRegistry.invoke(toolName, args, function(result) {
+                if (finished) return;
+                finished = true;
+                root.agentToolInvokeTimeout.stop();
+                root.agentToolInvokeTimeout.onFire = null;
+                let output = result.error || result.content || "";
+                if (result.error && !result.content) {
+                    output = "Error: " + result.error;
+                } else if (result.error && result.content) {
+                    output = result.content + "\n\n[Error: " + result.error + "]";
+                }
+                root._onToolFinishedParallel(toolName, toolCallId,
+                    output, !!result.error && !result.content);
+            });
+        } else {
+            // Tool not found (e.g. agent disconnected). Treat as an
+            // error result so the model gets feedback it can react
+            // to in the next turn.
+            root._onToolFinishedParallel(toolName, toolCallId,
+                "Tool unavailable: no agent is currently exposing '"
+                + toolName + "'.",
+                true);
+        }
+    }
+
+    // Parallel-aware variant of _onToolFinished. Each parallel tool
+    // call's result routes here. We append the result message, then
+    // only fire makeRequest when the parallel counter hits zero —
+    // this avoids the "tool 1 result fires a request, tool 2 result
+    // queues another, both collapse into one" inefficiency of the
+    // pre-existing re-entrancy guard.
+    function _onToolFinishedParallel(toolName, toolCallId, result, isError) {
+        let newChat = Array.from(currentChat);
+        let id = root.lastToolCallId || toolCallId || "";
+        let truncResult = root._truncateToolResult(toolName, result || "");
+        let toolMsg = { role: "function", name: toolName, content: truncResult };
+        if (id) toolMsg.tool_call_id = id;
+        if (isError) toolMsg.is_error = true;
+        newChat.push(toolMsg);
+        root.lastToolCallId = "";
+        currentChat = newChat;
+        saveCurrentChat();
+        // Record undo state for move_windows / move_window_to_workspace.
+        if (!isError
+                && (toolName === "move_windows"
+                    || toolName === "move_window_to_workspace")) {
+            try {
+                let parsed = null;
+                if (typeof result === "string") {
+                    parsed = JSON.parse(result);
+                } else if (typeof result === "object" && result !== null) {
+                    parsed = result.content ? JSON.parse(result.content) : null;
+                }
+                if (parsed
+                        && Array.isArray(parsed.moved)
+                        && parsed.moved.length > 0) {
+                    let prevWs = {};
+                    let ids = [];
+                    for (let e of parsed.moved) {
+                        let wid = String(e.window_id);
+                        ids.push(wid);
+                        if (e.previous_workspace_id !== undefined
+                                && e.previous_workspace_id !== null) {
+                            prevWs[wid] = String(e.previous_workspace_id);
+                        }
+                    }
+                    if (ids.length > 0) {
+                        root._lastMove = {
+                            window_ids: ids,
+                            prev_ws: prevWs,
+                            target_ws: (parsed.moved[0]
+                                && parsed.moved[0].workspace_id)
+                                ? String(parsed.moved[0].workspace_id) : null
+                        };
+                    }
+                }
+            } catch (e) { /* best-effort */ }
+        }
+        // Decrement the parallel counter; only fire makeRequest when
+        // the LAST parallel tool has completed.
+        if (root._parallelToolPending > 0) {
+            root._parallelToolPending--;
+        }
+        if (root._parallelToolPending <= 0) {
+            root._parallelToolPending = 0;
+            isLoading = true;
+            lastError = "";
+            streamingStatus = "";
+            makeRequest();
+        }
+        // (else: more parallel results still incoming — they'll fire
+        // makeRequest when they land.)
+    }
+
     function _onToolFinished(toolName, toolCallId, result, isError) {
         let newChat = Array.from(currentChat);
         // Prefer the id captured at approval time (lastToolCallId)
         // over the one passed in — same rationale as the
         // commandExecutionProc.onExited fix.
         let id = root.lastToolCallId || toolCallId || "";
-        let toolMsg = { role: "function", name: toolName, content: result || "" };
+        // Truncate oversized tool results to fit the active model's
+        // tool-result budget. Without this, list_installed_apps on a
+        // big desktop can return 20+ KB JSON which on a 7B Ollama
+        // model blows the entire 8K context window — the next
+        // makeRequest sanitises the message away entirely and the
+        // model loses the tool result context. The truncation slices
+        // at a paragraph boundary and appends a marker so the model
+        // knows there's more (and won't hallucinate missing data).
+        let rawResult = result || "";
+        let truncResult = root._truncateToolResult(toolName, rawResult);
+        let toolMsg = { role: "function", name: toolName, content: truncResult };
         if (id) toolMsg.tool_call_id = id;
         if (isError) toolMsg.is_error = true;
         newChat.push(toolMsg);
@@ -1643,14 +2028,40 @@ Singleton {
         // Build messages array
         let messages = [];
         if (Config.ai.systemPrompt) {
-            messages.push({
-                role: "system",
-                content: Config.ai.systemPrompt
-            });
+            // For tiny / small local models, the full prompt is a
+            // huge fraction of their context window (~700 chars on a
+            // 4K-context qwen2.5:0.5b). We trim the prompt down to
+            // just the actionable rules + the multi-step chain
+            // examples — the verbose "Tips" footer and other padding
+            // don't change behaviour but burn tokens the model needs
+            // for the actual conversation. The full prompt stays for
+            // medium/large tiers where the cost is negligible.
+            let effectivePrompt = root._maybeCompactSystemPrompt(
+                Config.ai.systemPrompt);
+            if (effectivePrompt) {
+                messages.push({
+                    role: "system",
+                    content: effectivePrompt
+                });
+            }
         }
 
-        for (let i = 0; i < currentChat.length; i++) {
-            let msg = currentChat[i];
+        // Chat history compression for tiny / small models. When
+        // the active model has ≤8B params we keep only the most
+        // recent turns — old exchanges bloat the context window
+        // until the next turn triggers the sanitize-strip pass and
+        // the model loses mid-conversation memory. We preserve the
+        // system prompt and always pin the last user + assistant
+        // pair (the model needs them to understand the current
+        // turn).
+        let tier = root._modelTier();
+        let maxTurns = ({
+            "tiny": 6, "small": 12, "medium": 30, "large": 60
+        })[tier || "small"];
+        let chatForRequest = root._compressChatForTier(
+            currentChat, maxTurns);
+        for (let i = 0; i < chatForRequest.length; i++) {
+            let msg = chatForRequest[i];
             let apiMsg = {
                 role: msg.role,
                 content: msg.content
@@ -2042,64 +2453,128 @@ Singleton {
                 let toolAttached = false;
                 if (root.pendingToolCall && root.pendingToolCall._calls && root.pendingToolCall._calls.length > 0 && root.currentChat.length > 0) {
                     let calls = root.pendingToolCall._calls;
-                    let primary = calls[0];
-                    if (primary && primary.function && primary.function.name) {
-                        let argsStr = primary.function.arguments || "{}";
-                        let parsed = {};
-                        try { parsed = JSON.parse(argsStr); } catch (e) { parsed = { _raw: argsStr }; }
-                        let callToolId = primary.id || root.pendingToolCall._id || "";
 
-                        // ── Auto-reject duplicate / looping tool calls ──
-                        // Small local models get stuck in loops where
-                        // they re-invoke the same tool (or slightly
-                        // varied args) every turn — especially for
-                        // detached commands like xdg-open that return
-                        // immediately.  Instead of asking the user to
-                        // approve the same launch 3+ times, detect the
-                        // loop and auto-reject with a clear directive
-                        // to respond with text.
-                        let rejectReason = root._shouldAutoRejectToolCall(
-                            primary.function.name, parsed);
-                        if (rejectReason !== "") {
-                            root._autoRejectToolCall(
-                                primary.function.name, callToolId, rejectReason);
-                            toolAttached = true;
-                        } else if (root._shouldAutoApprove(primary.function.name, parsed)) {
-                            // ── Auto-approve gated by allowlist ──
-                            // When toolAutoApprove is on AND the tool
-                            // passes the allowlist (or the allowlist is
-                            // empty), attach the functionCall and approve
-                            // it without showing the approval card. The
-                            // allowlist keeps risky tools (e.g.
-                            // execute_command) gated behind manual
-                            // approval even when auto-approve is on.
-                            let autoChat = Array.from(root.currentChat);
-                            let autoLast = autoChat[autoChat.length - 1];
-                            autoLast.functionCall = {
-                                name: primary.function.name,
+                    // ── Parallel tool call dispatch ──────────────
+                    // Some models (Claude, GPT-4+, Qwen2.5-72B) emit
+                    // multiple tool calls in a single response when
+                    // they don't need intermediate output to act.
+                    // Example: 'close firefox and chrome' →
+                    // [close_app('firefox'), close_app('chrome')].
+                    //
+                    // The single-call path only handles calls[0];
+                    // here we detect a multi-call scenario and fire all
+                    // auto-approvable calls in parallel. Results are
+                    // appended as separate function messages, and a
+                    // counter ensures makeRequest fires exactly once
+                    // after all of them complete (rather than once per
+                    // result, which would queue redundant requests).
+                    let autoApproveCount = 0;
+                    let autoApproveCalls = [];
+                    for (let ci = 0; ci < calls.length; ci++) {
+                        let c = calls[ci];
+                        if (!c || !c.function || !c.function.name) continue;
+                        let argsStr = c.function.arguments || "{}";
+                        let parsed = {};
+                        try { parsed = JSON.parse(argsStr); }
+                        catch (e) { parsed = { _raw: argsStr }; }
+                        // RejectReason check: only count as auto-
+                        // approvable when the loop-detector is clean
+                        // AND the allowlist passes.
+                        if (root._shouldAutoRejectToolCall(
+                                c.function.name, parsed) === ""
+                                && root._shouldAutoApprove(
+                                    c.function.name, parsed)) {
+                            autoApproveCount++;
+                            autoApproveCalls.push({
+                                name: c.function.name,
                                 args: parsed,
-                                tool_call_id: callToolId
-                            };
-                            autoLast.toolCallId = callToolId;
-                            autoLast.functionPending = true;
-                            autoChat[autoChat.length - 1] = autoLast;
-                            root.currentChat = autoChat;
-                            toolAttached = true;
-                            root.approveCommand(autoChat.length - 1);
-                        } else {
-                            let newChat = Array.from(root.currentChat);
-                            let last = newChat[newChat.length - 1];
-                            last.functionCall = {
-                                name: primary.function.name,
-                                args: parsed,
-                                tool_call_id: callToolId
-                            };
-                            last.toolCallId = callToolId;
-                            last.functionPending = true;
-                            newChat[newChat.length - 1] = last;
-                            root.currentChat = newChat;
-                            root.streamingStatus = "awaiting tool approval…";
-                            toolAttached = true;
+                                tool_call_id: c.id
+                                    || root.pendingToolCall._id || ""
+                            });
+                        }
+                    }
+
+                    if (calls.length > 1 && autoApproveCount > 1
+                            && autoApproveCount === calls.length) {
+                        // Pure-parallel path: all calls auto-approvable.
+                        // Attach them all to the assistant message and
+                        // fire all invocations in parallel. The
+                        // counter (`_parallelToolPending`) decrements
+                        // per result; makeRequest fires only when the
+                        // counter hits 0.
+                        let multiChat = Array.from(root.currentChat);
+                        let multiLast = multiChat[multiChat.length - 1];
+                        multiLast.functionCalls = autoApproveCalls;
+                        multiLast.toolCallIds = autoApproveCalls.map(
+                            c => c.tool_call_id);
+                        multiLast.functionPending = true;
+                        multiLast.functionPendingCount = autoApproveCalls.length;
+                        multiChat[multiChat.length - 1] = multiLast;
+                        root.currentChat = multiChat;
+                        toolAttached = true;
+                        root._parallelToolPending = autoApproveCalls.length;
+                        for (let pi = 0; pi < autoApproveCalls.length; pi++) {
+                            let call = autoApproveCalls[pi];
+                            root._invokeToolCall(call.name, call.args, call.tool_call_id);
+                        }
+                    } else {
+                        // Single-call path (or mixed auto/manual —
+                        // fall back to single so the manual approval
+                        // card can show for the first non-auto call).
+                        let primary = calls[0];
+                        if (primary && primary.function && primary.function.name) {
+                            let argsStr = primary.function.arguments || "{}";
+                            let parsed = {};
+                            try { parsed = JSON.parse(argsStr); }
+                            catch (e) { parsed = { _raw: argsStr }; }
+                            let callToolId = primary.id
+                                || root.pendingToolCall._id || "";
+
+                            // ── Auto-reject duplicate / looping tool calls ──
+                            // Small local models get stuck in loops where
+                            // they re-invoke the same tool (or slightly
+                            // varied args) every turn — especially for
+                            // detached commands like xdg-open that return
+                            // immediately.  Instead of asking the user to
+                            // approve the same launch 3+ times, detect the
+                            // loop and auto-reject with a clear directive
+                            // to respond with text.
+                            let rejectReason = root._shouldAutoRejectToolCall(
+                                primary.function.name, parsed);
+                            if (rejectReason !== "") {
+                                root._autoRejectToolCall(
+                                    primary.function.name, callToolId, rejectReason);
+                                toolAttached = true;
+                            } else if (root._shouldAutoApprove(primary.function.name, parsed)) {
+                                // ── Auto-approve gated by allowlist ──
+                                let autoChat = Array.from(root.currentChat);
+                                let autoLast = autoChat[autoChat.length - 1];
+                                autoLast.functionCall = {
+                                    name: primary.function.name,
+                                    args: parsed,
+                                    tool_call_id: callToolId
+                                };
+                                autoLast.toolCallId = callToolId;
+                                autoLast.functionPending = true;
+                                autoChat[autoChat.length - 1] = autoLast;
+                                root.currentChat = autoChat;
+                                toolAttached = true;
+                                root.approveCommand(autoChat.length - 1);
+                            } else {
+                                let newChat = Array.from(root.currentChat);
+                                let last = newChat[newChat.length - 1];
+                                last.functionCall = {
+                                    name: primary.function.name,
+                                    args: parsed,
+                                    tool_call_id: callToolId
+                                };
+                                last.toolCallId = callToolId;
+                                last.functionPending = true;
+                                newChat[newChat.length - 1] = last;
+                                root.currentChat = newChat;
+                                root.streamingStatus = "awaiting tool approval…";
+                                toolAttached = true;
+                            }
                         }
                     }
                 }
