@@ -108,7 +108,32 @@ Singleton {
     property MiniMaxApiStrategy minimaxStrategy: MiniMaxApiStrategy {}
     property DeepSeekApiStrategy deepseekStrategy: DeepSeekApiStrategy {}
 
+    // Capability probe — queries the model itself for its features
+    // (Ollama's /api/show returns `capabilities` + `parameter_size` +
+    // `context_length`; OpenAI-compatible /v1/models/{model} confirms
+    // existence). The result is cached and consumed by every strategy
+    // so we don't have to hardcode model-family rules. See
+    // ModelCapabilityProbe.qml for the full design.
+    property ModelCapabilityProbe capabilityProbe: ModelCapabilityProbe {}
+
+    // Currently-resolved capability record for the active model.
+    // Refreshed on model switch and after each request emits a
+    // recordOutcome() update. Null while the first probe is in
+    // flight — callers should fall back to the strategy heuristic.
+    property var activeCapabilities: null
+
     property ApiStrategy currentStrategy: openaiStrategy
+
+    Connections {
+        target: root.capabilityProbe
+        function onCapabilityUpdated(modelObj, caps) {
+            if (!currentModel) return;
+            if (modelObj && modelObj.endpoint === currentModel.endpoint
+                    && modelObj.model === currentModel.model) {
+                root.activeCapabilities = caps;
+            }
+        }
+    }
 
     function getStrategyForProvider(providerName) {
         switch (providerName) {
@@ -204,6 +229,29 @@ Singleton {
             currentStrategy = getStrategyForProvider(currentModel.provider);
         else
             currentStrategy = openaiStrategy;
+        // Refresh the cached capability record on every model switch.
+        // cachedFor() returns null while the probe is in flight; the
+        // strategy's _caps falls back to the family heuristic for THIS
+        // request and the cache will be ready before the next one.
+        if (currentModel) {
+            let cached = root.capabilityProbe.cachedFor(currentModel);
+            if (cached) {
+                root.activeCapabilities = cached;
+            } else {
+                root.activeCapabilities = null;
+                let apiKey = root.getApiKey(currentModel);
+                root.capabilityProbe.probe(currentModel, apiKey);
+            }
+        }
+    }
+
+    // Helper used by _onToolFinished / makeRequest — pulls the
+    // request API key from KeyStore for the active model so the
+    // capability probe can auth against cloud endpoints. Wrapped
+    // here so it doesn't have to be inlined in multiple places.
+    function _requestApiKey() {
+        if (!currentModel) return "";
+        return getApiKey(currentModel);
     }
 
     // ============================================
@@ -250,6 +298,13 @@ Singleton {
     // are guaranteed to match in the outgoing payload, no matter how
     // non-deterministic the provider's id assignment was.
     property string lastToolCallId: ""
+    // Reasoning content accumulated during streaming. Populated by
+    // the strategy's parseStreamChunk (DeepSeek R1, OpenAI o-series
+    // emit `reasoning_content`; qwen3 / gemma thinking mode emit
+    // inline-think tags that the strategy strips to a separate
+    // channel). Persisted onto the final assistant message so the
+    // sidebar can render a collapsible "Show thinking" card.
+    property string reasoningBuffer: ""
     // Short human-readable description of what is happening right
     // now ("streaming…", "running tool…", "awaiting tool approval…").
     // Drives the status indicator in the sidebar header.
@@ -1605,22 +1660,43 @@ Singleton {
             messages.push(apiMsg);
         }
 
-        // Build body — always use streaming
+        // Build body — always use streaming. The strategy reads the
+        // capability record on `currentModel` (set by
+        // updateStrategy() at model switch) to decide whether to
+        // include `tools`, set `temperature`, and emit thinking-tag
+        // stripping. Null activeCapabilities means "no probe yet" —
+        // the strategy falls back to its family-name heuristic, which
+        // is exactly the old behaviour we had before the probe.
+        if (root.activeCapabilities) {
+            currentStrategy.activeCapabilities = root.activeCapabilities;
+        }
+        // If the probe confirms tools aren't supported, drop the
+        // tools field entirely. Tiny local models that don't even
+        // claim the `tools` capability produce empty completions when
+        // they see a `tools` field (qwen2.5:0.5b does this), so we
+        // match the model's own report and fall back to text-based
+        // intent detection (handled by the bubble's _detectTextToolCall
+        // pass in OpenAiCompatibleStrategy).
+        let toolsForRequest = activeTools;
+        if (root.activeCapabilities
+                && root.activeCapabilities.supportsTools === false) {
+            toolsForRequest = [];
+        }
+
         let bodyOpts = root._currentToolChoice
             ? { toolChoice: root._currentToolChoice }
             : null;
         let body = currentStrategy.getStreamBody(
-            messages, currentModel, activeTools, bodyOpts);
+            messages, currentModel, toolsForRequest, bodyOpts);
 
         // Reset streaming buffer
         responseBuffer = "";
         streamingContent = "";
         pendingToolCall = null;
+        reasoningBuffer = "";
         streamingStatus = "streaming…";
         root._streamLastModelUpdate = 0;
-        root._streamUpdateTimer.stop();
-
-        // Reset the elapsed-time indicator. The timer fires every
+        root._streamUpdateTimer.stop();        // Reset the elapsed-time indicator. The timer fires every
         // 5s and rewrites `streamingStatus` to "streaming… Ns"
         // so the user sees the AI is still working even when the
         // provider stalls (no tokens arrive for a while).
@@ -1814,6 +1890,22 @@ Singleton {
                     root._updateStreamingMessage();
                 }
 
+                // Accumulate reasoning content from the strategy's
+                // streaming parser. Two flavours:
+                //   • reasoning_content field (DeepSeek R1, OpenAI
+                //     o-series) — arrives as a separate delta field,
+                //     routed to reasoningBuffer for the final
+                //     assistant message.
+                //   • Inline-think tags (qwen3, gemma thinking mode)
+                //     — the strategy strips them and routes the body
+                //     to reasoningContent, which we accumulate here.
+                // Both end up on the final assistant message as
+                // `reasoningContent` so the sidebar can render a
+                // collapsible "Show thinking" card.
+                if (result.reasoningContent) {
+                    root.reasoningBuffer += result.reasoningContent;
+                }
+
                 // Accumulate tool-call deltas. OpenAI-compatible APIs
                 // emit one chunk per tool-call index; each chunk may
                 // carry partial arguments (a JSON string built up over
@@ -1871,6 +1963,7 @@ Singleton {
                 root.responseBuffer = "";
                 root.streamingContent = "";
                 root.pendingToolCall = null;
+                root.reasoningBuffer = "";
                 root.streamingStatus = "";
                 root.streamingElapsedTimer.stop();
                 root.streamingStartedAt = 0;
@@ -2050,8 +2143,17 @@ Singleton {
                         let lastAssistant = finalChat[lastAssistantIdx];
                         if (!lastAssistant.content) {
                             lastAssistant.content = root.responseBuffer;
-                            root.currentChat = finalChat;
                         }
+                        // Persist accumulated reasoning content
+                        // (DeepSeek R1 reasoning_content, qwen3 inline
+                        // think blocks, gemma thinking mode) so the
+                        // sidebar can render a collapsible "thinking"
+                        // card. Empty string means "no reasoning" — we
+                        // don't set the property at all in that case.
+                        if (root.reasoningBuffer && root.reasoningBuffer.length > 0) {
+                            lastAssistant.reasoningContent = root.reasoningBuffer;
+                        }
+                        root.currentChat = finalChat;
                     } else {
                         // No assistant message found at all (rare
                         // — happens when tool attachment and text
@@ -2142,9 +2244,25 @@ Singleton {
                             // step at all; the model's "no response"
                             // is benign and we just surface a
                             // confirmation message.
+                            //
+                            // When the capability probe confirmed
+                            // `supportsTools: false` (or the family
+                            // heuristic flagged the model as a
+                            // small local that doesn't honour
+                            // tool_choice:required), skip the
+                            // tool_choice:"required" nudge entirely —
+                            // it only makes the empty-response
+                            // symptom worse. Instead use a plain
+                            // textual nudge and rely on
+                            // recordOutcome() to upgrade the cache
+                            // once the model proves it can chain.
                             let isReadOnly = root._idempotentReadTools
                                 .indexOf(prevToolName) !== -1;
-                            if (isReadOnly && root._nudgeCount < root._nudgeBudget) {
+                            let modelSupportsToolChoice = !root.activeCapabilities
+                                || root.activeCapabilities.supportsToolChoiceRequired !== false;
+                            if (isReadOnly
+                                    && modelSupportsToolChoice
+                                    && root._nudgeCount < root._nudgeBudget) {
                                 root._nudgeCount++;
                                 let nudgeText = root._buildChainNudge(
                                     prevToolName, prev.content);
@@ -2166,7 +2284,18 @@ Singleton {
                                 // Force a tool call on the next
                                 // round-trip — see OpenAiCompatibleStrategy
                                 // .getBody for the provider mapping.
-                                root.makeRequest({ toolChoice: "required" });
+                                // Use a plain textual nudge when the
+                                // model doesn't honour tool_choice:
+                                // required (small local models). The
+                                // strategy's getBody() will still set
+                                // tool_choice = "auto" but the
+                                // system-role nudge tells the model
+                                // what to do. Falling back here is
+                                // what unsticks Gemma2 / qwen3 in
+                                // practice.
+                                root.makeRequest(modelSupportsToolChoice
+                                    ? { toolChoice: "required" }
+                                    : null);
                                 return;
                             }
                             if (isReadOnly) {
@@ -2290,6 +2419,7 @@ Singleton {
             root.responseBuffer = "";
             root.streamingContent = "";
             root.pendingToolCall = null;
+            root.reasoningBuffer = "";
             root.streamingStatus = "";
             root.streamingElapsedTimer.stop();
             root.streamingStartedAt = 0;
@@ -2299,6 +2429,45 @@ Singleton {
             // nudge handler below re-sets it on the follow-up call
             // when it decides to re-prompt.
             root._currentToolChoice = "";
+
+            // ── Empirical capability record ──
+            // Feed what actually happened on this request back into
+            // the capability probe cache. The probe starts from a
+            // optimistic "yes it does tools" guess for OpenAI-compat
+            // endpoints, but real local models routinely contradict
+            // that guess (gemma2 returns empty, qwen3 returns inline
+            // think tags, etc.). The recordOutcome hook downgrades
+            // the cache so the NEXT request uses a more accurate body
+            // — small, automatic improvement per chat turn.
+            if (root.activeCapabilities) {
+                let usedTools = toolAttached;
+                let hadReasoning = false;
+                // The strategy returns reasoningContent in
+                // streaming chunks; we can sample the last assistant
+                // message for reasoning_content to detect the
+                // DeepSeek-R1 / o-series field.
+                if (root.currentChat && root.currentChat.length > 0) {
+                    let last = root.currentChat[root.currentChat.length - 1];
+                    if (last && last.reasoningContent
+                            && last.reasoningContent.length > 0) {
+                        hadReasoning = true;
+                    }
+                }
+                let hadInlineThink = false;
+                if (root.responseBuffer) {
+                    // Cheap check for inline-think tags in the
+                    // accumulated response — true for qwen3 / gemma
+                    // (thinking mode) / deepseek-r1 distilled.
+                    let t = root.responseBuffer;
+                    if (t.indexOf("think>") >= 0) hadInlineThink = true;
+                }
+                let wasEmpty = !toolAttached
+                        && (!root.responseBuffer
+                            || root.responseBuffer.length === 0);
+                root.capabilityProbe.recordOutcome(
+                    root.currentModel, usedTools, hadReasoning,
+                    hadInlineThink, wasEmpty);
+            }
 
             // Clear the in-flight guard and, if a second
             // makeRequest was queued during this response (e.g. a

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Effects
 import Quickshell.Widgets
 import qs.modules.theme
 import qs.config
@@ -761,6 +762,16 @@ Item {
                                         }
 
                                         // ── Row body (default state) ──
+                                        // We keep the row body free of colour
+                                        // tricks. The trick to hide the title
+                                        // and date behind the "Delete this chat?"
+                                        // overlay is to fade the text itself to 0
+                                        // — opacity is bound to chatRow.confirmOpacity
+                                        // so the text fades out together with
+                                        // the overlay fading in. Simpler than any
+                                        // post-process effect, renders at every
+                                        // DPI, and matches the rest of the
+                                        // shell's animation style.
                                         Button {
                                             id: rowBtn
                                             anchors.fill: parent
@@ -780,6 +791,7 @@ Item {
                                                     Layout.alignment: Qt.AlignVCenter
 
                                                     Text {
+                                                        id: titleText
                                                         text: modelData.title || "New Chat"
                                                         color: Ai.currentChatId === modelData.id
                                                             ? Styling.srItem("primary") : Colors.overSurface
@@ -788,9 +800,15 @@ Item {
                                                         font.weight: Font.Medium
                                                         elide: Text.ElideRight
                                                         width: parent.width
+                                                        opacity: 1.0
+                                                            - chatRow.confirmOpacity
+                                                        Behavior on opacity {
+                                                            AnimatedBehavior { type: "emphasized"; size: "normal"; variant: "exit" }
+                                                        }
                                                     }
 
                                                     Text {
+                                                        id: dateText
                                                         text: {
                                                             let date = new Date(parseInt(modelData.id));
                                                             return date.toLocaleString(Qt.locale(), "MMM dd, hh:mm a");
@@ -801,6 +819,11 @@ Item {
                                                         font.pixelSize: 11
                                                         elide: Text.ElideRight
                                                         width: parent.width
+                                                        opacity: 1.0
+                                                            - chatRow.confirmOpacity
+                                                        Behavior on opacity {
+                                                            AnimatedBehavior { type: "emphasized"; size: "normal"; variant: "exit" }
+                                                        }
                                                     }
                                                 }
 
@@ -847,11 +870,27 @@ Item {
 
                                         // ── Confirm-delete overlay ──
                                         // Absolute-positioned so it overlays
-                                        // the row body. Fades in via the
-                                        // confirmOpacity Behavior above; the
-                                        // rowBtn underneath stays click-through
-                                        // blocked while confirmOpacity > 0
-                                        // (MouseArea covers it).
+                                        // the row body. The row body beneath
+                                        // is blurred via MultiEffect on its
+                                        // own layer (see `rowBody` above), so
+                                        // the title/date text becomes illegible
+                                        // while the user is making the delete
+                                        // decision. On top of that blur we
+                                        // paint a tinted error backdrop so the
+                                        // overlay reads as a destructive action
+                                        // even when the blur is small.
+                                        Rectangle {
+                                            id: confirmOverlay
+                                            anchors.fill: parent
+                                            radius: Styling.radius(6)
+                                            color: Colors.error
+                                            opacity: chatRow.confirmOpacity * 0.22
+
+                                            Behavior on opacity {
+                                                AnimatedBehavior { type: "emphasized"; size: "normal"; variant: "enter" }
+                                            }
+                                        }
+
                                         RowLayout {
                                             anchors.fill: parent
                                             anchors.leftMargin: 8
@@ -859,14 +898,6 @@ Item {
                                             spacing: 8
                                             opacity: chatRow.confirmOpacity
                                             visible: chatRow.confirmOpacity > 0.01
-
-                                            StyledRect {
-                                                Layout.fillWidth: true
-                                                Layout.fillHeight: true
-                                                variant: "error"
-                                                radius: Styling.radius(6)
-                                                opacity: 0.18
-                                            }
 
                                             Text {
                                                 Layout.fillWidth: true
@@ -1857,6 +1888,113 @@ Item {
                                                         wrapMode: Text.Wrap
                                                         readOnly: true
                                                         selectByMouse: true
+                                                    }
+
+                                                    // ── Thinking card (collapsible) ──
+                                                    // Shown when the model emitted
+                                                    // reasoning content for this
+                                                    // turn (DeepSeek R1's
+                                                    // reasoning_content, qwen3's
+                                                    // inline  blocks,
+                                                    // gemma thinking mode). The
+                                                    // thinking is hidden by
+                                                    // default — clicking the
+                                                    // header expands it. This
+                                                    // keeps the chat surface
+                                                    // clean for the common
+                                                    // case (no reasoning) while
+                                                    // making it inspectable
+                                                    // when the user wants to
+                                                    // debug what the model did.
+                                                    ColumnLayout {
+                                                        visible: !messageDelegate.isEditing
+                                                                && !messageDelegate.isStreamingLast
+                                                                && (modelData.reasoningContent || Ai.reasoningBuffer)
+                                                                && !isUser
+                                                                && !isSystem
+                                                        Layout.fillWidth: true
+                                                        Layout.topMargin: 6
+                                                        spacing: 4
+
+                                                        property bool expanded: false
+
+                                                        RowLayout {
+                                                            Layout.fillWidth: true
+                                                            spacing: 6
+
+                                                            StyledRect {
+                                                                radius: Styling.radius(4)
+                                                                variant: "internalbg"
+                                                                opacity: 0.6
+                                                                Layout.fillWidth: true
+                                                                Layout.preferredHeight: thinkingHeader.implicitHeight + 8
+
+                                                                RowLayout {
+                                                                    id: thinkingHeader
+                                                                    anchors.fill: parent
+                                                                    anchors.leftMargin: 10
+                                                                    anchors.rightMargin: 10
+                                                                    spacing: 6
+
+                                                                    Text {
+                                                                        text: parent.parent.parent.expanded
+                                                                            ? Icons.caretDown : Icons.caretRight
+                                                                        font.family: Icons.font
+                                                                        font.pixelSize: 10
+                                                                        color: Colors.outline
+                                                                        Layout.alignment: Qt.AlignVCenter
+                                                                    }
+                                                                    Text {
+                                                                        text: "Thinking"
+                                                                        color: Colors.outline
+                                                                        font.family: Config.theme.font
+                                                                        font.pixelSize: 11
+                                                                        font.weight: Font.Medium
+                                                                        Layout.alignment: Qt.AlignVCenter
+                                                                    }
+                                                                    Text {
+                                                                        text: {
+                                                                            let rc = modelData.reasoningContent
+                                                                                || Ai.reasoningBuffer || "";
+                                                                            let words = rc.split(/\s+/).filter(s => s).length;
+                                                                            return words > 0 ? words + " words" : "";
+                                                                        }
+                                                                        color: Colors.outline
+                                                                        font.family: "Monospace"
+                                                                        font.pixelSize: 10
+                                                                        opacity: 0.7
+                                                                        Layout.alignment: Qt.AlignVCenter
+                                                                    }
+                                                                    Item { Layout.fillWidth: true }
+                                                                }
+
+                                                                MouseArea {
+                                                                    anchors.fill: parent
+                                                                    cursorShape: Qt.PointingHandCursor
+                                                                    onClicked: parent.parent.parent.expanded
+                                                                        = !parent.parent.parent.expanded
+                                                                }
+                                                            }
+                                                        }
+
+                                                        TextEdit {
+                                                            visible: expanded
+                                                            Layout.fillWidth: true
+                                                            text: modelData.reasoningContent
+                                                                || Ai.reasoningBuffer || ""
+                                                            textFormat: Text.PlainText
+                                                            color: Colors.outline
+                                                            font.family: "Monospace"
+                                                            font.pixelSize: 11
+                                                            wrapMode: Text.Wrap
+                                                            readOnly: true
+                                                            selectByMouse: true
+                                                            opacity: 0.85
+                                                            Layout.topMargin: 4
+                                                            Behavior on opacity {
+                                                                AnimatedBehavior { type: "standard"; size: "normal" }
+                                                            }
+                                                        }
                                                     }
 
                                                     // ── Collapsed summary for tool results ──

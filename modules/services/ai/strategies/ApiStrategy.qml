@@ -17,6 +17,136 @@ QtObject {
     // Anthropic + Gemini don't support `parallel_tool_calls`. Subclasses
     // for those providers can override this to false.
     property bool supportsParallelToolCalls: true
+    // Most OpenAI-compatible providers accept `tool_choice: "required"`
+    // to force a tool call, but several local / small model families
+    // reject it (Gemma, Llama-3, Phi-3, Mistral) and return an empty
+    // completion instead. Strategies can override `false` here for
+    // families that don't honour the field, OR the per-model detection
+    // in `modelFamilyOverrides()` returns `supportsToolChoiceRequired:
+    // false` for those names automatically.
+    property bool supportsToolChoiceRequired: true
+    // The model emits reasoning_content as a separate field (DeepSeek
+    // R1, OpenAI o1/o3/gpt-5). Distinct from `supportsReasoning`
+    // because the latter only controls whether we surface the field to
+    // the UI — this one gates whether the parser looks for it.
+    property bool supportsReasoningField: false
+    // The model emits `...` thinking inline (qwen3, gemma thinking
+    // mode, deepseek-r1 distilled, qwq) — needs tag-stripping in
+    // parseResponse / parseStreamChunk to extract the visible answer.
+    property bool supportsInlineThinking: false
+
+    // ── Model-family detection ───────────────────────────────────────
+    //
+    // Different model families have different quirks that don't fit
+    // neatly into a single boolean property. The list below tags each
+    // known family with the overrides we need to apply so the body
+    // builder and parser can adapt per-call.
+    //
+    // Mirrors Odysseus's _THINKING_MODEL_PATTERNS / _restricts_temperature
+    // pattern but kept in the QML strategy layer so it can be queried
+    // from the response parser too.
+    //
+    // Detection order: longest prefix wins (so `qwen3:7b-instruct` is
+    // matched as qwen3, not qwen). Patterns are lowercase substring
+    // matches against the model name.
+    readonly property var _modelFamilyHints: [
+        // ── Reasoning / thinking-capable ──
+        // These models emit  `<think>...</think>` blocks or a
+        // `reasoning_content` field. Treating that as the visible
+        // answer makes the chat look like the AI produced empty
+        // responses, which is the gemma2 / qwen3 symptom the user
+        // hit. Stripping the tag + surfacing the rest fixes it.
+        { match: "deepseek-r1", supportsInlineThinking: true,
+            supportsReasoningField: true, defaultTemperature: 0.6 },
+        { match: "deepseek-reasoner", supportsInlineThinking: true,
+            supportsReasoningField: true, defaultTemperature: 0.6 },
+        { match: "qwq", supportsInlineThinking: true,
+            defaultTemperature: 0.6 },
+        { match: "qwen3", supportsInlineThinking: true,
+            supportsToolChoiceRequired: false, defaultTemperature: 0.7 },
+        { match: "minimax-m2", supportsInlineThinking: true,
+            defaultTemperature: 0.6 },
+        { match: "gemma3", supportsInlineThinking: true,
+            supportsToolChoiceRequired: false, defaultTemperature: 0.7 },
+        { match: "gemma2", supportsInlineThinking: true,
+            supportsToolChoiceRequired: false, defaultTemperature: 0.7 },
+        { match: "gemma", supportsInlineThinking: true,
+            supportsToolChoiceRequired: false, defaultTemperature: 0.7 },
+        { match: "phi-4", supportsToolChoiceRequired: false,
+            defaultTemperature: 0.7 },
+        { match: "phi-3", supportsToolChoiceRequired: false,
+            defaultTemperature: 0.7 },
+        // ── Llama-3 family — tool_choice:required often ignored ──
+        { match: "llama-3.2", supportsToolChoiceRequired: false,
+            defaultTemperature: 0.7 },
+        { match: "llama-3.1", supportsToolChoiceRequired: false,
+            defaultTemperature: 0.7 },
+        { match: "llama3", supportsToolChoiceRequired: false,
+            defaultTemperature: 0.7 },
+        // ── Mistral — `tool_choice: required` is documented but
+        // frequently returns empty on small variants. ──
+        { match: "mistral", supportsToolChoiceRequired: false,
+            defaultTemperature: 0.7 },
+        { match: "mixtral", supportsToolChoiceRequired: false,
+            defaultTemperature: 0.7 },
+        // ── OpenAI reasoning — fixed temperature, max_completion_tokens ──
+        { match: "o1", defaultTemperature: -1, supportsToolChoiceRequired: true },
+        { match: "o3", defaultTemperature: -1, supportsToolChoiceRequired: true },
+        { match: "o4", defaultTemperature: -1, supportsToolChoiceRequired: true },
+        { match: "gpt-5", defaultTemperature: -1, supportsToolChoiceRequired: true }
+    ]
+
+    // Return the overrides that apply to a given model name, or null
+    // when none of the known families match. Longest matching prefix
+    // wins (see _matchModelFamily).
+    function modelFamilyOverrides(modelName) {
+        return root._matchModelFamily(modelName);
+    }
+    function _matchModelFamily(modelName) {
+        if (!modelName) return null;
+        let n = String(modelName).toLowerCase();
+        let best = null;
+        let bestLen = -1;
+        for (let i = 0; i < _modelFamilyHints.length; i++) {
+            let m = _modelFamilyHints[i].match;
+            if (n.indexOf(m) >= 0 && m.length > bestLen) {
+                best = _modelFamilyHints[i];
+                bestLen = m.length;
+            }
+        }
+        return best;
+    }
+
+    // Resolve a model name to a {temperature, supportsToolChoiceRequired,
+    // supportsInlineThinking, supportsReasoningField} record. Layered
+    // so subclass-level properties (e.g. DeepSeekApiStrategy's
+    // `supportsReasoningField: true`) win when the model isn't in the
+    // family table.
+    function resolveModelCapabilities(modelObj) {
+        let name = (modelObj && modelObj.model) || "";
+        let family = root._matchModelFamily(name);
+        return {
+            // -1 sentinel = "omit temperature, let provider pick".
+            temperature: family && "defaultTemperature" in family
+                ? family.defaultTemperature : 0.7,
+            supportsToolChoiceRequired: family
+                ? family.supportsToolChoiceRequired
+                : root.supportsToolChoiceRequired,
+            supportsInlineThinking: family
+                ? !!family.supportsInlineThinking
+                : root.supportsInlineThinking,
+            supportsReasoningField: family
+                ? !!family.supportsReasoningField
+                : root.supportsReasoningField
+        };
+    }
+
+    // Live capability record for the active model — populated by
+    // ModelCapabilityProbe on model switch. Strategies consume this
+    // in getBody() to decide whether to include tools, set
+    // temperature, and emit thinking-tag stripping. When null the
+    // strategy falls back to the family-name heuristic (resolveModelCapabilities).
+    property var activeCapabilities: null
 
     function getEndpoint(modelObj, apiKey) { return ""; }
     function getHeaders(apiKey) { return []; }
@@ -37,6 +167,81 @@ QtObject {
             return { type: "tool", name: toolChoice.name };
         }
         return root.defaultToolChoice;
+    }
+
+    // Resolve effective capabilities by combining (in priority order):
+    //   1. activeCapabilities (live probe result) — the model itself
+    //      told us what it supports.
+    //   2. resolveModelCapabilities (family-name heuristic) — used
+    //      only when the probe hasn't completed yet or didn't return
+    //      a record. Documented fallback; not the primary path.
+    // Returns a normalised record the strategy can read with no
+    // nulls in the middle.
+    function _effectiveCaps(modelObj) {
+        let ac = root.activeCapabilities;
+        if (ac && typeof ac === "object") {
+            return {
+                temperature: typeof ac.temperature === "number"
+                    ? ac.temperature : 0.7,
+                supportsToolChoiceRequired: ac.supportsToolChoiceRequired !== false,
+                supportsInlineThinking: !!ac.supportsInlineThinking,
+                supportsReasoningField: !!ac.supportsReasoningField
+            };
+        }
+        let fam = root.resolveModelCapabilities(modelObj);
+        return {
+            temperature: fam.temperature,
+            supportsToolChoiceRequired: fam.supportsToolChoiceRequired,
+            supportsInlineThinking: fam.supportsInlineThinking,
+            supportsReasoningField: fam.supportsReasoningField
+        };
+    }
+
+    // Strip an inline  `<think>...</think>` (or `### Reasoning` /
+    // `### Response` headings) block from a chunk of model output.
+    //
+    // Models like qwen3, gemma2/3 (in thinking mode), DeepSeek-R1,
+    // and qwq wrap their chain-of-thought in a `<think>...</think>`
+    // block before the user-facing answer. Without this pass the chat
+    // either shows the thinking as visible text (noisy) or the user
+    // sees an empty completion followed by the answer on the next turn
+    // (worse — looks like the model stalled). We split the chunk so
+    // the UI can surface the thinking in a collapsible card and the
+    // visible content is what gets sent back to the model.
+    //
+    // Returns { content, reasoningContent, wasTrimmed }.
+    //
+    // The "trim from the end" logic avoids splitting a chunk in the
+    // middle of a `<think>` or `</think>` tag — if the chunk ends with
+    // a partial opening tag we hold it back so the next chunk can
+    // complete it.
+    function splitInlineThinking(text) {
+        if (!text)
+            return { content: text || "", reasoningContent: "", wasTrimmed: false };
+        let t = String(text);
+        let thinkRe = /<think(?:ing)?>([\s\S]*?)<\/think(?:ing)?>/gi;
+        let headingsRe = /^###\s*Reasoning\s*\n([\s\S]*?)\n###\s*(?:Response|Answer)\s*\n?/i;
+        let reasoning = "";
+        let cleaned = t;
+        let m = headingsRe.exec(t);
+        if (m) {
+            reasoning += (reasoning ? "\n" : "") + m[1].trim();
+            cleaned = t.slice(0, m.index) + t.slice(m.index + m[0].length);
+        }
+        let lastIndex = 0;
+        let replace = (match, body) => {
+            reasoning += (reasoning ? "\n" : "") + body.trim();
+            return "";
+        };
+        // Use replace with a function so we can keep iterating across
+        // multiple think blocks in the same chunk (qwen3 sometimes
+        // emits several before the final answer).
+        cleaned = cleaned.replace(thinkRe, replace);
+        return {
+            content: cleaned,
+            reasoningContent: reasoning,
+            wasTrimmed: reasoning.length > 0
+        };
     }
 
     // Build the request body for a non-streaming request.
