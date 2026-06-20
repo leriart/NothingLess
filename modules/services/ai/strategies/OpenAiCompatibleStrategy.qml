@@ -24,7 +24,7 @@ ApiStrategy {
         ];
     }
 
-    function getBody(messages, model, tools) {
+    function getBody(messages, model, tools, options) {
         let body = {
             model: model.model,
             messages: formatMessages(messages),
@@ -34,13 +34,36 @@ ApiStrategy {
         let toolList = formatTools(tools);
         if (toolList.length > 0) {
             body.tools = toolList;
+            // ── tool_choice ──
+            // OpenAI-compatible providers (DeepSeek, Mistral, Groq, ...)
+            // default to "auto" if this field is omitted, but setting it
+            // explicitly avoids gateway-specific quirks where some
+            // proxies drop the field. The `options` arg carries the
+            // nudging strategy from Ai.qml: when the previous turn
+            // returned an empty completion after a tool result, we set
+            // tool_choice to "required" so the model MUST call a tool
+            // (and so can't return another empty text-only response
+            // and stall the chain). Some providers (DeepSeek's R1
+            // reasoner) ignore "required" with reasoning_content present
+            // — see DeepSeekApiStrategy for the per-provider tuning.
+            let tc = (options && options.toolChoice)
+                ? options.toolChoice
+                : root.defaultToolChoice;
+            body.tool_choice = resolveToolChoice(tc, null);
+            // ── parallel_tool_calls ──
+            // Allow multiple tool calls in one assistant turn. Defaults
+            // to false for DeepSeek (its docs are explicit about not
+            // supporting it), true elsewhere. Some OpenAI-compatible
+            // gateways also reject the field outright — we set it
+            // defensively so the field is always present and explicit.
+            body.parallel_tool_calls = root.supportsParallelToolCalls;
         }
 
         return body;
     }
 
-    function getStreamBody(messages, model, tools) {
-        let body = getBody(messages, model, tools);
+    function getStreamBody(messages, model, tools, options) {
+        let body = getBody(messages, model, tools, options);
         body.stream = true;
         return body;
     }

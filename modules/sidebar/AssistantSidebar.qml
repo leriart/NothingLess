@@ -170,10 +170,16 @@ Item {
         visible: root.active || slideAnimation.running
 
         Behavior on x {
-            NumberAnimation {
+            // Use the spatial animation profile so the sidebar slide
+            // matches the rest of the shell (e.g. bar/notch flyouts).
+            // AnimatedBehaviour honours Anim.animationsEnabled + the
+            // active animation style — bypassing the raw Easing.OutCubic
+            // ensures game mode / "disabled" styles correctly snap the
+            // panel in place.
+            AnimatedBehavior {
                 id: slideAnimation
-                duration: Config.animDuration
-                easing.type: Easing.OutCubic
+                type: "spatial"
+                size: "default"
             }
         }
 
@@ -217,11 +223,11 @@ Item {
                                 radius: Styling.radius(4)
                                 opacity: parent.hovered ? 1 : 0
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: Config.animDuration / 4
-                                    }
+                                    AnimatedBehavior { type: "standard"; size: "fast" }
                                 }
                             }
+                            Accessible.role: Accessible.Button
+                            Accessible.name: root.menuExpanded ? "Hide chat history" : "Show chat history"
                             onClicked: root.menuExpanded = !root.menuExpanded
                         }
 
@@ -243,11 +249,11 @@ Item {
                                 radius: Styling.radius(4)
                                 opacity: parent.hovered ? 1 : 0
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: Config.animDuration / 4
-                                    }
+                                    AnimatedBehavior { type: "standard"; size: "fast" }
                                 }
                             }
+                            Accessible.role: Accessible.Button
+                            Accessible.name: "Start new chat"
                             onClicked: {
                                 Ai.createNewChat();
                                 root.menuExpanded = false;
@@ -275,11 +281,12 @@ Item {
                                 opacity: parent.hovered ? 1 : 0
 
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: Config.animDuration / 4
-                                    }
+                                    AnimatedBehavior { type: "standard"; size: "fast" }
                                 }
                             }
+
+                            Accessible.role: Accessible.Button
+                            Accessible.name: GlobalStates.assistantPinned ? "Unpin sidebar" : "Pin sidebar"
 
                             onClicked: {
                                 GlobalStates.assistantPinned = !GlobalStates.assistantPinned;
@@ -348,9 +355,7 @@ Item {
                                 opacity: parent.hovered ? 1 : 0
 
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: Config.animDuration / 4
-                                    }
+                                    AnimatedBehavior { type: "standard"; size: "fast" }
                                 }
                             }
 
@@ -359,6 +364,9 @@ Item {
                             ToolTip.text: Ai.currentMode === "agent"
                                 ? "Agent mode: tools enabled" + (modeToggle.connectedAgents > 0 ? " (" + modeToggle.connectedAgents + " connected)" : " (no agents connected — using system tools only)") + "\nClick to switch to chat mode"
                                 : "Chat mode: no tools available\nClick to switch to agent mode"
+
+                            Accessible.role: Accessible.Button
+                            Accessible.name: Ai.currentMode === "agent" ? "Switch to chat mode" : "Switch to agent mode"
 
                             onClicked: {
                                 Ai.setMode(Ai.currentMode === "agent" ? "chat" : "agent");
@@ -416,6 +424,10 @@ Item {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 acceptedButtons: Qt.LeftButton
+                                Accessible.role: Accessible.Button
+                                Accessible.name: agentSelector.totalAgents === 0
+                                    ? "No agents configured"
+                                    : "Active agent: " + agentSelector.currentAgentName
                                 onClicked: agentSelectorMenu.popup()
                             }
 
@@ -478,9 +490,7 @@ Item {
                                 opacity: agentSelectorClick.containsMouse ? 1 : 0
 
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: Config.animDuration / 4
-                                    }
+                                    AnimatedBehavior { type: "standard"; size: "fast" }
                                 }
                             }
 
@@ -571,11 +581,12 @@ Item {
                                 opacity: parent.hovered ? 1 : 0
 
                                 Behavior on opacity {
-                                    NumberAnimation {
-                                        duration: Config.animDuration / 4
-                                    }
+                                    AnimatedBehavior { type: "standard"; size: "fast" }
                                 }
                             }
+
+                            Accessible.role: Accessible.Button
+                            Accessible.name: "Close sidebar"
 
                             onClicked: GlobalStates.hideAssistant()
                         }
@@ -692,9 +703,7 @@ Item {
                             z: 10
 
                             Behavior on opacity {
-                                NumberAnimation {
-                                    duration: Config.animDuration
-                                }
+                                AnimatedBehavior { type: "standard"; size: "normal" }
                             }
 
                             ColumnLayout {
@@ -718,72 +727,212 @@ Item {
                                     model: Ai.chatHistory
                                     spacing: 4
 
-                                    delegate: Button {
+                                    delegate: Item {
+                                        id: chatRow
                                         width: historyList.width
-                                        height: 48
-                                        flat: true
+                                        height: 52
 
-                                        contentItem: RowLayout {
+                                        // Per-row pending-delete state. When
+                                        // the user clicks the trash button
+                                        // once, the row swaps to a confirm
+                                        // pair ("Delete" + "Cancel") with a
+                                        // 5-second auto-reset timer so an
+                                        // accidental click doesn't wipe a
+                                        // chat.
+                                        property bool confirmingDelete: false
+                                        Timer {
+                                            id: confirmTimer
+                                            interval: 5000
+                                            onTriggered: chatRow.confirmingDelete = false
+                                        }
+                                        function startConfirmDelete() {
+                                            confirmingDelete = true;
+                                            confirmTimer.restart();
+                                        }
+
+                                        // Animated enter / exit for the
+                                        // confirm row. The confirm swap
+                                        // animates opacity + a subtle slide
+                                        // so it doesn't feel like a hard cut.
+                                        property real confirmOpacity: confirmingDelete ? 1 : 0
+
+                                        Behavior on confirmOpacity {
+                                            AnimatedBehavior { type: "emphasized"; size: "normal"; variant: "enter" }
+                                        }
+
+                                        // ── Row body (default state) ──
+                                        Button {
+                                            id: rowBtn
                                             anchors.fill: parent
-                                            anchors.leftMargin: 12
-                                            anchors.rightMargin: 12
-                                            spacing: 8
+                                            flat: true
 
-                                            Column {
-                                                Layout.fillWidth: true
-                                                Layout.alignment: Qt.AlignVCenter
+                                            Accessible.role: Accessible.Button
+                                            Accessible.name: "Open chat: " + (modelData.title || "New chat")
 
-                                                Text {
-                                                    text: modelData.title || "New Chat"
-                                                    color: Ai.currentChatId === modelData.id ? Styling.srItem("primary") : Colors.overSurface
-                                                    font.family: Config.theme.font
-                                                    font.pixelSize: 14
-                                                    font.weight: Font.Medium
-                                                    elide: Text.ElideRight
-                                                    width: parent.width
+                                            contentItem: RowLayout {
+                                                anchors.fill: parent
+                                                anchors.leftMargin: 12
+                                                anchors.rightMargin: 12
+                                                spacing: 8
+
+                                                Column {
+                                                    Layout.fillWidth: true
+                                                    Layout.alignment: Qt.AlignVCenter
+
+                                                    Text {
+                                                        text: modelData.title || "New Chat"
+                                                        color: Ai.currentChatId === modelData.id
+                                                            ? Styling.srItem("primary") : Colors.overSurface
+                                                        font.family: Config.theme.font
+                                                        font.pixelSize: 14
+                                                        font.weight: Font.Medium
+                                                        elide: Text.ElideRight
+                                                        width: parent.width
+                                                    }
+
+                                                    Text {
+                                                        text: {
+                                                            let date = new Date(parseInt(modelData.id));
+                                                            return date.toLocaleString(Qt.locale(), "MMM dd, hh:mm a");
+                                                        }
+                                                        color: Ai.currentChatId === modelData.id
+                                                            ? Styling.srItem("primary") : Colors.outline
+                                                        font.family: Config.theme.font
+                                                        font.pixelSize: 11
+                                                        elide: Text.ElideRight
+                                                        width: parent.width
+                                                    }
                                                 }
 
-                                                Text {
-                                                    text: {
-                                                        let date = new Date(parseInt(modelData.id));
-                                                        return date.toLocaleString(Qt.locale(), "MMM dd, hh:mm a");
+                                                Button {
+                                                    visible: rowBtn.hovered
+                                                            && !chatRow.confirmingDelete
+                                                    flat: true
+                                                    Layout.preferredWidth: 28
+                                                    Layout.preferredHeight: 28
+
+                                                    Accessible.role: Accessible.Button
+                                                    Accessible.name: "Delete chat"
+
+                                                    contentItem: Text {
+                                                        text: Icons.trash
+                                                        font.family: Icons.font
+                                                        color: parent.hovered ? Colors.error : Colors.outline
+                                                        font.pixelSize: 14
+                                                        horizontalAlignment: Text.AlignHCenter
+                                                        verticalAlignment: Text.AlignVCenter
+                                                        Behavior on color {
+                                                            AnimatedBehavior { type: "standard"; size: "fast" }
+                                                        }
                                                     }
-                                                    color: Ai.currentChatId === modelData.id ? Styling.srItem("primary") : Colors.outline
-                                                    font.family: Config.theme.font
-                                                    font.pixelSize: 11
-                                                    elide: Text.ElideRight
-                                                    width: parent.width
+
+                                                    background: null
+                                                    onClicked: chatRow.startConfirmDelete()
                                                 }
                                             }
 
+                                            background: StyledRect {
+                                                variant: Ai.currentChatId === modelData.id
+                                                    ? "focus"
+                                                    : (parent.hovered ? "surfaceVariant" : "transparent")
+                                                radius: Styling.radius(6)
+                                            }
+
+                                            onClicked: {
+                                                if (chatRow.confirmingDelete) return;
+                                                Ai.loadChat(modelData.id);
+                                                root.menuExpanded = false;
+                                            }
+                                        }
+
+                                        // ── Confirm-delete overlay ──
+                                        // Absolute-positioned so it overlays
+                                        // the row body. Fades in via the
+                                        // confirmOpacity Behavior above; the
+                                        // rowBtn underneath stays click-through
+                                        // blocked while confirmOpacity > 0
+                                        // (MouseArea covers it).
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.leftMargin: 8
+                                            anchors.rightMargin: 8
+                                            spacing: 8
+                                            opacity: chatRow.confirmOpacity
+                                            visible: chatRow.confirmOpacity > 0.01
+
+                                            StyledRect {
+                                                Layout.fillWidth: true
+                                                Layout.fillHeight: true
+                                                variant: "error"
+                                                radius: Styling.radius(6)
+                                                opacity: 0.18
+                                            }
+
+                                            Text {
+                                                Layout.fillWidth: true
+                                                Layout.leftMargin: 8
+                                                text: "Delete this chat?"
+                                                color: Colors.overError
+                                                font.family: Config.theme.font
+                                                font.pixelSize: 12
+                                                font.weight: Font.Medium
+                                                verticalAlignment: Text.AlignVCenter
+                                            }
+
                                             Button {
-                                                visible: parent.parent.hovered
+                                                text: "Cancel"
                                                 flat: true
-                                                Layout.preferredWidth: 28
-                                                Layout.preferredHeight: 28
+                                                Accessible.role: Accessible.Button
+                                                Accessible.name: "Cancel delete"
+
+                                                background: StyledRect {
+                                                    variant: "transparent"
+                                                    radius: Styling.radius(4)
+                                                    border.width: 1
+                                                    border.color: Colors.outline
+                                                }
 
                                                 contentItem: Text {
-                                                    text: Icons.trash
-                                                    font.family: Icons.font
-                                                    color: parent.hovered ? Colors.error : Colors.outline
-                                                    font.pixelSize: 14
+                                                    text: parent.text
+                                                    color: Colors.overSurface
+                                                    font.family: Config.theme.font
+                                                    font.pixelSize: 11
+                                                    font.weight: Font.Medium
                                                     horizontalAlignment: Text.AlignHCenter
                                                     verticalAlignment: Text.AlignVCenter
                                                 }
 
-                                                background: null
-                                                onClicked: Ai.deleteChat(modelData.id)
+                                                onClicked: {
+                                                    chatRow.confirmingDelete = false;
+                                                    confirmTimer.stop();
+                                                }
                                             }
-                                        }
 
-                                        background: StyledRect {
-                                            variant: Ai.currentChatId === modelData.id ? "focus" : (parent.hovered ? "surfaceVariant" : "transparent")
-                                            radius: Styling.radius(6)
-                                        }
+                                            Button {
+                                                text: "Delete"
+                                                flat: true
+                                                Accessible.role: Accessible.Button
+                                                Accessible.name: "Confirm delete chat"
 
-                                        onClicked: {
-                                            Ai.loadChat(modelData.id);
-                                            root.menuExpanded = false;
+                                                background: StyledRect {
+                                                    variant: "error"
+                                                    radius: Styling.radius(4)
+                                                }
+
+                                                contentItem: Text {
+                                                    text: parent.text
+                                                    color: Colors.overError
+                                                    font.family: Config.theme.font
+                                                    font.pixelSize: 11
+                                                    font.weight: Font.Medium
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    verticalAlignment: Text.AlignVCenter
+                                                }
+
+                                                onClicked: {
+                                                    Ai.deleteChat(modelData.id);
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -929,6 +1078,242 @@ Item {
                         }
                         property bool isWelcome: Ai.currentChat.length === 0
 
+                        // ── Status banner ─────────────────────────────────
+                        // Sits between the chat list and the input bar so it
+                        // can grow/shrink without affecting chatView's layout.
+                        // Shows four distinct states:
+                        //   • thinking    — pre-stream warmup (DeepSeek R1, etc.)
+                        //   • streaming   — tokens arriving
+                        //   • runningTool — agent tool invoked (e.g. list_windows)
+                        //   • awaitingApproval — tool call needs user OK
+                        // The banner animates in/out with a single opacity +
+                        // height pair so we don't get a layout-stall cascade
+                        // (the original status strip was disabled for that
+                        // reason). The icon + label swap inside it without
+                        // touching the parent's height.
+                        Item {
+                            id: statusBanner
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: inputContainer.top
+                            anchors.bottomMargin: 6
+                            width: Math.min(parent.width - 24, inputContainer.width)
+                            height: visible ? 32 : 0
+                            visible: _aiState !== "idle"
+                            opacity: visible ? 1 : 0
+                            clip: true
+                            z: 5
+
+                            Behavior on opacity {
+                                AnimatedBehavior { type: "standard"; size: "fast" }
+                            }
+                            Behavior on height {
+                                AnimatedBehavior { type: "spatial"; size: "fast" }
+                            }
+
+                            // Map (isLoading, streamingStatus, pendingToolCall)
+                            // to a single state enum. Avoids brittle string
+                            // matching at every call site below.
+                            readonly property string _aiState: {
+                                if (!Ai.isLoading) return "idle";
+                                let s = Ai.streamingStatus || "";
+                                if (s.indexOf("awaiting") === 0) return "awaitingApproval";
+                                if (s.indexOf("running tool") === 0) return "runningTool";
+                                if (s.indexOf("launched") === 0) return "launched";
+                                if (s.indexOf("timed out") >= 0
+                                        || s.indexOf("exceeded") >= 0
+                                        || s.indexOf("Network") >= 0
+                                        || s.indexOf("Error") >= 0) return "error";
+                                if (s.indexOf("streaming") === 0) return "streaming";
+                                // isLoading=true with no recognised status =
+                                // pre-stream warmup (model is preparing its
+                                // first token). Show a "thinking" affordance.
+                                return "thinking";
+                            }
+
+                            // Tool name when running a tool — pulled from
+                            // pendingToolCall.functionCall.name first (more
+                            // reliable than parsing the streamingStatus text).
+                            readonly property string _toolName: {
+                                if (Ai.pendingToolCall && Ai.pendingToolCall._calls
+                                        && Ai.pendingToolCall._calls.length > 0) {
+                                    let c = Ai.pendingToolCall._calls[0];
+                                    if (c && c.function && c.function.name)
+                                        return c.function.name;
+                                }
+                                let s = Ai.streamingStatus || "";
+                                let m = s.match(/running tool:\s*(.+)/);
+                                return m ? m[1] : "";
+                            }
+
+                            StyledRect {
+                                anchors.fill: parent
+                                variant: statusBanner._aiState === "error"
+                                    ? "error"
+                                    : (statusBanner._aiState === "awaitingApproval"
+                                        ? "primary"
+                                        : "internalbg")
+                                radius: Styling.radius(6)
+                                enableShadow: statusBanner._aiState === "error"
+                                    || statusBanner._aiState === "awaitingApproval"
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 12
+                                    anchors.rightMargin: 12
+                                    spacing: 8
+
+                                    // ── Leading icon ──
+                                    //
+                                    // Each state has its own visual: animated
+                                    // dot for streaming, spinner for tool
+                                    // run, pulsing outline for approval,
+                                    // warning for error. Animations respect
+                                    // Anim.animationsEnabled (game mode).
+                                    Item {
+                                        Layout.preferredWidth: 16
+                                        Layout.preferredHeight: 16
+
+                                        // Spinner (runningTool / thinking).
+                                        Rectangle {
+                                            anchors.centerIn: parent
+                                            width: 12
+                                            height: 12
+                                            radius: 6
+                                            visible: statusBanner._aiState === "runningTool"
+                                                    || statusBanner._aiState === "thinking"
+                                            color: "transparent"
+                                            border.width: 2
+                                            border.color: statusBanner._aiState === "error"
+                                                ? Colors.error : Colors.primary
+                                            RotationAnimation on rotation {
+                                                from: 0; to: 360
+                                                loops: Animation.Infinite
+                                                duration: 900
+                                                running: parent.visible && Anim.animationsEnabled
+                                            }
+                                        }
+
+                                        // Pulsing dot (streaming).
+                                        Rectangle {
+                                            anchors.centerIn: parent
+                                            width: 8
+                                            height: 8
+                                            radius: 4
+                                            visible: statusBanner._aiState === "streaming"
+                                                    || statusBanner._aiState === "launched"
+                                            color: Colors.primary
+                                            SequentialAnimation on opacity {
+                                                loops: Animation.Infinite
+                                                running: parent.visible && Anim.animationsEnabled
+                                                NumberAnimation { to: 1.0; duration: 500; easing.type: Easing.InOutQuad }
+                                                NumberAnimation { to: 0.4; duration: 500; easing.type: Easing.InOutQuad }
+                                            }
+                                        }
+
+                                        // Warning glyph (error).
+                                        Text {
+                                            anchors.centerIn: parent
+                                            visible: statusBanner._aiState === "error"
+                                            text: Icons.warningCircle
+                                            font.family: Icons.font
+                                            font.pixelSize: 14
+                                            color: Colors.overError
+                                        }
+
+                                        // Hand glyph (awaitingApproval).
+                                        Text {
+                                            anchors.centerIn: parent
+                                            visible: statusBanner._aiState === "awaitingApproval"
+                                            text: Icons.hand
+                                            font.family: Icons.font
+                                            font.pixelSize: 13
+                                            color: Colors.overPrimary
+
+                                            SequentialAnimation on scale {
+                                                loops: Animation.Infinite
+                                                running: parent.visible && Anim.animationsEnabled
+                                                NumberAnimation {
+                                                    from: 1.0; to: 1.18
+                                                    duration: 700
+                                                    easing.type: Easing.InOutQuad
+                                                }
+                                                NumberAnimation {
+                                                    from: 1.18; to: 1.0
+                                                    duration: 700
+                                                    easing.type: Easing.InOutQuad
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // ── Status text ──
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: {
+                                            switch (statusBanner._aiState) {
+                                            case "streaming":
+                                                return "Streaming"
+                                                    + (Ai.streamingContent
+                                                        ? "  ·  " + Ai.streamingContent.length + " chars"
+                                                        : "");
+                                            case "thinking":
+                                                return "Thinking…";
+                                            case "runningTool":
+                                                return "Running tool"
+                                                    + (statusBanner._toolName
+                                                        ? "  ·  " + statusBanner._toolName : "");
+                                            case "awaitingApproval":
+                                                return "Awaiting your approval"
+                                                    + (statusBanner._toolName
+                                                        ? "  ·  " + statusBanner._toolName : "");
+                                            case "launched":
+                                                return "Launched"
+                                                    + (statusBanner._toolName
+                                                        ? "  ·  " + statusBanner._toolName : "");
+                                            case "error":
+                                                return "Error — click Stop to cancel";
+                                            default:
+                                                return "";
+                                            }
+                                        }
+                                        color: statusBanner._aiState === "error"
+                                            ? Colors.overError
+                                            : (statusBanner._aiState === "awaitingApproval"
+                                                ? Colors.overPrimary
+                                                : Colors.overSurface)
+                                        font.family: Config.theme.font
+                                        font.pixelSize: 12
+                                        font.weight: Font.Medium
+                                        elide: Text.ElideRight
+                                    }
+
+                                    // Elapsed-seconds badge (only for long
+                                    // streaming / tool runs — surfaces
+                                    // stalls without nagging on quick replies).
+                                    Text {
+                                        visible: {
+                                            let s = Ai.streamingStatus || "";
+                                            let m = s.match(/(\d+)s/);
+                                            return m && parseInt(m[1]) >= 8;
+                                        }
+                                        text: {
+                                            let s = Ai.streamingStatus || "";
+                                            let m = s.match(/(\d+)s/);
+                                            return m ? m[1] + "s" : "";
+                                        }
+                                        color: statusBanner._aiState === "error"
+                                            ? Colors.overError : Colors.outline
+                                        font.family: "Monospace"
+                                        font.pixelSize: 11
+                                        font.weight: Font.Medium
+                                    }
+                                }
+                            }
+                        }
+
+                        // ── Welcome screen ─────────────────────────────────
+                        // Welcome screen — minimal centered greeting.
+                        // Shown only while the current chat is empty.
                         ColumnLayout {
                             anchors.bottom: inputContainer.top
                             anchors.bottomMargin: 24
@@ -990,7 +1375,10 @@ Item {
                                 reuseItems: false
                                 pixelAligned: true
 
-                                bottomMargin: mainChatArea.isWelcome ? 0 : inputContainer.height
+                                bottomMargin: mainChatArea.isWelcome
+                                    ? 0
+                                    : inputContainer.height
+                                          + (statusBanner.visible ? statusBanner.height + 6 : 0)
 
                                 // ── "Stick to bottom" behaviour ─────────────────
                                 // The chat follows new messages by default. When the
@@ -1617,12 +2005,26 @@ Item {
                                                             }
                                                         }
 
+                                                        // Animated approval card. Three buttons
+                                                        // with consistent layout — Cancel (skip
+                                                        // entirely), Reject (tell AI no), Approve
+                                                        // (let it run). The whole row fades in
+                                                        // when `functionPending` flips true so the
+                                                        // approval moment feels deliberate, not
+                                                        // abrupt.
                                                         RowLayout {
                                                             visible: modelData.functionPending === true
+                                                            opacity: visible ? 1 : 0
                                                             Layout.alignment: Qt.AlignRight
                                                             spacing: 8
+                                                            Layout.topMargin: 4
+
+                                                            Behavior on opacity {
+                                                                AnimatedBehavior { type: "standard"; size: "normal" }
+                                                            }
 
                                                             Button {
+                                                                id: cancelBtn
                                                                 text: "Cancel"
                                                                 highlighted: true
                                                                 flat: true
@@ -1631,6 +2033,8 @@ Item {
                                                                 // AI, just a clean state. Use
                                                                 // Reject if you want the AI to
                                                                 // know the tool was declined.
+                                                                Accessible.role: Accessible.Button
+                                                                Accessible.name: "Cancel tool call"
                                                                 onClicked: Ai.cancelTool(index)
 
                                                                 background: StyledRect {
@@ -1639,86 +2043,173 @@ Item {
                                                                     radius: Styling.radius(4)
                                                                     border.width: 1
                                                                     border.color: Colors.outline
+                                                                    Behavior on opacity {
+                                                                        AnimatedBehavior { type: "standard"; size: "fast" }
+                                                                    }
                                                                 }
 
-                                                                contentItem: Text {
-                                                                    text: parent.text
-                                                                    color: Colors.outline
-                                                                    font.family: Config.theme.font
-                                                                    horizontalAlignment: Text.AlignHCenter
-                                                                    verticalAlignment: Text.AlignVCenter
+                                                                contentItem: RowLayout {
+                                                                    anchors.centerIn: parent
+                                                                    spacing: 4
+                                                                    Text {
+                                                                        text: Icons.x
+                                                                        font.family: Icons.font
+                                                                        font.pixelSize: 12
+                                                                        color: Colors.outline
+                                                                        Layout.alignment: Qt.AlignVCenter
+                                                                    }
+                                                                    Text {
+                                                                        text: cancelBtn.text
+                                                                        color: Colors.outline
+                                                                        font.family: Config.theme.font
+                                                                        font.pixelSize: 12
+                                                                        font.weight: Font.Medium
+                                                                    }
                                                                 }
                                                             }
 
                                                             Button {
+                                                                id: rejectBtn
                                                                 text: "Reject"
                                                                 highlighted: true
                                                                 flat: true
+                                                                Accessible.role: Accessible.Button
+                                                                Accessible.name: "Reject tool call"
                                                                 onClicked: Ai.rejectCommand(index)
 
                                                                 background: StyledRect {
                                                                     variant: "error"
-                                                                    opacity: parent.hovered ? 0.8 : 0.5
+                                                                    opacity: parent.hovered ? 0.95 : 0.55
                                                                     radius: Styling.radius(4)
+                                                                    Behavior on opacity {
+                                                                        AnimatedBehavior { type: "standard"; size: "fast" }
+                                                                    }
                                                                 }
 
-                                                                contentItem: Text {
-                                                                    text: parent.text
-                                                                    color: Colors.overError
-                                                                    font.family: Config.theme.font
-                                                                    horizontalAlignment: Text.AlignHCenter
-                                                                    verticalAlignment: Text.AlignVCenter
+                                                                contentItem: RowLayout {
+                                                                    anchors.centerIn: parent
+                                                                    spacing: 4
+                                                                    Text {
+                                                                        text: Icons.prohibit
+                                                                        font.family: Icons.font
+                                                                        font.pixelSize: 12
+                                                                        color: Colors.overError
+                                                                        Layout.alignment: Qt.AlignVCenter
+                                                                    }
+                                                                    Text {
+                                                                        text: rejectBtn.text
+                                                                        color: Colors.overError
+                                                                        font.family: Config.theme.font
+                                                                        font.pixelSize: 12
+                                                                        font.weight: Font.Medium
+                                                                    }
                                                                 }
                                                             }
 
                                                             Button {
+                                                                id: approveBtn
                                                                 text: "Approve"
                                                                 highlighted: true
                                                                 flat: true
+                                                                Accessible.role: Accessible.Button
+                                                                Accessible.name: "Approve tool call"
                                                                 onClicked: Ai.approveCommand(index)
 
                                                                 background: StyledRect {
                                                                     variant: "primary"
-                                                                    opacity: parent.hovered ? 1 : 0.8
+                                                                    opacity: parent.hovered ? 1 : 0.85
                                                                     radius: Styling.radius(4)
+                                                                    Behavior on opacity {
+                                                                        AnimatedBehavior { type: "standard"; size: "fast" }
+                                                                    }
                                                                 }
 
-                                                                contentItem: Text {
-                                                                    text: parent.text
-                                                                    color: Colors.overPrimary
-                                                                    font.family: Config.theme.font
-                                                                    horizontalAlignment: Text.AlignHCenter
-                                                                    verticalAlignment: Text.AlignVCenter
+                                                                contentItem: RowLayout {
+                                                                    anchors.centerIn: parent
+                                                                    spacing: 4
+                                                                    Text {
+                                                                        text: Icons.check
+                                                                        font.family: Icons.font
+                                                                        font.pixelSize: 12
+                                                                        color: Colors.overPrimary
+                                                                        Layout.alignment: Qt.AlignVCenter
+                                                                    }
+                                                                    Text {
+                                                                        text: approveBtn.text
+                                                                        color: Colors.overPrimary
+                                                                        font.family: Config.theme.font
+                                                                        font.pixelSize: 12
+                                                                        font.weight: Font.Medium
+                                                                    }
                                                                 }
                                                             }
                                                         }
 
-                                                        Text {
+                                                        // Status row shown after the user
+                                                        // approved or rejected a tool call.
+                                                        // Replaces the previous plain-text
+                                                        // "Tool Approved · xxx" with an icon +
+                                                        // text row that fades in.
+                                                        RowLayout {
                                                             visible: modelData.functionApproved === true
-                                                            text: {
-                                                                let n = (modelData.functionCall && modelData.functionCall.name) || "";
-                                                                if (n === "run_shell_command")
-                                                                    return "Command Approved";
-                                                                if (n === "agent_invoke" && modelData.functionCall.args && modelData.functionCall.args.tool)
-                                                                    return "Tool Approved · " + modelData.functionCall.args.tool;
-                                                                return "Tool Approved · " + n;
+                                                            opacity: visible ? 1 : 0
+                                                            Layout.topMargin: 4
+                                                            spacing: 6
+                                                            Behavior on opacity {
+                                                                AnimatedBehavior { type: "standard"; size: "normal" }
                                                             }
-                                                            color: Colors.success
-                                                            font.pixelSize: 12
+                                                            Text {
+                                                                text: Icons.checkCircle
+                                                                font.family: Icons.font
+                                                                font.pixelSize: 12
+                                                                color: Colors.success
+                                                                Layout.alignment: Qt.AlignVCenter
+                                                            }
+                                                            Text {
+                                                                text: {
+                                                                    let n = (modelData.functionCall && modelData.functionCall.name) || "";
+                                                                    if (n === "run_shell_command")
+                                                                        return "Command approved";
+                                                                    if (n === "agent_invoke" && modelData.functionCall.args && modelData.functionCall.args.tool)
+                                                                        return "Tool approved · " + modelData.functionCall.args.tool;
+                                                                    return "Tool approved · " + n;
+                                                                }
+                                                                color: Colors.success
+                                                                font.family: Config.theme.font
+                                                                font.pixelSize: 12
+                                                                font.weight: Font.Medium
+                                                            }
                                                         }
 
-                                                        Text {
+                                                        RowLayout {
                                                             visible: modelData.functionApproved === false && !modelData.functionPending
-                                                            text: {
-                                                                let n = (modelData.functionCall && modelData.functionCall.name) || "";
-                                                                if (n === "run_shell_command")
-                                                                    return "Command Rejected";
-                                                                if (n === "agent_invoke" && modelData.functionCall.args && modelData.functionCall.args.tool)
-                                                                    return "Tool Rejected · " + modelData.functionCall.args.tool;
-                                                                return "Tool Rejected · " + n;
+                                                            opacity: visible ? 1 : 0
+                                                            Layout.topMargin: 4
+                                                            spacing: 6
+                                                            Behavior on opacity {
+                                                                AnimatedBehavior { type: "standard"; size: "normal" }
                                                             }
-                                                            color: Colors.error
-                                                            font.pixelSize: 12
+                                                            Text {
+                                                                text: Icons.xCircle
+                                                                font.family: Icons.font
+                                                                font.pixelSize: 12
+                                                                color: Colors.error
+                                                                Layout.alignment: Qt.AlignVCenter
+                                                            }
+                                                            Text {
+                                                                text: {
+                                                                    let n = (modelData.functionCall && modelData.functionCall.name) || "";
+                                                                    if (n === "run_shell_command")
+                                                                        return "Command rejected";
+                                                                    if (n === "agent_invoke" && modelData.functionCall.args && modelData.functionCall.args.tool)
+                                                                        return "Tool rejected · " + modelData.functionCall.args.tool;
+                                                                    return "Tool rejected · " + n;
+                                                                }
+                                                                color: Colors.error
+                                                                font.family: Config.theme.font
+                                                                font.pixelSize: 12
+                                                                font.weight: Font.Medium
+                                                            }
                                                         }
 
                                                         // Resend button — only appears on the
@@ -1828,9 +2319,19 @@ Item {
                                                 color: Styling.srItem("overprimary")
                                                 opacity: 0.5
 
+                                                // Animated typing indicator.
+                                                // Wraps the SequentialAnimation in
+                                                // `enabled: Anim.animationsEnabled`
+                                                // so the dots freeze in place when
+                                                // game mode is on or the user picked
+                                                // an "instant" animation style —
+                                                // otherwise the animation runs even
+                                                // when the rest of the shell is
+                                                // paused, drawing GPU/CPU for no
+                                                // visual benefit.
                                                 SequentialAnimation on opacity {
                                                     loops: Animation.Infinite
-                                                    running: Ai.isLoading
+                                                    running: Anim.animationsEnabled && Ai.isLoading
 
                                                     PauseAnimation {
                                                         duration: index * 200
@@ -1968,6 +2469,25 @@ Item {
                                 }
                             }
                         }
+                        // Re-anchor when the status banner grows /
+                        // shrinks too (model starts streaming, etc.) so
+                        // the last message stays visible.
+                        Connections {
+                            target: statusBanner
+                            function onHeightChanged() {
+                                if (chatView._stickToBottom
+                                        && !chatView._userScrolledUp) {
+                                    chatView._animateToBottom(false);
+                                }
+                            }
+                            function onVisibleChanged() {
+                                if (statusBanner.visible
+                                        && chatView._stickToBottom
+                                        && !chatView._userScrolledUp) {
+                                    chatView._animateToBottom(false);
+                                }
+                            }
+                        }
 
                         ModelSelectorPopup {
                             id: modelSelector
@@ -2002,10 +2522,7 @@ Item {
                             width: Math.min(600, parent.width - 40)
 
                             Behavior on anchors.bottomMargin {
-                                NumberAnimation {
-                                    duration: Config.animDuration
-                                    easing.type: Easing.OutCubic
-                                }
+                                AnimatedBehavior { type: "spatial"; size: "default" }
                             }
 
                             StyledRect {
@@ -2220,6 +2737,14 @@ Item {
                                             color: Colors.overBackground
                                             wrapMode: TextEdit.Wrap
 
+                                            // Screen reader: identify this as the
+                                            // chat composer. The placeholder is
+                                            // already a useful hint but screen
+                                            // readers don't always announce it.
+                                            Accessible.role: Accessible.EditableText
+                                            Accessible.name: "Chat message"
+                                            Accessible.description: "Type your message and press Enter to send. Shift+Enter adds a new line."
+
                                             onTextChanged: {
                                                 if (text.startsWith("/")) {
                                                     const query = text.substring(1).toLowerCase();
@@ -2342,34 +2867,70 @@ Item {
                                     }
                                     Button {
                                         id: sendOrStopButton
-                                        Layout.preferredWidth: 32
+                                        Layout.preferredWidth: 36
                                         Layout.preferredHeight: 32
                                         flat: true
                                         // When the AI is mid-stream, running a
                                         // tool, or just waiting for tool
                                         // approval, this button morphs into
-                                        // a Stop button. Otherwise it shows
-                                        // the normal paper-plane send icon.
+                                        // a Stop button with an animated
+                                        // colour transition. Otherwise it
+                                        // shows the paper-plane send icon.
                                         readonly property bool aiBusy: Ai.isLoading || Ai.streamingStatus !== ""
                                         visible: aiBusy
                                             || inputField.text.length > 0
                                             || mainChatArea.pendingAttachments.length > 0
 
-                                        contentItem: Text {
-                                            text: sendOrStopButton.aiBusy ? Icons.stop : Icons.paperPlane
-                                            font.family: Icons.font
-                                            font.pixelSize: sendOrStopButton.aiBusy ? 18 : 20
-                                            color: sendOrStopButton.aiBusy
-                                                ? (parent.hovered ? Colors.overError : Colors.error)
-                                                : Styling.srItem("overprimary")
-                                            horizontalAlignment: Text.AlignHCenter
-                                            verticalAlignment: Text.AlignVCenter
+                                        // Cross-fade the two icons by stacking
+                                        // both and animating their opacity.
+                                        // A plain `text:` swap is a hard cut;
+                                        // a cross-fade feels like the button
+                                        // is gently morphing between states.
+                                        contentItem: Item {
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: Icons.paperPlane
+                                                font.family: Icons.font
+                                                font.pixelSize: 20
+                                                color: Styling.srItem("overprimary")
+                                                opacity: sendOrStopButton.aiBusy ? 0 : 1
+                                                scale: sendOrStopButton.aiBusy ? 0.6 : 1.0
+                                                Behavior on opacity {
+                                                    AnimatedBehavior { type: "emphasized"; size: "normal" }
+                                                }
+                                                Behavior on scale {
+                                                    AnimatedBehavior { type: "emphasized"; size: "normal" }
+                                                }
+                                            }
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: Icons.stop
+                                                font.family: Icons.font
+                                                font.pixelSize: 18
+                                                color: parent.hovered ? Colors.overError : Colors.error
+                                                opacity: sendOrStopButton.aiBusy ? 1 : 0
+                                                scale: sendOrStopButton.aiBusy ? 1.0 : 0.6
+                                                Behavior on opacity {
+                                                    AnimatedBehavior { type: "emphasized"; size: "normal" }
+                                                }
+                                                Behavior on scale {
+                                                    AnimatedBehavior { type: "emphasized"; size: "normal" }
+                                                }
+                                            }
                                         }
 
                                         background: Rectangle {
-                                            color: parent.hovered ? Colors.surfaceBright : "transparent"
                                             radius: 16
+                                            color: sendOrStopButton.aiBusy
+                                                ? (parent.hovered ? Colors.surfaceBright : Qt.darker(Colors.surfaceBright, 1.4))
+                                                : (parent.hovered ? Colors.surfaceBright : "transparent")
+                                            Behavior on color {
+                                                AnimatedBehavior { type: "standard"; size: "fast" }
+                                            }
                                         }
+
+                                        Accessible.role: Accessible.Button
+                                        Accessible.name: sendOrStopButton.aiBusy ? "Stop generation" : "Send message"
 
                                         onClicked: {
                                             if (sendOrStopButton.aiBusy) {
@@ -2409,9 +2970,7 @@ Item {
                             visible: mainChatArea.isWelcome
 
                             Behavior on opacity {
-                                NumberAnimation {
-                                    duration: 200
-                                }
+                                AnimatedBehavior { type: "standard"; size: "fast" }
                             }
 
                             opacity: visible ? 1 : 0

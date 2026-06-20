@@ -133,13 +133,29 @@ Singleton {
     property string ollamaLastError: ""
     property bool _ollamaFetchPending: false
     property bool _ollamaChatPending: false
-    // Max auto-continue nudges per user turn before switching to
-    // direct-action fallback. Set to 1: most tiny models (granite-2b,
-    // qwen-1.5, phi-1.5) can't chain even with a nudge, so one attempt
-    // + direct fallback is faster than three empty round-trips.
-    // Reset in sendMessage() on every new user message.
-    property int _autoContinueCount: 0
-    // Saved state of the last _tryDirectMove so "regresalo"/"return" works
+    // ── Nudge budget ──
+    // How many times we'll re-prompt the model after it returns an
+    // empty completion following a tool result. The default 3 covers
+    // the common DeepSeek / Mistral pattern where the model returns
+    // finish_reason=stop with no content on the first post-tool turn
+    // (their chain trigger), and a short textual nudge ("continue,
+    // call the next tool") gets it back on track. Tiny local models
+    // (granite-2b, qwen-1.5) sometimes burn all 3 nudges without
+    // progressing — after the budget is exhausted we surface a hint
+    // to the user instead of looping forever.
+    //
+    // Sourced from Config.ai.nudgeBudget so power users can tune it
+    // per model — DeepSeek-R1 with tool_choice:"required" may only
+    // need 1 nudge while a finicky local Ollama model may need 5.
+    // We fall back to 3 when the config isn't loaded yet.
+    readonly property int _nudgeBudget:
+        (Config && Config.ai && Config.ai.nudgeBudget > 0)
+            ? Config.ai.nudgeBudget : 3
+    property int _nudgeCount: 0
+    // Saved state of the last successful move_windows call so the user
+    // can say "regresalo" / "undo" / "return" to reverse it. Recorded
+    // from the natural tool flow (NOT from the bypass) so the chat
+    // history remains consistent.
     property var _lastMove: null
     readonly property string ollamaEnsureScript: Qt.resolvedUrl(
         "../../scripts/ollama-ensure.sh").toString().replace("file://", "")
@@ -285,6 +301,14 @@ Singleton {
     // permanently frozen. Also runs the queued request if any.
     // Without this watchdog a single missed onExited would hang the
     // AI pipeline forever.
+    //
+    // _pendingToolChoice / _currentToolChoice — carry the tool_choice
+    // override requested by the caller through the re-entrancy guard
+    // and into the curl body. Set in makeRequest, consumed by
+    // getStreamBody. Cleared on every terminal path so the next
+    // default-mode request isn't accidentally pinned to "required".
+    property string _pendingToolChoice: ""
+    property string _currentToolChoice: ""
     //
     // Mirrors Odysseus's two-layer timeout design:
     //   - Inactivity: curl --max-time = requestTimeoutSeconds (kills
@@ -750,158 +774,64 @@ Singleton {
         return allowlist.indexOf(toolName) !== -1;
     }
 
-    // Direct-execute a 'move X to workspace Y' intent when the
-    // model exhausts auto-continues and still can't chain. Parses
-    // the list_windows result for matching windows and the user
-    // message for the target workspace, then calls move_windows
-    // (or move_window_to_workspace if only one match) directly
-    // through the agent — no model round-trip needed.
-    function _tryDirectOpenApp(userMsg, appList) {
-        try {
-            let apps = JSON.parse(appList || "[]");
-            let keywords = userMsg.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-            let match = null;
-            for (let a of apps) {
-                let text = (a.id + " " + a.name).toLowerCase();
-                for (let kw of keywords) {
-                    if (text.indexOf(kw) !== -1) { match = a; break; }
-                }
-                if (match) break;
-            }
-            if (!match) return;
-            root._autoContinueCount = 99;
-            root.agentToolRegistry.invoke("open_app", { app_name: match.name }, function(result) {
-                let output = result.error || result.content || "Done";
-                root._onToolFinished("open_app", "", output, !!result.error);
-            });
-        } catch (e) {
-            console.warn("[Ai] _tryDirectOpenApp failed: " + e);
-        }
-    }
-
-    function _tryDirectClose(userMsg, listResult) {
-        try {
-            let windows = JSON.parse(listResult || "[]");
-            if (!Array.isArray(windows) || windows.length === 0) return;
-            let keywords = userMsg.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-            let matched = [];
-            for (let w of windows) {
-                let text = (w.app_id + " " + w.title).toLowerCase();
-                for (let kw of keywords) {
-                    if (text.indexOf(kw) !== -1) { matched.push(w.id); break; }
-                }
-            }
-            if (matched.length === 0) return;
-            root._autoContinueCount = 99;
-            root.agentToolRegistry.invoke("move_windows", {
-                window_ids: matched, workspace_id: "0"  // dummy, we close not move
-            }, function() {
-                // Use close_app for simplicity
-                let appNames = [...new Set(windows.filter(w => matched.includes(w.id)).map(w => w.app_id))];
-                if (appNames.length > 0) {
-                    root.agentToolRegistry.invoke("close_app", { app_name: appNames[0] }, function(result) {
-                        let output = result.error || result.content || "Done";
-                        root._onToolFinished("close_app", "", output, !!result.error);
-                    });
-                }
-            });
-        } catch (e) {
-            console.warn("[Ai] _tryDirectClose failed: " + e);
-        }
-    }
-
-    function _tryDirectMove(userMsg, listResult) {
-        try {
-            let windows = JSON.parse(listResult || "[]");
-            if (!Array.isArray(windows) || windows.length === 0) {
-                root._autoContinueCount = 99;
-                return;
-            }
-            let wsMatch = userMsg.match(/workspace\s+(\d+|[a-z]\w*)/i)
-                       || userMsg.match(/ws\s*(\d+)/i)
-                       || userMsg.match(/al\s+(\d+)/i);
-            let targetWs = wsMatch ? wsMatch[1] : "1";
-
-            let keywords = userMsg.toLowerCase().split(/\s+/).filter(w => w.length > 2);
-            let matched = [];
-            let prevWsMap = {};  // window_id → previous workspace_id
-            for (let w of windows) {
-                let text = (w.app_id + " " + w.title).toLowerCase();
-                for (let kw of keywords) {
-                    if (text.indexOf(kw) !== -1) {
-                        matched.push(w.id);
-                        prevWsMap[w.id] = w.workspace_id || "1";
-                        break;
-                    }
-                }
-            }
-            if (matched.length === 0) {
-                matched = windows.filter(w => w.app_id && w.app_id !== "")
-                                .map(w => w.id).slice(0, 1);
-                for (let w of windows) {
-                    if (matched.includes(w.id)) prevWsMap[w.id] = w.workspace_id || "1";
-                }
-            }
-            if (matched.length === 0) return;
-
-            console.warn("[Ai] _tryDirectMove: " + matched.length
-                + " window(s) → workspace " + targetWs);
-
-            // Save for undo/return via _tryDirectReturn
-            root._lastMove = {
-                window_ids: matched,
-                prev_ws: prevWsMap,
-                target_ws: targetWs
-            };
-
-            let contChat = Array.from(root.currentChat);
-            if (contChat.length > 0
-                    && contChat[contChat.length - 1].role === "assistant") {
-                contChat[contChat.length - 1].content =
-                    "[Direct action — moving " + matched.length
-                    + " window(s) to workspace " + targetWs + "]";
-            }
-            root.currentChat = contChat;
-            root.saveCurrentChat();
-
-            root._autoContinueCount = 99;
-            let toolArgs = { window_ids: matched, workspace_id: targetWs };
-            root.agentToolRegistry.invoke("move_windows", toolArgs, function(result) {
-                console.warn("[Ai] _tryDirectMove result: "
-                    + (result.error ? "error=" + result.error
-                       : "content=" + (result.content || "").substring(0, 80)));
-                let output = result.error || result.content || "Done";
-                root._onToolFinished("move_windows", "", output, !!result.error);
-            });
-        } catch (e) {
-            console.warn("[Ai] _tryDirectMove failed: " + e);
-            root._autoContinueCount = 99;
-        }
-    }
-
-    // Undo/return the last direct move. Reads root._lastMove set by
-    // _tryDirectMove and moves the same windows back to their
-    // previous workspaces. Clears _lastMove after execution.
-    function _tryDirectReturn() {
-        let last = root._lastMove;
-        if (!last || !last.window_ids || last.window_ids.length === 0) return;
-        root._lastMove = null;
-        // Use the first prev_ws as the target (most moves target one ws)
-        let prevWs = "1";
-        for (let wid of last.window_ids) {
-            if (last.prev_ws && last.prev_ws[wid]) {
-                prevWs = last.prev_ws[wid];
+    // ── Chain-continuation nudge builder ──
+    // Constructs the system-role prompt we send when the model returns
+    // an empty completion right after a read-only tool result
+    // (DeepSeek R1, Mistral, and a few other providers do this — they
+    // return finish_reason=stop with no content because the read
+    // didn't progress toward a tool call, so the chain stalls). The
+    // nudge explicitly enumerates the next step the model should take
+    // based on which read tool was just called, paired with
+    // tool_choice:"required" so the model can't return another empty
+    // response. Combined, those two changes are what got the model
+    // back on track without us having to fake the tool execution
+    // ourselves.
+    function _buildChainNudge(toolName, toolResult) {
+        let userIntent = "";
+        for (let i = root.currentChat.length - 1; i >= 0; i--) {
+            if (root.currentChat[i].role === "user") {
+                userIntent = root.currentChat[i].content || "";
                 break;
             }
         }
-        console.warn("[Ai] _tryDirectReturn: " + last.window_ids.length
-            + " window(s) → workspace " + prevWs);
-        root._autoContinueCount = 99;
-        let toolArgs = { window_ids: last.window_ids, workspace_id: prevWs };
-        root.agentToolRegistry.invoke("move_windows", toolArgs, function(result) {
-            let output = result.error || result.content || "Done";
-            root._onToolFinished("move_windows", "", output, !!result.error);
-        });
+        let baseHint = "The user asked: \"" + userIntent + "\". "
+            + "You just received the result of " + toolName + " but you "
+            + "did not call the next tool. You MUST call a write tool "
+            + "now to actually perform the action — do not reply with "
+            + "text, do not narrate. ";
+        if (toolName === "list_windows") {
+            // Try to extract the target workspace from the user message
+            // so the nudge names it explicitly (DeepSeek's R1 model
+            // sometimes loses track of the target across turns).
+            let wsHint = "";
+            let m = userIntent.match(/workspace\s+(\d+|[a-z]\w*)/i)
+                  || userIntent.match(/ws\s*(\d+)/i)
+                  || userIntent.match(/al\s+(\d+)/i);
+            if (m) wsHint = " Target workspace: " + m[1] + ".";
+            // Detect intent so the nudge names the right write tool.
+            let writeTool = "move_window_to_workspace or move_windows";
+            if (/close|cerrar|cierra|quit|kill/i.test(userIntent)) {
+                writeTool = "close_window or close_app";
+            } else if (/focus|enfocar|foco/i.test(userIntent)) {
+                writeTool = "focus_window";
+            }
+            return baseHint + wsHint + " Call " + writeTool
+                + " now with the matching window id from the list above.";
+        }
+        if (toolName === "list_installed_apps") {
+            return baseHint + " Call open_app with the matching "
+                + "app_name now (case-insensitive substring of the "
+                + "app's display name).";
+        }
+        if (toolName === "list_workspaces") {
+            return baseHint + " Call switch_workspace or "
+                + "move_window_to_workspace now.";
+        }
+        if (toolName === "list_monitors") {
+            return baseHint + " Call focus_monitor or "
+                + "move_window_to_monitor now.";
+        }
+        return baseHint + " Call the appropriate write tool now.";
     }
 
     // Decide whether the incoming tool call should be auto-rejected.
@@ -1177,6 +1107,55 @@ Singleton {
         root.lastToolCallId = "";
         currentChat = newChat;
         saveCurrentChat();
+        // Record undo state for move_windows and move_window_to_workspace.
+        // The bridge now embeds `previous_workspace_id` for each moved
+        // window in the response payload, so "regresalo" / "undo" can
+        // actually revert to the right workspace instead of falling
+        // back to "default workspace 1" (which routinely sent windows
+        // back to the wrong place).  Best-effort — failing to record
+        // undo state must never break the chat loop.
+        if (!isError
+                && (toolName === "move_windows"
+                    || toolName === "move_window_to_workspace")) {
+            try {
+                let parsed = null;
+                if (typeof result === "string") {
+                    parsed = JSON.parse(result);
+                } else if (typeof result === "object" && result !== null) {
+                    parsed = result.content ? JSON.parse(result.content) : null;
+                }
+                let entries = [];
+                if (parsed && Array.isArray(parsed.moved)
+                        && parsed.moved.length > 0) {
+                    entries = parsed.moved;
+                } else if (parsed && parsed.window_id
+                        && parsed.previous_workspace_id !== undefined) {
+                    entries = [parsed];
+                }
+                if (entries.length > 0) {
+                    let prevWs = {};
+                    let ids = [];
+                    for (let e of entries) {
+                        let wid = String(e.window_id);
+                        ids.push(wid);
+                        if (e.previous_workspace_id !== undefined
+                                && e.previous_workspace_id !== null) {
+                            prevWs[wid] = String(e.previous_workspace_id);
+                        }
+                    }
+                    if (ids.length > 0) {
+                        root._lastMove = {
+                            window_ids: ids,
+                            prev_ws: prevWs,
+                            target_ws: (entries[0] && entries[0].workspace_id)
+                                ? String(entries[0].workspace_id) : null
+                        };
+                    }
+                }
+            } catch (e) {
+                // Undo state is best-effort.
+            }
+        }
         isLoading = true;
         lastError = "";
         streamingStatus = "";
@@ -1349,10 +1328,19 @@ Singleton {
         // corrupting the chat.
         _killedByUser = false;
         shellCmdWasCancelled = false;
-        // Reset auto-continue for the new user turn
-        root._autoContinueCount = 0;
+        // Reset nudge budget for the new user turn. Each empty
+        // post-tool completion consumes one nudge (see curlProcess
+        // .onExited). When the user says something new, we reset
+        // so they're never penalised for an earlier stalled chain.
+        root._nudgeCount = 0;
         // Short undos: "regresalo", "return it", "undo" → reverse
-        // the last _tryDirectMove without calling the model at all.
+        // the last successful move_windows call without bothering
+        // the model. The user is explicitly asking for an undo, so
+        // we run the inverse tool directly and append a synthetic
+        // tool result — the chat remains consistent because the
+        // next makeRequest sees a well-formed assistant→function
+        // pair (we fabricate a paired assistant tool_call so the
+        // outgoing payload round-trips cleanly).
         if (/^(regresa(lo)?|return|undo|devu[eé]lve(lo)?|deshaz)\s*$/i.test(text.trim())
                 && root._lastMove) {
             let prevWs = "1";
@@ -1360,20 +1348,28 @@ Singleton {
             for (let wid of last.window_ids) {
                 if (last.prev_ws && last.prev_ws[wid]) { prevWs = last.prev_ws[wid]; break; }
             }
-            root._lastMove = null;
-            let userMsg = { role: "user", content: text };
+            let toolArgs = { window_ids: last.window_ids, workspace_id: prevWs };
+            let callId = "call_undo_" + Date.now();
             let newChat = Array.from(currentChat);
-            newChat.push(userMsg);
-            newChat.push({ role: "system", content: "[Undo — returning "
-                + last.window_ids.length + " window(s) to workspace "
-                + prevWs + "]" });
+            newChat.push({ role: "user", content: text });
+            newChat.push({
+                role: "assistant",
+                content: "",
+                functionCall: { name: "move_windows", args: toolArgs, tool_call_id: callId },
+                toolCallId: callId,
+                functionPending: true,
+                functionApproved: true
+            });
             currentChat = newChat;
             saveCurrentChat();
-            let toolArgs = { window_ids: last.window_ids, workspace_id: prevWs };
+            // Record the tool-call id so _onToolFinished pairs the
+            // tool result correctly with the assistant's tool_calls[].id.
+            root.lastToolCallId = callId;
             root.agentToolRegistry.invoke("move_windows", toolArgs, function(result) {
                 let output = result.error || result.content || "Done";
-                root._onToolFinished("move_windows", "", output, !!result.error);
+                root._onToolFinished("move_windows", callId, output, !!result.error);
             });
+            root._lastMove = null;
             return;
         }
         isLoading = true;
@@ -1391,7 +1387,14 @@ Singleton {
         makeRequest();
     }
 
-    function makeRequest() {
+    function makeRequest(options) {
+        // options.toolChoice (optional) — override the strategy's
+        // default for this request. Used by the nudge layer to force
+        // the model to call a tool on its next response (tool_choice:
+        // "required") when it returned empty content after a previous
+        // tool call. Strategy-specific resolution happens in
+        // ApiStrategy.resolveToolChoice() so Anthropic and Gemini
+        // can map "required" onto their native equivalents.
         // Re-entrancy guard. If a curl is already in flight and
         // something else (a tool-result follow-up, a re-send after
         // an error, an agent tool completion) calls makeRequest
@@ -1403,10 +1406,25 @@ Singleton {
         // calls quickly (one finishes, another starts, the user
         // sees two interleaved ghost placeholders).
         if (root.requestInFlight) {
+            // Preserve the latest nudge's options so the queued
+            // re-run uses the strongest tool_choice we asked for
+            // — otherwise the queued call would inherit the
+            // original (default) tool_choice and the chain break.
+            if (options && options.toolChoice) {
+                root._pendingToolChoice = options.toolChoice;
+            }
             root.requestQueued = true;
             return;
         }
         root.requestInFlight = true;
+        // Capture the tool_choice for the actual run. Stored on the
+        // root (not a local var) so onExited can inspect it after
+        // the response — used to decide whether to nudge again.
+        let toolChoice = (options && options.toolChoice)
+            ? options.toolChoice
+            : (root._pendingToolChoice || null);
+        root._currentToolChoice = toolChoice;
+        root._pendingToolChoice = null;
         // 90s watchdog — fires if curl takes longer than its own
         // --max-time 90s (e.g. bodyFileView stuck), reset the
         // flag and bail so the sidebar isn't permanently hung.
@@ -1588,7 +1606,11 @@ Singleton {
         }
 
         // Build body — always use streaming
-        let body = currentStrategy.getStreamBody(messages, currentModel, activeTools);
+        let bodyOpts = root._currentToolChoice
+            ? { toolChoice: root._currentToolChoice }
+            : null;
+        let body = currentStrategy.getStreamBody(
+            messages, currentModel, activeTools, bodyOpts);
 
         // Reset streaming buffer
         responseBuffer = "";
@@ -1773,6 +1795,7 @@ Singleton {
                     }
                     root.currentChat = errChat;
                     root.saveCurrentChat();
+                    root._currentToolChoice = "";
                     if (root.requestQueued) {
                         root.requestQueued = false;
                         Qt.callLater(root.makeRequest);
@@ -1855,6 +1878,7 @@ Singleton {
                 root.requestInFlight = false;
                 root.requestQueued = false;
                 root.requestWatchdog.stop();
+                root._currentToolChoice = "";
                 return;
             }
 
@@ -2052,11 +2076,20 @@ Singleton {
                 //   (b) Empty response AND the immediately previous
                 //       message is a `function` tool result — the
                 //       model produced an empty completion after
-                //       running the tool. This is normal (DeepSeek
-                //       and others sometimes return finish_reason=stop
-                //       with no content). Show a small, neutral
-                //       acknowledgement rather than an alarming
-                //       "no response" error.
+                //       running the tool. This is normal for DeepSeek
+                //       R1 and a few other providers that return
+                //       finish_reason=stop with no content. We don't
+                //       drop the placeholder any more — instead we
+                //       inject a short synthetic assistant message
+                //       AND nudge the model with a textual user
+                //       reminder to call the next tool. The previous
+                //       direct-action bypass silently broke the
+                //       assistant→function pair (the synthetic
+                //       "[Direct action — moving…]" text replaced
+                //       the assistant's tool_calls entry, leaving the
+                //       subsequent tool result unpaired and confusing
+                //       the model on the next turn — the "AI
+                //       disconnected" symptom).
                 //   (c) Empty response with no tool in context — the
                 //       model genuinely produced nothing. Show a
                 //       brief note so the user knows.
@@ -2065,9 +2098,12 @@ Singleton {
                     if (!lastMsg.content) {
                         // Look at the previous message. If it's a
                         // tool result, this is the post-tool
-                        // empty-completion case (b) — the user
-                        // already got their action, the model just
-                        // stayed quiet. Keep it subtle.
+                        // empty-completion case (b) — re-prompt
+                        // the model with a textual nudge so it
+                        // continues the chain. Cap at _nudgeBudget
+                        // attempts so a stuck model can't loop
+                        // forever; when the budget is exhausted,
+                        // surface a clear hint to the user.
                         let prev = root.currentChat.length >= 2
                             ? root.currentChat[root.currentChat.length - 2]
                             : null;
@@ -2078,55 +2114,89 @@ Singleton {
                         let newChat = Array.from(root.currentChat);
                         if (followupToTool) {
                             // Empty completion after a successful
-                            // tool run. For write tools (move, close,
-                            // open_app), the action already happened
-                            // — just remove the empty placeholder.
-                            // For read-only tools (list_*), the model
-                            // got data but didn't chain — same pattern
-                            // as the text-response case: auto-continue.
+                            // tool run. Replace the empty assistant
+                            // placeholder with a short neutral
+                            // acknowledgement so the chat has a
+                            // well-formed assistant message BEFORE
+                            // the next makeRequest — without this
+                            // the sanitize step would strip the
+                            // placeholder entirely and the model
+                            // would lose track of where it was in
+                            // the chain.
                             let prevToolName = prev.name || "";
-                            let isReadOnly = root._idempotentReadTools.indexOf(prevToolName) !== -1;
-                            if (isReadOnly) {
-                                // Detect user intent from their message
-                                let lastUser = "";
-                                for (let i = root.currentChat.length - 1; i >= 0; i--) {
-                                    if (root.currentChat[i].role === "user") {
-                                        lastUser = root.currentChat[i].content || "";
-                                        break;
-                                    }
-                                }
-                                if (prevToolName === "list_windows"
-                                        && /move|mover|mueve|mueva|moveme/i.test(lastUser)) {
-                                    newChat[newChat.length - 1].content = "[Direct action - moving...]";
-                                    root.currentChat = newChat;
-                                    root.saveCurrentChat();
-                                    root.requestInFlight = false;
-                                    console.warn("[Ai] direct move from list_windows");
-                                    root._tryDirectMove(lastUser, prev.content);
-                                    return;
-                                }
-                                if (prevToolName === "list_windows"
-                                        && /close|cerrar|cierra|quit|kill/i.test(lastUser)) {
-                                    newChat[newChat.length - 1].content = "[Direct action - closing...]";
-                                    root.currentChat = newChat;
-                                    root.saveCurrentChat();
-                                    root.requestInFlight = false;
-                                    console.warn("[Ai] direct close from list_windows");
-                                    root._tryDirectClose(lastUser, prev.content);
-                                    return;
-                                }
-                                if (prevToolName === "list_installed_apps"
-                                        && /open|abrir|abre|launch/i.test(lastUser)) {
-                                    newChat[newChat.length - 1].content = "[Direct action - opening...]";
-                                    root.currentChat = newChat;
-                                    root.saveCurrentChat();
-                                    root.requestInFlight = false;
-                                    console.warn("[Ai] direct open from list_installed_apps");
-                                    root._tryDirectOpenApp(lastUser, prev.content);
-                                    return;
-                                }
+                            newChat[newChat.length - 1] = {
+                                role: "assistant",
+                                content: "",
+                                model: (currentModel ? currentModel.name : "Unknown")
+                            };
+                            root.currentChat = newChat;
+                            root.saveCurrentChat();
+                            root.requestInFlight = false;
+
+                            // Decide between nudging the model vs
+                            // surfacing a hint. Read-only tools
+                            // (list_*) genuinely need the model to
+                            // chain forward — that's a real stall
+                            // without a nudge. Write tools that
+                            // already succeeded don't need another
+                            // step at all; the model's "no response"
+                            // is benign and we just surface a
+                            // confirmation message.
+                            let isReadOnly = root._idempotentReadTools
+                                .indexOf(prevToolName) !== -1;
+                            if (isReadOnly && root._nudgeCount < root._nudgeBudget) {
+                                root._nudgeCount++;
+                                let nudgeText = root._buildChainNudge(
+                                    prevToolName, prev.content);
+                                console.warn("[Ai] nudging model after empty "
+                                    + "post-tool completion (" + root._nudgeCount
+                                    + "/" + root._nudgeBudget + ")");
+                                // Push the nudge as a system role so
+                                // the model sees an explicit "you
+                                // need to call the next tool"
+                                // instruction without us polluting
+                                // the user-role transcript.
+                                let nudgeChat = Array.from(root.currentChat);
+                                nudgeChat.push({
+                                    role: "system",
+                                    content: nudgeText
+                                });
+                                root.currentChat = nudgeChat;
+                                root.saveCurrentChat();
+                                // Force a tool call on the next
+                                // round-trip — see OpenAiCompatibleStrategy
+                                // .getBody for the provider mapping.
+                                root.makeRequest({ toolChoice: "required" });
+                                return;
                             }
-                            newChat.pop();
+                            if (isReadOnly) {
+                                // Out of nudges. Surface the read
+                                // result to the user and stop.
+                                console.warn("[Ai] nudge budget exhausted after "
+                                    + prevToolName + " — surfacing hint");
+                                newChat.push({
+                                    role: "system",
+                                    content: "The model received the "
+                                        + prevToolName + " result but did not "
+                                        + "continue the chain. Try rephrasing "
+                                        + "the request, switching models with "
+                                        + "`/model`, or just describe the next "
+                                        + "step you want."
+                                });
+                                root.currentChat = newChat;
+                                root.saveCurrentChat();
+                                return;
+                            }
+                            // Write tool — the action already
+                            // happened, just give the user a brief
+                            // confirmation.
+                            newChat.push({
+                                role: "system",
+                                content: "Tool '" + prevToolName + "' completed."
+                            });
+                            root.currentChat = newChat;
+                            root.saveCurrentChat();
+                            return;
                         } else {
                             // Genuinely empty response (no tool call
                             // was attached). The API did respond, it
@@ -2197,33 +2267,6 @@ Singleton {
                     }
                 }
 
-                // ── Direct-action fallback for text responses ──
-                // When the model returns text (not empty) after a
-                // read-only tool, and the user's intent matches a
-                // known pattern, execute directly — no nudges.
-                if (!toolAttached && root.responseBuffer !== ""
-                        && root.currentChat.length >= 2) {
-                    let prevTool = root.currentChat[root.currentChat.length - 2];
-                    if (prevTool && prevTool.role === "function"
-                            && !prevTool.is_error) {
-                        let toolName = prevTool.name || "";
-                        let lastUser = "";
-                        for (let i = root.currentChat.length - 1; i >= 0; i--) {
-                            if (root.currentChat[i].role === "user") {
-                                lastUser = root.currentChat[i].content || "";
-                                break;
-                            }
-                        }
-                        if (toolName === "list_windows"
-                                && /move|mover|mueve|mueva/i.test(lastUser)) {
-                            root.requestInFlight = false;
-                            console.warn("[Ai] direct move from list_windows (text)");
-                            root._tryDirectMove(lastUser, prevTool.content);
-                            return;
-                        }
-                    }
-                }
-
                 root.saveCurrentChat();
             } else {
                 root.lastError = "Network Request Failed: " + curlStderr.text;
@@ -2251,6 +2294,11 @@ Singleton {
             root.streamingElapsedTimer.stop();
             root.streamingStartedAt = 0;
             root.requestWatchdog.stop();
+            // Cleared on every terminal path so the next default-mode
+            // request isn't accidentally pinned to "required". The
+            // nudge handler below re-sets it on the follow-up call
+            // when it decides to re-prompt.
+            root._currentToolChoice = "";
 
             // Clear the in-flight guard and, if a second
             // makeRequest was queued during this response (e.g. a

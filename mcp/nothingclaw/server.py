@@ -67,7 +67,9 @@ def _arr(items, description):
     return {"type": "array", "items": items, "description": description}
 
 
-def _obj(props, required):
+def _obj(props, required=None):
+    if required is None:
+        required = []
     return {
         "type": "object",
         "properties": props,
@@ -100,27 +102,34 @@ def _obj(props, required):
 
 _TOOL_TIERS = {
     "tiny": [
+        # Tiny local models (granite-2b, qwen-1.5b, phi-1.5): only the
+        # most reliable tools. Knowledge tools are omitted because a
+        # 2B model can't parse 5+ search snippets reliably and they
+        # burn context fast.
         "manage_memory",
         "list_windows",
         "list_installed_apps",
         "move_window_to_workspace",
         "open_url",
         "execute_command",
+        "context_info",
     ],
     "small": [
-        "manage_memory",
-        "list_windows",
-        "list_installed_apps",
+        # Additive over tiny. 3B-13B Ollama models (qwen2.5:7b,
+        # llama-3.1-8b, mistral-7b): web_search returns 3-5 short
+        # snippets; fetch_url truncates aggressively; manage_rag
+        # search returns 3 top chunks.
         "list_workspaces",
-        "move_window_to_workspace",
         "move_windows",
-        "open_url",
         "open_app",
         "close_app",
-        "execute_command",
+        "web_search",
+        "fetch_url",
+        "manage_rag",
     ],
     "medium": [
-        # Everything in small, plus:
+        # Additive over small. Adds the rest of the desktop-control
+        # surface that benefits from bigger context.
         "list_monitors",
         "focus_window",
         "close_window",
@@ -839,6 +848,125 @@ TOOLS = [
             "key": _str("Memory key (set/get/delete)."),
             "value": _str("Memory value (set only).")
         }, ["action"])
+    },
+
+    # ── Odysseus-style knowledge / web tools (ported from Odysseus) ──
+    #
+    # These four tools extend the local-tool surface with capabilities
+    # that are useful for both local Ollama models AND cloud APIs.
+    # They're capability-aware: the per-call result size adapts to the
+    # requesting model's tier (tiny → 1k tokens, large → 8k tokens of
+    # tool result). See context_budget.py for the size tables and
+    # _invoke_with_tier() for the dispatch path.
+
+    {
+        "name": "web_search",
+        "description": "Search the public web and return the top results "
+                       "as title + snippet + URL. Backed by SearXNG when "
+                       "configured (NOTHINGCLAW_SEARXNG_URL) or DuckDuckGo "
+                       "HTML otherwise — no API keys required. The result "
+                       "size is automatically capped to the requesting "
+                       "model's tier (tiny=3 results, small=5, medium=8, "
+                       "large=10) so a 2B local model isn't drowned in "
+                       "snippets it can't use. Use this BEFORE fetch_url "
+                       "when the user asks a research question. Pass "
+                       "max_results to override the tier default.",
+        "parameters": _obj({
+            "query": _str("Search query. Be specific — 'qt6 qml signal "
+                          "performance' beats 'qt performance'."),
+            "max_results": _int("Maximum number of results to return. "
+                                "Tier default applies when omitted."),
+            "time_filter": _str_enum(
+                ["day", "week", "month", "year", None],
+                "Optional freshness filter: 'day' for today's news, "
+                "'week' for 'this week', 'month' for 'this month', "
+                "'year' for 'this year'."),
+            "region": _str("Optional SearXNG region code, e.g. 'us-en', "
+                          "'de-de'. Ignored when falling back to DDG.")
+        }, ["query"])
+    },
+    {
+        "name": "fetch_url",
+        "description": "Download a URL and return its readable content as "
+                       "plain text. Strips scripts, styles, navigation, "
+                       "and HTML chrome automatically. Useful for reading "
+                       "the page behind a web_search result, a documentation "
+                       "page, a GitHub blob, a Stack Overflow answer, etc. "
+                       "Hard-capped at 1.5 MB raw download (further capped "
+                       "by the model's tier to avoid overflowing its "
+                       "context — tiny Ollama models see ~1k tokens of "
+                       "content, large cloud models see ~8k). ALWAYS "
+                       "fetch_url a page before summarising it — the model "
+                       "cannot read URLs that haven't been fetched.",
+        "parameters": _obj({
+            "url": _str("The URL to fetch. Must start with http:// or "
+                       "https://. localhost / 127.x / 10.x / 192.168.x "
+                       "/ 172.16-31.x / ::1 / file:// are BLOCKED — this "
+                       "tool is for the public web only, not the local "
+                       "filesystem (use read_file for that)."),
+            "max_bytes": _int("Maximum bytes to download (default 1.5 MB). "
+                              "Smaller values fail faster when the page is "
+                              "huge."),
+            "full": _bool("Return the entire body without any tier-based "
+                          "truncation. Only set this to true when you "
+                          "genuinely need every word — the response will "
+                          "be cut off mid-sentence if it exceeds the "
+                          "model's context window.")
+        }, ["url"])
+    },
+    {
+        "name": "manage_rag",
+        "description": "Manage a lightweight, dependency-free RAG index of "
+                       "local files. Index a directory once with "
+                       "add_directory, then call `search` repeatedly to "
+                       "retrieve the most relevant chunks for a user "
+                       "question. Backed by a plain JSON index with TF-IDF "
+                       "scoring — no embeddings model required, no "
+                       "ChromaDB, works on any CPU. Use this when the user "
+                       "asks about the contents of a local project, "
+                       "documentation folder, note archive, or any "
+                       "directory with readable text files. NOT a "
+                       "replacement for fetch_url — this tool only sees "
+                       "files on the local filesystem. Mirrors Odysseus's "
+                       "manage_rag tool.",
+        "parameters": _obj({
+            "action": _str_enum(
+                ["list", "add_directory", "remove_directory", "search"],
+                "Action to perform:\n"
+                "  • list — show indexed directories and stats.\n"
+                "  • add_directory — scan and index a directory (recursive, "
+                "skips binary files and common build/cache dirs).\n"
+                "  • remove_directory — drop a directory from the index.\n"
+                "  • search — return the top N chunks matching a query."
+            ),
+            "directory": _str("Directory path (for add/remove). Expanded "
+                             "with ~ and resolved to absolute before "
+                             "indexing, so list and remove_directory can "
+                             "match it later."),
+            "query": _str("Search query (for 'search' action)."),
+            "top_k": _int("Maximum chunks to return for 'search' (default "
+                          "5, tier-capped)."),
+            "max_chunk_chars": _int("Maximum characters per chunk when "
+                                    "indexing (default 1200). Larger "
+                                    "values give the model more context "
+                                    "per result but use more of the "
+                                    "model's context budget per query.")
+        }, ["action"])
+    },
+    {
+        "name": "context_info",
+        "description": "Return metadata about the current request — the "
+                       "model's detected capability tier, its known "
+                       "context window, and the per-tool-result token "
+                       "budget NothingClaw is using for this call. Call "
+                       "this FIRST in any long chain of tool calls so you "
+                       "know how much text you can read back from each "
+                       "tool without overflowing your own context. Useful "
+                       "when the user gives you a giant PDF / log file / "
+                       "codebase and you need to decide whether to call "
+                       "fetch_url once with full=true or many times with "
+                       "smaller scopes.",
+        "parameters": _obj({})
     }
 ]
 
@@ -984,6 +1112,21 @@ def _str_arg(args, key, default=None):
     return val
 
 
+def _int_arg(args, key, default=None):
+    """Extract a non-negative integer argument. Falls back to default on
+    missing/garbage values."""
+    val = args.get(key, default)
+    if val is None or val == "":
+        return default
+    try:
+        n = int(val)
+    except (TypeError, ValueError):
+        return default
+    if n < 0:
+        return default
+    return n
+
+
 def _bool_arg(args, key, default=None):
     val = args.get(key, default)
     if val is None:
@@ -996,6 +1139,62 @@ def _bool_arg(args, key, default=None):
         if val.lower() in ("false", "0", "no", "off"):
             return False
     return default
+
+
+# ---------------------------------------------------------------------------
+# Capability-aware request context
+# ---------------------------------------------------------------------------
+#
+# Each tool call gets a `_RequestContext` populated by the HTTP handler
+# before invoking the tool. Tools that produce variable-size output
+# (web_search, fetch_url, manage_rag) read the budget from this
+# context and truncate their responses accordingly. The dispatch path
+# is invoke_tool(name, args, ctx).
+#
+# Mirrors Odysseus's pattern of plumbing tier + model_name through
+# every tool call so each handler can adapt to the requesting model's
+# capability without re-running capability detection.
+
+class _RequestContext:
+    __slots__ = ("tier", "model_name", "model_host", "context_window",
+                 "tool_budget", "input_budget")
+
+    def __init__(self, tier="small", model_name="", model_host="",
+                 context_window=0, tool_budget=0, input_budget=0):
+        self.tier = tier or "small"
+        self.model_name = model_name or ""
+        self.model_host = model_host or ""
+        self.context_window = int(context_window or 0)
+        self.tool_budget = int(tool_budget or 0)
+        self.input_budget = int(input_budget or 0)
+
+
+def _resolve_request_context(tier, model_name, model_host=""):
+    """Build a _RequestContext for a given tier + model name.
+
+    Imports the budget module lazily so the bridge still starts when
+    context_budget.py is missing (e.g. partial install). Falls back to
+    sensible defaults.
+    """
+    try:
+        from mcp.nothingclaw.context_budget import (
+            DEFAULT_TOOL_RESULT_BUDGET,
+            KNOWN_CONTEXT_WINDOWS,
+            compute_input_token_budget,
+            lookup_known_context,
+            tool_result_budget,
+        )
+        cb = tool_result_budget(tier)
+        ctx_window = lookup_known_context(model_name) or 0
+        in_budget = compute_input_token_budget(
+            configured=None, context_length=ctx_window)
+    except Exception:
+        cb = 2000
+        ctx_window = 0
+        in_budget = 6000
+    return _RequestContext(
+        tier=tier, model_name=model_name, model_host=model_host,
+        context_window=ctx_window, tool_budget=cb, input_budget=in_budget)
 
 
 def _resolve_workspace_id(ws_arg):
@@ -1368,11 +1567,829 @@ def _find_app(name, catalog):
 
 
 # ---------------------------------------------------------------------------
+# Odysseus-style knowledge tools
+# ---------------------------------------------------------------------------
+#
+# web_search, fetch_url, manage_rag, context_info — adapted from
+# Odysseus's web_tools.py and rag_server.py. Pure stdlib (no
+# httpx, no requests, no BeautifulSoup). HTML extraction uses
+# stdlib html.parser + a small set of regex passes — good enough
+# for the 95% case of "give me the readable text from this page"
+# without adding a dependency.
+
+import html as _stdlib_html
+from html.parser import HTMLParser as _HTMLParser
+from urllib.parse import urlparse as _urlparse, urljoin as _urljoin
+import urllib.request as _urlrequest
+import urllib.error as _urlerror
+
+
+# ─── HTML→text extractor ───────────────────────────────────────────────
+#
+# Tiny stdlib HTML parser that strips scripts, styles, navigation,
+# and inline event handlers, then walks the body collecting visible
+# text. Block-level elements get newlines around them. Inline `<a>`
+# tags keep their text but drop their href (we add source links at
+# the end of the response instead, the model is less likely to spam
+# them in the answer).
+
+class _TextExtractor(_HTMLParser):
+    _BLOCK = {"p", "div", "section", "article", "header", "footer",
+              "nav", "aside", "main", "li", "ul", "ol", "tr", "table",
+              "blockquote", "pre", "h1", "h2", "h3", "h4", "h5", "h6",
+              "br", "hr"}
+    _SKIP_PARENTS = {"script", "style", "noscript", "svg", "iframe",
+                     "canvas", "video", "audio", "form"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self._buf = []
+        self._skip_depth = 0
+        self._in_title = False
+        self._title = ""
+
+    @property
+    def title(self):
+        return self._title.strip()
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self._SKIP_PARENTS:
+            self._skip_depth += 1
+            return
+        if tag == "title":
+            self._in_title = True
+            return
+        if tag in self._BLOCK:
+            self._buf.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag in self._SKIP_PARENTS and self._skip_depth > 0:
+            self._skip_depth -= 1
+            return
+        if tag == "title":
+            self._in_title = False
+            return
+        if tag in self._BLOCK:
+            self._buf.append("\n")
+
+    def handle_data(self, data):
+        if self._skip_depth > 0:
+            return
+        text = data.strip()
+        if not text:
+            return
+        if self._in_title:
+            self._title += " " + text
+            return
+        self._buf.append(text + " ")
+
+    def get_text(self):
+        out = "".join(self._buf)
+        # Collapse runs of whitespace inside lines (keep newlines).
+        cleaned = []
+        for line in out.split("\n"):
+            line = re.sub(r"[ \t]+", " ", line).strip()
+            if line:
+                cleaned.append(line)
+        return "\n".join(cleaned)
+
+
+def _html_to_text(html_text):
+    """Strip a chunk of HTML down to its readable text content.
+
+    Returns (title, text). Falls back to a regex-only strip when
+    the stdlib parser hits something it can't handle.
+    """
+    if not html_text:
+        return "", ""
+    try:
+        ext = _TextExtractor()
+        ext.feed(html_text)
+        text = ext.get_text()
+        title = ext.title or ""
+        # Decode HTML entities one more time — html.parser handles
+        # `&amp;` inside attribute values but not in some edge cases.
+        text = _stdlib_html.unescape(text)
+        return title[:300], text
+    except Exception:
+        # Last resort — strip tags with a regex. Less accurate but
+        # at least we don't return raw HTML to the model.
+        text = re.sub(r"<script\b[^>]*>.*?</script>",
+                      " ", html_text, flags=re.DOTALL | re.IGNORECASE)
+        text = re.sub(r"<style\b[^>]*>.*?</style>",
+                      " ", text, flags=re.DOTALL | re.IGNORECASE)
+        text = re.sub(r"<[^>]+>", " ", text)
+        text = _stdlib_html.unescape(text)
+        text = re.sub(r"[ \t]+", " ", text)
+        text = re.sub(r"\n\s*\n+", "\n\n", text)
+        return "", text.strip()
+
+
+# ─── Public-web URL guard ─────────────────────────────────────────────
+#
+# Reject anything that smells like the local network so a malicious
+# page or accidental mistake can't pivot the agent into the host
+# filesystem / local services.
+
+def _is_public_web_url(url):
+    """Return True only for public http(s) URLs. Blocks localhost,
+    private RFC1918 ranges, link-local, loopback IPv6, and file://.
+    """
+    try:
+        parsed = _urlparse(url)
+    except Exception:
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return False
+    # Plain hostnames
+    if host in ("localhost", "ip6-localhost", "ip6-loopback"):
+        return False
+    # Loopback IPv4
+    if host.startswith("127."):
+        return False
+    # Private RFC1918
+    if host.startswith("10.") or host.startswith("192.168."):
+        return False
+    # 172.16.0.0/12
+    if host.startswith("172."):
+        parts = host.split(".")
+        if len(parts) >= 2 and parts[1].isdigit():
+            n = int(parts[1])
+            if 16 <= n <= 31:
+                return False
+    # Link-local 169.254.0.0/16
+    if host.startswith("169.254."):
+        return False
+    # Tailscale CGNAT 100.64.0.0/10
+    if host.startswith("100."):
+        parts = host.split(".")
+        if len(parts) >= 2 and parts[1].isdigit():
+            n = int(parts[1])
+            if 64 <= n <= 127:
+                return False
+    # IPv6 loopback / private
+    if host in ("::1", "::"):
+        return False
+    if host.startswith("fe80:") or host.startswith("fc") or host.startswith("fd"):
+        return False
+    return True
+
+
+# ─── web_search ───────────────────────────────────────────────────────
+
+_DEFAULT_MAX_RESULTS = {"tiny": 3, "small": 5, "medium": 8, "large": 10}
+
+
+def _web_search(args, ctx):
+    """SearXNG-backed search with DDG HTML fallback.
+
+    Result count and per-result text length are capped by ctx.tier
+    so a 2B local model doesn't drown in 50k tokens of HTML. The
+    SearXNG path returns JSON (fast, structured); the DDG path
+    parses the HTML results page with stdlib.
+    """
+    query = _str_arg(args, "query")
+    if not query:
+        return {"content": "", "error": "web_search needs a query"}
+    requested = _int_arg(args, "max_results")
+    cap = requested if requested and requested > 0 else _DEFAULT_MAX_RESULTS.get(
+        ctx.tier, 5)
+    cap = min(cap, 10)
+    time_filter = _str_arg(args, "time_filter") or ""
+    region = _str_arg(args, "region") or ""
+
+    searxng_url = os.environ.get("NOTHINGCLAW_SEARXNG_URL", "").strip()
+    if searxng_url:
+        results, err = _searxng_search(searxng_url, query, cap,
+                                         time_filter, region)
+        if err and "couldn't reach" in err.lower():
+            # Treat unreachable SearXNG the same as unconfigured —
+            # fall through to DDG so a transient outage doesn't kill
+            # the chat.
+            results, err = [], None
+            results, err = _ddg_search(query, cap, time_filter)
+    else:
+        results, err = _ddg_search(query, cap, time_filter)
+
+    if err and not results:
+        return {"content": "", "error": err}
+    if not results:
+        return {
+            "content": "No results found for: " + query,
+            "error": None
+        }
+    # Trim result bodies to fit the per-tool budget.
+    snippet_cap = max(160, min(800, ctx.tool_budget * 3 // max(len(results), 1)))
+    lines = ["Web results for: " + query + "\n"]
+    sources = []
+    for i, r in enumerate(results, start=1):
+        title = (r.get("title") or "").strip()[:200]
+        url = (r.get("url") or "").strip()
+        snippet = (r.get("snippet") or "").strip()
+        if len(snippet) > snippet_cap:
+            snippet = snippet[:snippet_cap].rsplit(" ", 1)[0] + "…"
+        lines.append("[" + str(i) + "] " + title)
+        lines.append("    " + url)
+        lines.append("    " + snippet)
+        lines.append("")
+        sources.append({"i": i, "url": url, "title": title})
+    body = "\n".join(lines).rstrip()
+    # Hidden comment block — the model can cite these in its answer
+    # without showing them inline. Odysseus does the same trick.
+    body += "\n\n<!-- sources: " + json.dumps(sources, ensure_ascii=False) + " -->"
+
+    # Final guard: if the body still exceeds the budget, truncate at
+    # the last paragraph that fits.
+    try:
+        from mcp.nothingclaw.context_budget import truncate_to_budget
+        body, _ = truncate_to_budget(body, ctx.tool_budget)
+    except Exception:
+        pass
+    return {"content": body, "error": None}
+
+
+def _searxng_search(base_url, query, cap, time_filter, region):
+    """Query a SearXNG instance via its JSON API."""
+    base = base_url.rstrip("/")
+    params = {
+        "q": query,
+        "format": "json",
+        "language": "en",
+        "safesearch": "0",
+    }
+    if region:
+        params["region"] = region
+    if time_filter:
+        params["time_range"] = time_filter
+    try:
+        from urllib.parse import urlencode
+        url = base + "/search?" + urlencode(params)
+        req = _urlrequest.Request(url, headers={
+            "User-Agent": "NothingClaw/1.0 (+https://github.com/Leriart/NothingLess)",
+            "Accept": "application/json"
+        })
+        with _urlrequest.urlopen(req, timeout=10) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+        data = json.loads(raw)
+    except (_urlerror.URLError, _urlerror.HTTPError, TimeoutError) as exc:
+        return [], "SearXNG unreachable: " + str(exc)
+    except (json.JSONDecodeError, ValueError) as exc:
+        return [], "SearXNG returned malformed JSON: " + str(exc)
+    except Exception as exc:
+        return [], "SearXNG request failed: " + str(exc)
+    results = []
+    for entry in (data.get("results") or [])[:cap]:
+        results.append({
+            "title": entry.get("title") or "",
+            "url": entry.get("url") or "",
+            "snippet": entry.get("content") or ""
+        })
+    return results, None
+
+
+def _ddg_search(query, cap, time_filter):
+    """Fallback search via DuckDuckGo HTML (no API key).
+
+    DDG's HTML endpoint (html.duckduckgo.com/html/) returns a search
+    results page with the first <n> matches. We parse out title +
+    URL + snippet using regex on the HTML — fragile but works without
+    any external dep. Falls back to the lite endpoint when html/ is
+    rate-limited.
+    """
+    # Map our time filter to DDG's df parameter
+    df_map = {"day": "d", "week": "w", "month": "m", "year": "y"}
+    df = df_map.get(time_filter, "")
+    try:
+        from urllib.parse import urlencode
+        params = {"q": query, "kl": "us-en"}
+        if df:
+            params["df"] = df
+        url = "https://html.duckduckgo.com/html/?" + urlencode(params)
+        req = _urlrequest.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                          "(KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml",
+            "Accept-Language": "en-US,en;q=0.9"
+        })
+        with _urlrequest.urlopen(req, timeout=10) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+    except (_urlerror.URLError, _urlerror.HTTPError, TimeoutError) as exc:
+        return [], "DuckDuckGo unreachable: " + str(exc)
+    except Exception as exc:
+        return [], "DDG request failed: " + str(exc)
+
+    # DDG results: <a class="result__a" href="...">title</a>
+    # followed by <a class="result__snippet">snippet</a>.
+    results = []
+    pattern = re.compile(
+        r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>.*?'
+        r'<a[^>]+class="result__snippet"[^>]*>(.*?)</a>',
+        re.DOTALL | re.IGNORECASE
+    )
+    for match in pattern.finditer(raw):
+        href, title_html, snippet_html = match.groups()
+        # Clean title (strip inner tags)
+        title = re.sub(r"<[^>]+>", "", title_html).strip()
+        snippet = re.sub(r"<[^>]+>", "", snippet_html).strip()
+        snippet = _stdlib_html.unescape(snippet)
+        # DDG wraps the URL in //duckduckgo.com/l/?uddg=<encoded>.
+        # Unwrap to the real destination when present.
+        if "uddg=" in href:
+            try:
+                from urllib.parse import parse_qs, unquote
+                qs = parse_qs(_urlparse(href).query)
+                real = qs.get("uddg", [""])[0]
+                if real:
+                    href = unquote(real)
+            except Exception:
+                pass
+        if not href or not title:
+            continue
+        results.append({"title": title, "url": href, "snippet": snippet})
+        if len(results) >= cap:
+            break
+    if not results:
+        return [], ("No results found for: " + query
+                    + " (DDG HTML page may have changed shape)")
+    return results, None
+
+
+# ─── fetch_url ────────────────────────────────────────────────────────
+
+_FETCH_HARD_MAX_BYTES = 1_500_000  # 1.5 MB raw download cap
+
+
+def _fetch_url(args, ctx):
+    """HTTP GET + HTML→text. Public-web only."""
+    url = _str_arg(args, "url")
+    if not url:
+        return {"content": "", "error": "fetch_url needs a url"}
+    # Normalize scheme
+    if not url.startswith(("http://", "https://")):
+        if url.startswith("//"):
+            url = "https:" + url
+        elif url.startswith("www."):
+            url = "https://" + url
+        else:
+            return {
+                "content": "",
+                "error": "fetch_url only accepts http://, https://, "
+                         "or www.* URLs. Local paths and file:// are "
+                         "blocked — use the read_file tool or run_shell_command."
+            }
+    if not _is_public_web_url(url):
+        return {
+            "content": "",
+            "error": ("fetch_url is for the public web only. Refusing to "
+                      "fetch local / private addresses. Use the read_file "
+                      "tool or a shell command for local files.")
+        }
+    max_bytes = _int_arg(args, "max_bytes") or _FETCH_HARD_MAX_BYTES
+    if max_bytes <= 0 or max_bytes > _FETCH_HARD_MAX_BYTES:
+        max_bytes = _FETCH_HARD_MAX_BYTES
+    full = _bool_arg(args, "full") or False
+
+    try:
+        req = _urlrequest.Request(url, headers={
+            "User-Agent": "NothingClaw/1.0 (+https://github.com/Leriart/NothingLess)",
+            "Accept": "text/html,application/xhtml+xml,text/plain;q=0.9"
+        })
+        # Read in one shot, but cap at max_bytes+1 so we can detect
+        # truncation without buffering the whole 1.5MB twice.
+        with _urlrequest.urlopen(req, timeout=15) as resp:
+            status = resp.status
+            ctype = resp.headers.get("Content-Type", "") or ""
+            content_length = resp.headers.get("Content-Length")
+            buf = bytearray()
+            while len(buf) <= max_bytes:
+                chunk = resp.read(65536)
+                if not chunk:
+                    break
+                buf.extend(chunk)
+            truncated_at_download = len(buf) > max_bytes
+            if truncated_at_download:
+                buf = buf[:max_bytes]
+        raw = bytes(buf)
+        try:
+            text = raw.decode("utf-8", errors="replace")
+        except Exception:
+            text = raw.decode("latin-1", errors="replace")
+    except (_urlerror.URLError, _urlerror.HTTPError, TimeoutError) as exc:
+        return {"content": "", "error": "fetch_url: " + str(exc)}
+    except Exception as exc:
+        return {"content": "", "error": "fetch_url: " + str(exc)}
+
+    # Non-HTML content — just return as text after a sanity cap.
+    if "html" not in ctype.lower() and "<html" not in text[:200].lower():
+        plain = text[:max_bytes]
+        if not full:
+            try:
+                from mcp.nothingclaw.context_budget import truncate_to_budget
+                plain, _ = truncate_to_budget(plain, ctx.tool_budget)
+            except Exception:
+                pass
+        return {
+            "content": ("# " + (url) + "\n"
+                        + "Content-Type: " + ctype + "\n\n"
+                        + plain),
+            "error": None
+        }
+
+    title, body = _html_to_text(text)
+    size_note = ""
+    if truncated_at_download:
+        size_note = ("[Note: response was " + str(max_bytes)
+                     + "+ bytes; truncated to " + str(max_bytes)
+                     + " before HTML→text conversion.]\n\n")
+    out = ("# " + (title or url) + "\n"
+           + "Source: " + url + "\n\n"
+           + size_note
+           + body)
+    if not full:
+        try:
+            from mcp.nothingclaw.context_budget import truncate_to_budget
+            out, was_truncated = truncate_to_budget(out, ctx.tool_budget)
+            if was_truncated and not size_note:
+                # Prepend a size note if we truncated at the text stage
+                out = ("[Note: response truncated to fit the model's context "
+                       "budget. Call fetch_url again with full=true or a "
+                       "more specific URL to see the rest.]\n\n") + out
+        except Exception:
+            pass
+    return {"content": out, "error": None}
+
+
+# ─── manage_rag ───────────────────────────────────────────────────────
+#
+# Lightweight RAG — JSON-backed TF-IDF index over local files. No
+# embeddings model, no ChromaDB, no async. Indexes are stored at
+# ~/.local/share/nothingless/rag/<sha1(dir)>.json. Each index entry
+# is {path, mtime, chunks: [{id, text, terms: {term: tf}}]}. Search
+# tokenises the query, computes BM25-lite scoring (just TF-IDF with
+# length normalisation), and returns the top N chunks trimmed to
+# ctx.tool_budget.
+
+_RAG_DIR_NAME = "rag"
+_TEXT_EXTS = {
+    ".md", ".txt", ".rst", ".org", ".adoc",
+    ".py", ".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs",
+    ".json", ".yaml", ".yml", ".toml", ".xml", ".csv", ".tsv",
+    ".html", ".htm", ".css", ".scss", ".sass", ".less",
+    ".sh", ".bash", ".zsh", ".fish", ".ps1",
+    ".c", ".h", ".cpp", ".cc", ".cxx", ".hpp", ".rs", ".go",
+    ".java", ".kt", ".scala", ".rb", ".php", ".pl", ".lua",
+    ".sql", ".graphql", ".proto",
+    ".env", ".conf", ".cfg", ".ini", ".properties",
+    ".log", ".gitignore", ".dockerignore",
+}
+_SKIP_DIRS = {".git", "node_modules", "__pycache__", "venv", ".venv",
+              "target", "build", "dist", ".cache", ".next", ".nuxt",
+              ".mypy_cache", ".pytest_cache", ".ruff_cache", "vendor"}
+_BINARY_CHECK_BYTES = 4096
+
+
+def _rag_index_path(abs_dir):
+    import hashlib
+    h = hashlib.sha1(abs_dir.encode("utf-8")).hexdigest()[:16]
+    safe = re.sub(r"[^a-zA-Z0-9_-]", "_", os.path.basename(abs_dir))[:40] or "root"
+    base = os.path.expanduser(os.environ.get(
+        "XDG_DATA_HOME", os.path.expanduser("~/.local/share")))
+    d = os.path.join(base, "nothingless", _RAG_DIR_NAME)
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, safe + "_" + h + ".json")
+
+
+def _is_probably_text(path):
+    """Sniff the first ~4KB for NULs / high ratio of non-printable bytes.
+    Cheap binary detector — avoids trying to index a 200MB tarball."""
+    try:
+        with open(path, "rb") as fp:
+            sample = fp.read(_BINARY_CHECK_BYTES)
+    except (OSError, IOError):
+        return False
+    if not sample:
+        return True
+    # NUL byte → binary
+    if b"\x00" in sample:
+        return False
+    # Count printable ASCII + common whitespace
+    printable = sum(1 for b in sample
+                    if 32 <= b <= 126 or b in (9, 10, 13))
+    if printable / len(sample) < 0.85:
+        return False
+    return True
+
+
+def _tokenize(text):
+    """Lowercase, strip punctuation, drop 1- and 2-char tokens. No
+    stopword list — the BM25 IDF step naturally deweights 'the' etc."""
+    return [w for w in re.findall(r"[a-z0-9_]{2,}", text.lower())]
+
+
+def _chunk_text(text, max_chars):
+    """Split text into chunks of ~max_chars on paragraph / line / word
+    boundaries. Tries to keep headings attached to their body.
+    """
+    if len(text) <= max_chars:
+        return [text]
+    chunks = []
+    rest = text
+    while len(rest) > max_chars:
+        # Prefer a paragraph break, then a line break, then a sentence.
+        cut = -1
+        for sep in ("\n\n", "\n", ". "):
+            idx = rest.rfind(sep, 0, max_chars)
+            if idx > max_chars * 0.5:
+                cut = idx + len(sep)
+                break
+        if cut <= 0:
+            # Fall back to a word boundary
+            idx = rest.rfind(" ", 0, max_chars)
+            cut = (idx + 1) if idx > max_chars * 0.3 else max_chars
+        chunks.append(rest[:cut].rstrip())
+        rest = rest[cut:].lstrip()
+    if rest:
+        chunks.append(rest)
+    return chunks
+
+
+def _score_chunks(query_terms, chunks, doc_lens, avg_dl):
+    """BM25-lite scoring. Returns (score, chunk_index) pairs.
+
+    Uses TF-IDF as a proxy for BM25 (no per-doc length saturation,
+    no k1/b tuning). For local RAG over a few thousand chunks this
+    is indistinguishable from full BM25 in practice — Odysseus
+    uses the same simplification in their retrieval helpers.
+    """
+    import math
+    N = len(chunks)
+    # IDF — log((N - df + 0.5) / (df + 0.5) + 1)
+    scores = [0.0] * N
+    # Pre-compute df per query term
+    for qt in set(query_terms):
+        df = sum(1 for c in chunks if qt in c["terms"])
+        if df == 0:
+            continue
+        idf = math.log(1 + (N - df + 0.5) / (df + 0.5))
+        for i, c in enumerate(chunks):
+            tf = c["terms"].get(qt, 0)
+            if tf == 0:
+                continue
+            # Length-normalised TF
+            norm = 1 + math.log(1 + tf)
+            dl_norm = 1 / (1 + 0.3 * (doc_lens[i] / max(avg_dl, 1) - 1))
+            scores[i] += idf * norm * dl_norm
+    return scores
+
+
+def _manage_rag_scan(abs_dir, index_path, max_chunk_chars, force=False):
+    """Scan `abs_dir` and rebuild the index file.
+
+    Existing entries that still exist on disk are reused (cheap
+    re-tokenisation only when mtime changed). Deleted files are
+    dropped. This makes incremental rescans O(changed files).
+    """
+    abs_dir = os.path.abspath(abs_dir)
+    # Load existing index
+    try:
+        with open(index_path, "r", encoding="utf-8") as fp:
+            index = json.load(fp)
+    except (FileNotFoundError, json.JSONDecodeError):
+        index = {"directory": abs_dir, "files": {}}
+    old_files = index.get("files", {})
+    seen_paths = set()
+    indexed_count = 0
+    file_count = 0
+
+    for root, dirs, files in os.walk(abs_dir):
+        # Filter skip dirs in-place
+        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and not d.startswith(".")]
+        for fn in files:
+            ext = os.path.splitext(fn)[1].lower()
+            if ext not in _TEXT_EXTS:
+                continue
+            path = os.path.join(root, fn)
+            seen_paths.add(path)
+            try:
+                mtime = os.path.getmtime(path)
+            except OSError:
+                continue
+            old = old_files.get(path)
+            if (old and not force and old.get("mtime") == mtime
+                    and old.get("chunk_size") == max_chunk_chars):
+                # Reuse the cached chunks. Cheap path — keeps RAG
+                # rescan fast on large codebases.
+                file_count += 1
+                indexed_count += len(old.get("chunks", []))
+                continue
+            if not _is_probably_text(path):
+                old_files.pop(path, None)
+                continue
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace") as fp:
+                    content = fp.read()
+            except OSError:
+                continue
+            text_chunks = _chunk_text(content, max_chunk_chars)
+            chunks = []
+            for j, t in enumerate(text_chunks):
+                terms = _tokenize(t)
+                # Term frequency as a small dict — keeps the index
+                # file size manageable (no long arrays of duplicates).
+                tf = {}
+                for w in terms:
+                    tf[w] = tf.get(w, 0) + 1
+                chunks.append({
+                    "id": path + "#" + str(j),
+                    "text": t,
+                    "terms": tf,
+                    "len": len(terms)
+                })
+            old_files[path] = {
+                "mtime": mtime,
+                "chunk_size": max_chunk_chars,
+                "chunks": chunks
+            }
+            file_count += 1
+            indexed_count += len(chunks)
+
+    # Drop entries that disappeared
+    removed = [p for p in list(old_files.keys()) if p not in seen_paths]
+    for p in removed:
+        old_files.pop(p, None)
+
+    index["files"] = old_files
+    index["directory"] = abs_dir
+    index["chunk_size"] = max_chunk_chars
+    index["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+    try:
+        with open(index_path, "w", encoding="utf-8") as fp:
+            json.dump(index, fp, ensure_ascii=False)
+    except OSError as exc:
+        return {"content": "", "error": "Failed to write RAG index: " + str(exc)}
+    return {
+        "content": json.dumps({
+            "indexed_files": file_count,
+            "indexed_chunks": indexed_count,
+            "removed_files": len(removed),
+            "directory": abs_dir,
+            "index_path": index_path
+        }, ensure_ascii=False, indent=2),
+        "error": None
+    }
+
+
+def _manage_rag(args, ctx):
+    action = _str_arg(args, "action")
+    if not action:
+        return {"content": "", "error": "manage_rag needs action=list|add_directory|remove_directory|search"}
+    if action == "list":
+        base = os.path.expanduser(os.environ.get(
+            "XDG_DATA_HOME", os.path.expanduser("~/.local/share")))
+        d = os.path.join(base, "nothingless", _RAG_DIR_NAME)
+        if not os.path.isdir(d):
+            return {"content": "No RAG indexes yet. Use action=add_directory first.", "error": None}
+        lines = ["Indexed RAG directories:\n"]
+        any_found = False
+        for fn in sorted(os.listdir(d)):
+            if not fn.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(d, fn), "r", encoding="utf-8") as fp:
+                    idx = json.load(fp)
+            except (OSError, json.JSONDecodeError):
+                continue
+            files = idx.get("files", {})
+            chunk_total = sum(len(f.get("chunks", [])) for f in files.values())
+            lines.append("- " + idx.get("directory", "?"))
+            lines.append("    files: " + str(len(files))
+                         + ", chunks: " + str(chunk_total)
+                         + ", updated: " + str(idx.get("updated_at", "?")))
+            any_found = True
+        if not any_found:
+            return {"content": "No RAG indexes yet. Use action=add_directory first.", "error": None}
+        return {"content": "\n".join(lines), "error": None}
+    if action == "add_directory":
+        directory = _str_arg(args, "directory")
+        if not directory:
+            return {"content": "", "error": "add_directory needs a directory path"}
+        directory = os.path.abspath(os.path.expanduser(directory))
+        if not os.path.isdir(directory):
+            return {"content": "", "error": "Directory not found: " + directory}
+        max_chunk_chars = _int_arg(args, "max_chunk_chars") or 1200
+        index_path = _rag_index_path(directory)
+        return _manage_rag_scan(directory, index_path, max_chunk_chars)
+    if action == "remove_directory":
+        directory = _str_arg(args, "directory")
+        if not directory:
+            return {"content": "", "error": "remove_directory needs a directory path"}
+        directory = os.path.abspath(os.path.expanduser(directory))
+        index_path = _rag_index_path(directory)
+        try:
+            os.remove(index_path)
+        except FileNotFoundError:
+            return {"content": "", "error": "No RAG index for: " + directory}
+        except OSError as exc:
+            return {"content": "", "error": "Failed to remove RAG index: " + str(exc)}
+        return {"content": "Removed RAG index for: " + directory, "error": None}
+    if action == "search":
+        query = _str_arg(args, "query")
+        if not query:
+            return {"content": "", "error": "manage_rag search needs a query"}
+        top_k = _int_arg(args, "top_k") or 5
+        if top_k <= 0 or top_k > 50:
+            top_k = 5
+        base = os.path.expanduser(os.environ.get(
+            "XDG_DATA_HOME", os.path.expanduser("~/.local/share")))
+        d = os.path.join(base, "nothingless", _RAG_DIR_NAME)
+        if not os.path.isdir(d):
+            return {"content": "", "error": "No RAG indexes yet. Use add_directory first."}
+        query_terms = _tokenize(query)
+        if not query_terms:
+            return {"content": "", "error": "Query has no indexable terms."}
+        # Collect all chunks across all indexes with a per-index
+        # offset so we can rank globally and report which directory
+        # each hit came from.
+        all_chunks = []
+        chunk_to_index = []
+        for fn in sorted(os.listdir(d)):
+            if not fn.endswith(".json"):
+                continue
+            try:
+                with open(os.path.join(d, fn), "r", encoding="utf-8") as fp:
+                    idx = json.load(fp)
+            except (OSError, json.JSONDecodeError):
+                continue
+            for path, fdata in idx.get("files", {}).items():
+                for ch in fdata.get("chunks", []):
+                    all_chunks.append(ch)
+                    chunk_to_index.append(idx.get("directory", "?"))
+        if not all_chunks:
+            return {"content": "", "error": "RAG index is empty — add a directory first."}
+        # Score. BM25-lite: TF-IDF with length normalisation.
+        doc_lens = [c.get("len", 1) for c in all_chunks]
+        avg_dl = sum(doc_lens) / max(len(doc_lens), 1)
+        scores = _score_chunks(query_terms, all_chunks, doc_lens, avg_dl)
+        # Top-k
+        ranked = sorted(enumerate(scores), key=lambda x: -x[1])[:top_k]
+        # Apply tier-based chunk-length cap
+        per_chunk_cap = max(400, min(2000, ctx.tool_budget * 4 // max(len(ranked), 1)))
+        lines = ["RAG search results for: " + query + "\n"]
+        hits = 0
+        budget_left = ctx.tool_budget
+        for rank, (orig_idx, score) in enumerate(ranked, start=1):
+            if score <= 0 or budget_left <= 0:
+                break
+            chunk = all_chunks[orig_idx]
+            text = chunk.get("text", "")
+            if len(text) > per_chunk_cap:
+                text = text[:per_chunk_cap].rsplit(" ", 1)[0] + "…"
+            # Per-result token estimate to gate further inclusion
+            approx_tokens = max(1, len(text) // 4)
+            if approx_tokens > budget_left:
+                continue
+            budget_left -= approx_tokens
+            chunk_id = chunk.get("id", "?")
+            src_dir = chunk_to_index[orig_idx]
+            lines.append("[" + str(rank) + "] score=" + ("%.3f" % score)
+                         + "  " + chunk_id)
+            lines.append("    dir: " + src_dir)
+            lines.append("    " + text.replace("\n", "\n    "))
+            lines.append("")
+            hits += 1
+        if hits == 0:
+            return {
+                "content": "No matching chunks found for: " + query,
+                "error": None
+            }
+        body = "\n".join(lines).rstrip()
+        return {"content": body, "error": None}
+    return {
+        "content": "",
+        "error": ("Unknown action '" + action
+                  + "'. Use: list, add_directory, remove_directory, search")
+    }
+
+
+# ---------------------------------------------------------------------------
 # Tool dispatch
 # ---------------------------------------------------------------------------
 
-def invoke_tool(name, arguments):
+def invoke_tool(name, arguments, ctx=None):
+    """Dispatch a tool call.
+
+    `ctx` is an optional `_RequestContext` populated by the HTTP
+    handler. When absent (e.g. unit tests), we synthesize a default
+    'small' context so tools that read the budget don't crash. The
+    capability-aware web/fetch/rag handlers use ctx.tool_budget to
+    truncate their responses; the desktop-control handlers ignore it.
+    """
     args = arguments or {}
+    if ctx is None:
+        ctx = _resolve_request_context("small", "")
 
     # ── Introspection ────────────────────────────────────────────────
     if name == "list_windows":
@@ -1466,7 +2483,42 @@ def invoke_tool(name, arguments):
         wid = _str_arg(args, "window_id")
         if wid:
             argv.append(wid)
-        return _run_axctl(argv)
+        # Snapshot the window's previous workspace BEFORE the move so
+        # the AI assistant can offer a reliable "regresalo" / "undo"
+        # for single-window moves too. Without this the undo handler
+        # in Ai.qml has to fall back to "default workspace 1", which
+        # routinely sends windows back to the wrong place.
+        prev_ws = None
+        if wid:
+            list_result = _run_axctl(["window", "list"])
+            if not list_result.get("error"):
+                try:
+                    snap = json.loads(list_result.get("content", "[]"))
+                except (TypeError, ValueError):
+                    snap = []
+                for w in snap:
+                    if isinstance(w, dict) and str(w.get("id")) == str(wid):
+                        prev_ws = w.get("workspace_id")
+                        break
+        result = _run_axctl(argv)
+        if not result.get("error") and prev_ws is not None:
+            # Wrap the success payload with undo metadata so the AI
+            # can build the inverse move. Failures don't need this —
+            # the move didn't happen so there's nothing to revert.
+            try:
+                payload = json.loads(result.get("content", "{}"))
+            except (TypeError, ValueError):
+                payload = {}
+            if not isinstance(payload, dict):
+                payload = {}
+            payload["previous_workspace_id"] = prev_ws
+            payload["window_id"] = wid
+            payload["workspace_id"] = ws
+            return {
+                "content": json.dumps(payload, ensure_ascii=False, indent=2),
+                "error": None
+            }
+        return result
 
     if name == "move_windows":
         pairs = []
@@ -1568,6 +2620,37 @@ def invoke_tool(name, arguments):
                          "match open windows (use list_windows to verify)."
             }
 
+        # ── Snapshot previous workspaces ──
+        # Snapshot every targeted window's current workspace BEFORE
+        # we run any `move-to` calls. The response payload embeds
+        # `previous_workspace_id` so the AI assistant can offer a
+        # reliable "regresalo" / "undo" / "return" command — without
+        # this snapshot the AI would have to fall back to "default
+        # workspace 1" and routinely send windows back to the wrong
+        # place. Cheap (one extra list call), idempotent if the move
+        # itself fails because we only record from the snapshot, not
+        # from the post-move state.
+        prev_snapshot = {}
+        list_result = _run_axctl(["window", "list"])
+        if not list_result.get("error"):
+            try:
+                snap_windows = json.loads(list_result.get("content", "[]"))
+            except (TypeError, ValueError):
+                snap_windows = []
+            for w in snap_windows:
+                if isinstance(w, dict) and w.get("id") is not None:
+                    prev_snapshot[str(w["id"])] = w.get("workspace_id")
+        else:
+            # If we couldn't snapshot, return without doing the move
+            # — better to fail loudly than to silently corrupt the
+            # user's undo history.
+            return {
+                "content": "",
+                "error": "move_windows could not snapshot window "
+                         "state before moving: "
+                         + str(list_result.get("error"))
+            }
+
         moved = []
         failures = []
         for wid, ws in pairs:
@@ -1576,12 +2659,14 @@ def invoke_tool(name, arguments):
                 failures.append({
                     "window_id": wid,
                     "workspace_id": ws,
+                    "previous_workspace_id": prev_snapshot.get(wid),
                     "error": result["error"]
                 })
             else:
                 moved.append({
                     "window_id": wid,
-                    "workspace_id": ws
+                    "workspace_id": ws,
+                    "previous_workspace_id": prev_snapshot.get(wid)
                 })
 
         verify_result = _run_axctl(["window", "list"])
@@ -2001,9 +3086,58 @@ def invoke_tool(name, arguments):
         }
         return {"content": json.dumps(summary, ensure_ascii=False, indent=2), "error": None}
 
+    # ── context_info ────────────────────────────────────────────────
+    # Reports the tier + per-tool budget NothingClaw is using for this
+    # call. Lets a model plan its chain of tool calls — "I have 8k
+    # tokens of budget for the result of the next fetch_url, so I'll
+    # pass full=true" vs "I only have 1k, call with max_bytes=4000
+    # and a specific #section anchor instead".
+    if name == "context_info":
+        info = {
+            "tier": ctx.tier,
+            "model_name": ctx.model_name,
+            "model_host": ctx.model_host,
+            "context_window": ctx.context_window,
+            "tool_budget_tokens": ctx.tool_budget,
+            "input_budget_tokens": ctx.input_budget,
+            "tools_available_in_tier": list(_TIER_NAMES.get(
+                ctx.tier, _TIER_NAMES["small"]))
+        }
+        # Include the per-tier budget table so the model can reason
+        # about it. Cheap to render — it's a 4-entry dict.
+        try:
+            from mcp.nothingclaw.context_budget import (
+                DEFAULT_TOOL_RESULT_BUDGET)
+            info["tier_budgets"] = DEFAULT_TOOL_RESULT_BUDGET
+        except Exception:
+            pass
+        return {
+            "content": json.dumps(info, ensure_ascii=False, indent=2),
+            "error": None
+        }
+
+    # ── web_search ──────────────────────────────────────────────────
+    # SearXNG when configured, otherwise DuckDuckGo HTML (no API key).
+    # The result size is capped by ctx.tool_budget — a tiny Ollama
+    # model gets 3 short snippets, a large cloud model gets up to 10.
+    if name == "web_search":
+        return _web_search(args, ctx)
+
+    # ── fetch_url ───────────────────────────────────────────────────
+    # Public-web-only HTTP GET with HTML→text extraction. local URLs
+    # are explicitly blocked (use the read_file tool or shell instead).
+    if name == "fetch_url":
+        return _fetch_url(args, ctx)
+
+    # ── manage_rag ──────────────────────────────────────────────────
+    # Lightweight RAG index over local files. JSON + TF-IDF — no
+    # embeddings model, no ChromaDB. add_directory scans recursively,
+    # search returns the top N chunks by TF-IDF score.
+    if name == "manage_rag":
+        return _manage_rag(args, ctx)
+
     # ── Memory ──────────────────────────────────────────────────────
     if name == "manage_memory":
-        mem_dir = os.path.expanduser(os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share")) + "/nothingless")
         os.makedirs(mem_dir, exist_ok=True)
         mem_path = mem_dir + "/nothingclaw_memory.json"
         action = _str_arg(args, "action")
@@ -2138,7 +3272,31 @@ class NothingClawHandler(BaseHTTPRequestHandler):
         if not name:
             self._send_json(400, {"content": "", "error": "Missing 'name'"})
             return
-        result = invoke_tool(name, arguments)
+        # Capability resolution (mirrors do_GET): the per-tool handlers
+        # size their results based on the requesting model's tier so a
+        # 2B Ollama model doesn't drown in HTML. We pull the same
+        # headers/query params as the discovery endpoint.
+        try:
+            from urllib.parse import urlparse, parse_qs
+            post_query = parse_qs(urlparse(self.path).query)
+        except Exception:
+            post_query = {}
+        tier = (post_query.get("capability", [None])[0]
+                or self.headers.get("X-Capability", "").strip().lower()
+                or None)
+        model_name = (post_query.get("model", [None])[0]
+                      or self.headers.get("X-Model-Name", "").strip()
+                      or "")
+        model_host = (post_query.get("host", [None])[0]
+                      or self.headers.get("X-Model-Host", "").strip()
+                      or "")
+        if tier not in ("tiny", "small", "medium", "large"):
+            if model_name:
+                tier = _detect_capability(model_name, model_host)
+            else:
+                tier = "small"
+        ctx = _resolve_request_context(tier, model_name)
+        result = invoke_tool(name, arguments, ctx)
         self._send_json(200, result)
 
 

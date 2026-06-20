@@ -70,6 +70,16 @@ action pair maps directly to a documented axctl method.
 | `launch_program` | `nohup <program> &` — opens a binary that lives on `$PATH` in the background. Use for plain CLIs / system binaries; **use `open_app` for GUI apps** that ship as `.desktop` entries (it understands flatpak / snap). |
 | `install_package` | Runs the distro package manager (`pacman` / `dnf` / `apt`) with sudo. If sudo prompts for a password the tool returns the exact command so the user can run it themselves. |
 
+### Knowledge tools (ported from Odysseus)
+
+| Tool | Purpose |
+|------|---------|
+| `context_info` | Returns the model's detected capability tier, known context window, and per-tool-result token budget NothingClaw is using for this call. **Call this first** in any long chain so the model can plan result sizes — a 2B Ollama model only gets ~1k tokens per tool result while a large cloud model gets ~8k. |
+| `web_search` | Searches the public web via SearXNG (`NOTHINGCLAW_SEARXNG_URL`) or DuckDuckGo HTML (no API key required). Result count + snippet length are tier-aware: tiny=3 short results, small=5, medium=8, large=10. Sources are appended as an HTML comment so the model can cite them without spamming links inline. |
+| `fetch_url` | HTTP GET + HTML→text extraction. Refuses to fetch local / private / file:// URLs (use `read_file` or `run_shell_command` for local content). Hard-capped at 1.5 MB raw download, then tier-capped at the text stage so a small model isn't drowned in HTML. |
+| `manage_rag` | Lightweight, dependency-free RAG index over local files. `add_directory` recursively indexes text files (binary sniff + extension allow-list, skips `.git`, `node_modules`, build dirs, etc.) using BM25-lite scoring. `search` returns the top chunks sized to the model's tier. Backed by `~/.local/share/nothingless/rag/<dir-hash>.json`. No embeddings model, no ChromaDB — works on any CPU. |
+| `manage_memory` | Persistent key-value memory. Same as before — see the Memory section below. |
+
 ## How it runs
 
 `server.py` uses **only the Python standard library** — no `pip install`,
@@ -122,15 +132,18 @@ realistically choose between:
 
 | Tier | Tool count | Models |
 |------|-----------|--------|
-| `tiny`  | 4  | ≤3B params (e.g. granite3.1-dense:2b, qwen2.5:0.5b) |
-| `small` | 8  | 3B–13B / local Ollama (e.g. qwen2.5:3b, llama3.2:3b, mistral:7b) |
-| `medium`| 13 | 13B–30B / small cloud (gpt-3.5-turbo, claude-3-haiku, gemini-2.0-flash) |
-| `large` | 23 | 30B+ / strong cloud (gpt-4o, claude-3-opus, deepseek-chat) |
+| `tiny`  | 7  | ≤3B params (e.g. granite3.1-dense:2b, qwen2.5:0.5b) |
+| `small` | 14 | 3B–13B / local Ollama (e.g. qwen2.5:3b, llama3.2:3b, mistral:7b) |
+| `medium`| 19 | 13B–30B / small cloud (gpt-3.5-turbo, claude-3-haiku, gemini-2.0-flash) |
+| `large` | 29 | 30B+ / strong cloud (gpt-4o, claude-3-opus, deepseek-chat) |
 
 The `tiny` set covers just the essentials (`list_windows`,
 `list_installed_apps`, `move_window_to_workspace`,
-`execute_command`). Each higher tier is a superset of the previous
-one plus a few extras.
+`execute_command`) plus `context_info` so the model can introspect
+its own budget. Each higher tier is a superset of the previous one
+plus a few extras — the knowledge tools (`web_search`, `fetch_url`,
+`manage_rag`) come online at `small` because a 2B model can't
+parse 5+ search snippets reliably without burning its context.
 
 ### How the tier is picked
 
@@ -171,6 +184,33 @@ profile and the bridge handles the rest.
   to keep tool results small. Pass `"verbose": true` in arguments
   to get the raw payload when needed.
 
+### Token-aware result sizing (per call)
+
+The knowledge tools (`web_search`, `fetch_url`, `manage_rag`,
+`context_info`) size their responses to the requesting model's
+capability tier. Each tool call carries a `_RequestContext` with:
+
+| Tier | Per-tool token budget | Why |
+|------|----------------------|-----|
+| `tiny`  | 1 000 | Granite-2b / qwen-0.5b can't parse 5 search snippets without drowning |
+| `small` | 2 000 | 7-13B Ollama — fits 5 short search results comfortably |
+| `medium`| 4 000 | Claude-haiku / GPT-3.5 — full search results + a fetched page |
+| `large` | 8 000 | GPT-4o / Claude-Opus / DeepSeek — detailed research chains |
+
+The tier is auto-detected from `X-Model-Name` (or `?model=`) at
+both discovery AND invocation time, so an agent that switches
+models mid-conversation gets correctly-sized responses without
+restarting the bridge. Call `context_info` first if the chain is
+non-trivial — the model sees its own budget and can plan around
+it. When the result exceeds the budget, the tool slices at the
+nearest paragraph / sentence / line boundary and appends a
+truncation notice so the model knows there's more to fetch.
+
+A second layer of safety: `fetch_url` hard-caps raw downloads at
+1.5 MB regardless of tier, and `manage_rag search` returns at most
+`top_k` chunks (default 5) so a large codebase doesn't blow the
+budget even on a `large` tier.
+
 ### Robustness
 
 - **axctl silent-failure detection** — `_run_axctl` treats stderr
@@ -197,13 +237,14 @@ parameter size in advance.
 
 ## Configuration overrides
 
-Three environment variables are honored by `server.py`:
+Environment variables honored by `server.py`:
 
 | Variable | Default | Effect |
 |----------|---------|--------|
 | `NOTHINGCLAW_HOST` | `127.0.0.1` | Bind address |
 | `NOTHINGCLAW_PORT` | `8000` | Bind port |
 | `NOTHINGCLAW_AXCTL` | `/usr/local/bin/axctl` | Path to the axctl binary |
+| `NOTHINGCLAW_SEARXNG_URL` | _(empty)_ | Optional SearXNG instance (e.g. `http://localhost:8888`). When set, `web_search` queries this JSON endpoint instead of falling back to DuckDuckGo HTML. |
 
 The `.desktop` parser uses `LANG` (or `LC_ALL`) to pick the locale
 variant of `Name[xx]=`; if no locale match is found it falls back to
@@ -213,9 +254,10 @@ the bare `Name=` line.
 
 ```
 nothingclaw/
-├── README.md        ← this file
-├── requirements.txt ← stub, kept for tooling compatibility
-└── server.py        ← stdlib HTTP bridge + axctl + app catalog
+├── README.md            ← this file
+├── requirements.txt     ← stub, kept for tooling compatibility
+├── context_budget.py    ← token estimation + tier-aware sizing helpers
+└── server.py            ← stdlib HTTP bridge + axctl + app catalog + knowledge tools
 ```
 
 For the overall agent layout and how to ship additional agents next to

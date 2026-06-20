@@ -59,7 +59,7 @@ ApiStrategy {
         return filtered;
     }
 
-    function getBody(messages, model, tools) {
+    function getBody(messages, model, tools, options) {
         let body = {
             model: model.model,
             messages: _filterMessages(messages),
@@ -84,8 +84,8 @@ ApiStrategy {
         return body;
     }
 
-    function getStreamBody(messages, model, tools) {
-        let body = getBody(messages, model, tools);
+    function getStreamBody(messages, model, tools, options) {
+        let body = getBody(messages, model, tools, options);
         body.stream = true;
         return body;
     }

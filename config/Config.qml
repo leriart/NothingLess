@@ -1405,8 +1405,15 @@ Singleton {
                 "open_app"
             ]
             property bool toolAutoApprove: true
+            // How many times to re-prompt the model with an explicit
+            // nudge when it returns an empty completion after a
+            // read-only tool call. Some providers (DeepSeek R1) need
+            // 2-3 nudges to chain forward; tiny local models
+            // (granite-2b) sometimes burn all 3 without progressing.
+            // Mirrors config/defaults/ai.js. See Ai.qml._nudgeBudget.
+            property int nudgeBudget: 3
             property list<var> extraModels: []
-            // NOTE: agents used to live here as `property list<var> agents`.
+// NOTE: agents used to live here as `property list<var> agents`.
             // That was the source of a persistence bug: list<var> re-
             // assignments inside a JsonAdapter don't reliably emit
             // onAdapterUpdated, so agent additions never reached disk

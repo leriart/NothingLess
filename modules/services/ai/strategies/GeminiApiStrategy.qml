@@ -73,7 +73,7 @@ ApiStrategy {
         return "";
     }
 
-    function getBody(messages, model, tools) {
+    function getBody(messages, model, tools, options) {
         let body = {
             contents: _convertMessages(messages),
             generationConfig: {
@@ -94,9 +94,9 @@ ApiStrategy {
         return body;
     }
 
-    function getStreamBody(messages, model, tools) {
+    function getStreamBody(messages, model, tools, options) {
         // Gemini streaming uses a different endpoint, not a body flag
-        return getBody(messages, model, tools);
+        return getBody(messages, model, tools, options);
     }
 
     function parseResponse(response) {

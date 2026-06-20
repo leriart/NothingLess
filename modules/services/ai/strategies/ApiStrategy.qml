@@ -9,13 +9,50 @@ QtObject {
     property bool supportsReasoning: false
     property bool supportsVision: true
     property string reasoningField: "" // e.g. "reasoning_content" for DeepSeek
+    // Controls how the provider picks a tool. Subclasses set sensible
+    // defaults for their provider ("auto" for OpenAI-compat, "any" for
+    // Anthropic). Ai.qml may override this on a per-request basis to
+    // force a tool call when nudging the model through a multi-step chain.
+    property string defaultToolChoice: "auto"
+    // Anthropic + Gemini don't support `parallel_tool_calls`. Subclasses
+    // for those providers can override this to false.
+    property bool supportsParallelToolCalls: true
 
     function getEndpoint(modelObj, apiKey) { return ""; }
     function getHeaders(apiKey) { return []; }
 
-    function getBody(messages, model, tools) { return {}; }
-    function getStreamBody(messages, model, tools) {
-        let body = getBody(messages, model, tools);
+    // Resolve the final tool_choice value for a request. Subclasses
+    // override this to map `"required"` onto their provider-native
+    // equivalent (Anthropic uses `tool_choice: {type: "any"}` instead
+    // of the OpenAI string `"required"`).
+    function resolveToolChoice(toolChoice, toolName) {
+        // Default: pass through OpenAI-compatible string values verbatim.
+        if (toolChoice === "auto" || toolChoice === "none"
+                || toolChoice === "required") {
+            return toolChoice;
+        }
+        if (toolChoice && typeof toolChoice === "object"
+                && toolChoice.type === "tool"
+                && toolChoice.name) {
+            return { type: "tool", name: toolChoice.name };
+        }
+        return root.defaultToolChoice;
+    }
+
+    // Build the request body for a non-streaming request.
+    //
+    // `options` is currently used by OpenAI-compatible strategies to
+    // pass `toolChoice` (default = `root.defaultToolChoice`, e.g.
+    // "auto"). Anthropic + Gemini ignore the field — they map their
+    // own tool_choice format inside `resolveToolChoice` and that
+    // path isn't exercised yet because they don't support the
+    // "required" nudge pattern. QML doesn't support function
+    // overloading so all subclasses override this 4-arg variant
+    // directly; callers (Ai.qml.makeRequest) must always pass 4
+    // arguments even when `options` is null.
+    function getBody(messages, model, tools, options) { return {}; }
+    function getStreamBody(messages, model, tools, options) {
+        let body = getBody(messages, model, tools, options);
         body.stream = true;
         return body;
     }
