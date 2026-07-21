@@ -300,12 +300,34 @@ If you see `source=nothingless-preload`, the `libambfps.so` fallback is active (
 
 ---
 
+## Spotlight (Hax)
+
+NothingLess integrates [**Hax**](https://github.com/fabiolopezperez-hue/ambxst-Hax), a modular spotlight/launcher by Fabio, as an alternative app launcher. Press **SUPER + SPACE** to open it.
+
+Hax features:
+- **App search** with usage-based ranking
+- **Instant calculator** (recursive descent parser, no external process)
+- **System actions**: lock, suspend, shutdown, screenshot
+- **Package search**: pacman, AUR, flatpak
+- **Timers and alarms** with inline notifications
+- **Weather** via wttr.in
+- **Embedded terminal** (PTY via QMLTermWidget, optional)
+- **Clipboard history** with count-based ranking
+- **File search** with find background processes
+- **System monitor** (CPU, RAM, disk, temperature)
+- **Plugin system**: script-based (N2) and QML-based (N3) plugins with hot-reload
+
+Hax runs as a standalone Quickshell process (`qs -p spotlight_entry.qml`) and is configured via the shell's keybind system (Settings → Keybinds → Open Spotlight).
+
+---
+
 ## Credits
 
 - **Leriart** — NothingLess developer and maintainer
+- **Fabio** ([@fabiolopezperez-hue](https://github.com/fabiolopezperez-hue)) — Hax spotlight/launcher
 - **Zack** ([@zackytodearena](https://bsky.app/profile/zackytodearena.bsky.social)) — logo & animation design
 - **outfoxxed** — creator of [Quickshell](https://git.outfoxxed.me/outfoxxed/quickshell)
-- **Axenide** — original [Ambxst](https://github.com/Axenide/Ambxst) creator, whose work this project was forked from
+- **Axenide** — original [Ambxst](https://github.com/Axenide/Ambxst) creator, whose work this project was fork
 
 ---
 

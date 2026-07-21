@@ -222,7 +222,9 @@ PanelWindow {
             // change keyboard focus.
             if (name === "activewindow" || name === "activewindowv2") {
                 if (event.data && event.data !== "") {
-                    Visibilities.setActiveModule("");
+                    if (Visibilities.currentActiveModule !== "spotlight") {
+                        Visibilities.setActiveModule("");
+                    }
                 }
             }
         }
@@ -233,7 +235,9 @@ PanelWindow {
             if (notchContent.screenNotchOpen && AxctlService.focusedClient) {
                 let currentAddr = AxctlService.focusedClient.address || "";
                 if (_focusedClientAddressBeforeNotch !== currentAddr) {
-                    Visibilities.setActiveModule("");
+                    if (Visibilities.currentActiveModule !== "spotlight") {
+                        Visibilities.setActiveModule("");
+                    }
                 }
             }
         }
@@ -295,7 +299,9 @@ PanelWindow {
                     }
                 }
                 // Click outside notch → dismiss the notch menu
-                Visibilities.setActiveModule("");
+                if (Visibilities.currentActiveModule !== "spotlight") {
+                    Visibilities.setActiveModule("");
+                }
             }
 
             // Clear any remaining grabs

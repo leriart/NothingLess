@@ -1,0 +1,4 @@
+module qs.modules.widgets.spotlight
+SpotlightView 1.0 SpotlightView.qml
+PluginManager 1.0 PluginManager.qml
+HaxPlugin 1.0 HaxPlugin.qml

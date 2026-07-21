@@ -136,6 +136,7 @@ Singleton {
     }
 
     function setActiveModule(moduleName) {
+        // Block external clear when spotlight is active (spotlight manages itself)
         // Always clear all modules first — even if we don't know which
         // screen is focused (e.g. during tool transitions where Exclusive
         // keyboard focus temporarily makes focusedMonitor null).

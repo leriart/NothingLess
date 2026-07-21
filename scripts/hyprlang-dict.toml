@@ -2473,6 +2473,12 @@ dispatcher = "exec"
 argument = "nothingless run launcher"
 flags = "r"
 
+[actions.nothingless_spotlight]
+id = "nothingless.spotlight"
+dispatcher = "exec"
+argument = "nothingless spotlight"
+flags = ""
+
 [actions.nothingless_dashboard]
 id = "nothingless.dashboard"
 dispatcher = "exec"

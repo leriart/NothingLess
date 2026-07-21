@@ -605,6 +605,9 @@ volume-up|volume-down|volume-mute|mic-mute|caffeine|gamemode|focusmode|dnd|night
 		exit 1
 	}
 	;;
+spotlight)
+	qs -n -p "$SCRIPT_DIR/spotlight_entry.qml" &
+	;;
 profile)
 	# nothingless profile [saver|balanced|performance]
 	PID=$(find_nothingless_pid_cached)

@@ -30,6 +30,7 @@ function directionToLetter(direction) {
 
 var ACTION_CATALOG = [
     { id: "nothingless.launcher", label: "Open Launcher", category: "NothingLess", dispatcher: "exec", argument: "nothingless run launcher", flags: "r" },
+    { id: "nothingless.spotlight", label: "Open Spotlight", category: "NothingLess", dispatcher: "exec", argument: "nothingless spotlight" },
     { id: "nothingless.dashboard", label: "Open Dashboard", category: "NothingLess", dispatcher: "exec", argument: "nothingless run dashboard" },
     { id: "nothingless.assistant", label: "Open Assistant", category: "NothingLess", dispatcher: "exec", argument: "nothingless run assistant" },
     { id: "nothingless.clipboard", label: "Open Clipboard", category: "NothingLess", dispatcher: "exec", argument: "nothingless run clipboard" },

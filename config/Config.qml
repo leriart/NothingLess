@@ -21,6 +21,7 @@ import "defaults/prefix.js" as PrefixDefaults
 import "defaults/system.js" as SystemDefaults
 import "defaults/dock.js" as DockDefaults
 import "defaults/ai.js" as AiDefaults
+import "defaults/hax.js" as HaxDefaults
 import "ConfigValidator.js" as ConfigValidator
 
 Singleton {
@@ -55,9 +56,10 @@ Singleton {
     property bool systemReady: false
     property bool dockReady: false
     property bool aiReady: false
+    property bool haxReady: false
     property bool keybindsInitialLoadComplete: false
 
-    property bool initialLoadComplete: themeReady && barReady && workspacesReady && overviewReady && notchReady && compositorReady && performanceReady && weatherReady && desktopReady && lockscreenReady && prefixReady && systemReady && dockReady && aiReady
+    property bool initialLoadComplete: themeReady && barReady && workspacesReady && overviewReady && notchReady && compositorReady && performanceReady && weatherReady && desktopReady && lockscreenReady && prefixReady && systemReady && dockReady && aiReady && haxReady
 
     // Compatibility aliases
     property alias loader: themeLoader
@@ -84,6 +86,7 @@ Singleton {
             "cp -n '" + root.presetDir + "/lockscreen.json' '" + root.configDir + "/lockscreen.json' 2>/dev/null || true; " +
             "cp -n '" + root.presetDir + "/dock.json' '" + root.configDir + "/dock.json' 2>/dev/null || true; " +
             "cp -n '" + root.presetDir + "/ai.json' '" + root.configDir + "/ai.json' 2>/dev/null || true; " +
+            "cp -n '" + root.presetDir + "/hax.json' '" + root.configDir + "/hax.json' 2>/dev/null || true; " +
             "cp -n '" + root.presetDir + "/system.json' '" + root.configDir + "/system.json' 2>/dev/null || true; " +
             "test -f '" + root.configDir + "/weather.json' || echo '{\"location\":\"\",\"unit\":\"C\"}' > '" + root.configDir + "/weather.json'; " +
             "echo 'Preset files copied if missing'"
@@ -1446,6 +1449,45 @@ Singleton {
             // desktop. Power users can dial this back to 120 if their
             // hardware is fast enough.
             property int requestTimeoutSeconds: 240
+        }
+    }
+
+    // Hax spotlight launcher configuration (hax.json)
+    FileView {
+        id: haxLoader
+        path: root.configDir + "/hax.json"
+        atomicWrites: true
+        watchChanges: true
+        onLoaded: {
+            if (!root.haxReady) {
+                validateModule("hax", haxLoader, HaxDefaults.data, () => {
+                    root.haxReady = true;
+                });
+            }
+        }
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.haxReady) {
+                handleMissingConfig("hax", haxLoader, HaxDefaults.data, () => {
+                    root.haxReady = true;
+                });
+            }
+        }
+        onFileChanged: {
+            root.pauseAutoSave = true;
+            reload();
+            root.pauseAutoSave = false;
+        }
+        onPathChanged: reload()
+        onAdapterUpdated: {
+            if (root.haxReady && !root.pauseAutoSave) {
+                haxLoader.writeAdapter();
+            }
+        }
+
+        adapter: JsonAdapter {
+            property bool customColorEnabled: false
+            property string customColor: "#ffb3ae"
+            property bool ocrEnabled: false
+            property string customShortcuts: "[]"
         }
     }
 
@@ -3857,6 +3899,7 @@ Singleton {
 
     // AI configuration
     property QtObject ai: aiLoader.adapter
+    property QtObject hax: haxLoader.adapter
 
     // Module save functions
     function saveBar() {
@@ -3900,6 +3943,10 @@ Singleton {
     }
     function saveAi() {
         aiLoader.writeAdapter();
+    }
+
+    function saveHax() {
+        haxLoader.writeAdapter();
     }
 
     // Color helpers

@@ -429,7 +429,7 @@ def build_all_binds():
     nl = binds_data.get("nothingless", {})
 
     # ── Core binds ──
-    for key_name in ["launcher", "dashboard", "assistant", "clipboard", "emoji",
+    for key_name in ["launcher", "spotlight", "dashboard", "assistant", "clipboard", "emoji",
                       "notes", "tmux", "wallpapers"]:
         b = nl.get(key_name)
         if not b:

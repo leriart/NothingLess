@@ -199,6 +199,7 @@ ShellRoot {
         }
     }
 
+
     // Secure WlSessionLock lockscreen
     WlSessionLock {
         id: sessionLock

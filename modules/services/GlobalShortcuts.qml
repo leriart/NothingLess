@@ -225,6 +225,7 @@ QtObject {
         }
     }
 
+
     function toggleLauncher() {
         const isActive = Visibilities.currentActiveModule === "launcher";
         if (isActive && GlobalStates.widgetsTabCurrentIndex === 0 && GlobalStates.launcherSearchText === "") {
@@ -238,6 +239,7 @@ QtObject {
             }
         }
     }
+
 
     function toggleLauncherWithPrefix(tabIndex, prefix) {
         const isActive = Visibilities.currentActiveModule === "launcher";
