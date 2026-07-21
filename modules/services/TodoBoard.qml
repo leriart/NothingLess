@@ -346,9 +346,9 @@ QtObject {
 
     function _sendReminder(task, isOverdue) {
         if (!Notifications) return
-        var title = isOverdue ? "TODO: Tarea vencida" : "TODO: Tarea próxima a vencer"
+        var title = isOverdue ? "TODO: Task overdue" : "TODO: Task due soon"
         var timeStr = formatDue(task.dueDate)
-        var body = (task.task || "(sin título)") + " — " + timeStr
+        var body = (task.task || "(untitled)") + " — " + timeStr
         try {
             Notifications.notifyInternal({
                 "appName": "TODO",

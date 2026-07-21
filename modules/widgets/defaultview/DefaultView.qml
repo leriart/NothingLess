@@ -40,7 +40,7 @@ Item {
     Timer {
         id: mediaHoverTimer
         interval: 1000
-        running: expandedState && activePlayer !== null && !hasActiveNotifications && !mediaHoverExpanded && !(Config.notch.disableHoverExpansion ?? true)
+        running: expandedState && activePlayer !== null && !hasActiveNotifications && !mediaHoverExpanded && Config.notch && Config.notch.disableHoverExpansion === false
         onTriggered: mediaHoverExpanded = true
     }
 

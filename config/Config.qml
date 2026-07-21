@@ -123,7 +123,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.themeReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.themeReady) {
                 handleMissingConfig("theme", themeLoader, ThemeDefaults.data, () => {
                     root.themeReady = true;
                 });
@@ -520,7 +520,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.barReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.barReady) {
                 handleMissingConfig("bar", barLoader, BarDefaults.data, () => {
                     root.barReady = true;
                 });
@@ -581,7 +581,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.workspacesReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.workspacesReady) {
                 handleMissingConfig("workspaces", workspacesLoader, WorkspacesDefaults.data, () => {
                     root.workspacesReady = true;
                 });
@@ -623,7 +623,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.overviewReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.overviewReady) {
                 handleMissingConfig("overview", overviewLoader, OverviewDefaults.data, () => {
                     root.overviewReady = true;
                 });
@@ -664,7 +664,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.notchReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.notchReady) {
                 handleMissingConfig("notch", notchLoader, NotchDefaults.data, () => {
                     root.notchReady = true;
                 });
@@ -712,7 +712,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.compositorReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.compositorReady) {
                 handleMissingConfig("compositor", compositorLoader, CompositorDefaults.data, () => {
                     root.compositorReady = true;
                 });
@@ -956,7 +956,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.performanceReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.performanceReady) {
                 handleMissingConfig("performance", performanceLoader, PerformanceDefaults.data, () => {
                     root.performanceReady = true;
                 });
@@ -1028,7 +1028,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.weatherReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.weatherReady) {
                 handleMissingConfig("weather", weatherLoader, WeatherDefaults.data, () => {
                     root.weatherReady = true;
                 });
@@ -1067,7 +1067,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.desktopReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.desktopReady) {
                 handleMissingConfig("desktop", desktopLoader, DesktopDefaults.data, () => {
                     root.desktopReady = true;
                 });
@@ -1108,7 +1108,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.lockscreenReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.lockscreenReady) {
                 handleMissingConfig("lockscreen", lockscreenLoader, LockscreenDefaults.data, () => {
                     root.lockscreenReady = true;
                 });
@@ -1146,7 +1146,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.prefixReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.prefixReady) {
                 handleMissingConfig("prefix", prefixLoader, PrefixDefaults.data, () => {
                     root.prefixReady = true;
                 });
@@ -1188,7 +1188,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.systemReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.systemReady) {
                 handleMissingConfig("system", systemLoader, SystemDefaults.data, () => {
                     root.systemReady = true;
                 });
@@ -1281,7 +1281,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.dockReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.dockReady) {
                 handleMissingConfig("dock", dockLoader, DockDefaults.data, () => {
                     root.dockReady = true;
                 });
@@ -1370,7 +1370,7 @@ Singleton {
                 });
             }
         }
-        onLoadFailed: function(error) { if (error.toString().includes("FileNotFound") && !root.aiReady) {
+        onLoadFailed: function(error) { if (String(error).includes("FileNotFound") && !root.aiReady) {
                 handleMissingConfig("ai", aiLoader, AiDefaults.data, () => {
                     root.aiReady = true;
                 });
@@ -3717,21 +3717,25 @@ Singleton {
 
         // Create a Process component dynamically to copy the file
         var copyProcess = Qt.createQmlObject(
-            "import QtQuick 2.0; Process { running: true; command: ['cp', '" + presetPath + "', '" + targetPath + "']; onFinished: { console.log('Copy finished for " + name + "'); } }",
+            "import Quickshell; import Quickshell.Io; Process { running: true; command: ['cp', '" + presetPath + "', '" + targetPath + "']; onExited: { console.log('Copy finished for " + name + "'); } }",
             root,
             "copyProcess"
         );
 
-        // Reload the loader to pick up the copied file
-        loader.reload();
-
-        // If still not ready after reload, use defaults as fallback
+        // Delay reload to give the copy process time to complete
+        // then reload the loader to pick up the copied file
         Qt.callLater(() => {
-            if (!root[name + "Ready"]) {
-                console.log("Using defaults for " + name + ".json");
-                loader.setText(JSON.stringify(defaults, null, 2));
-            }
-            onComplete();
+            loader.reload();
+
+            // If still not ready after reload, use defaults as fallback
+            Qt.callLater(() => {
+                if (!root[name + "Ready"]) {
+                    console.log("Using defaults for " + name + ".json");
+                    loader.setText(JSON.stringify(defaults, null, 2));
+                }
+                if (copyProcess) { copyProcess.destroy(1000); }
+                onComplete();
+            });
         });
     }
 

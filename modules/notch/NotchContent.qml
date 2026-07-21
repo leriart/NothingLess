@@ -150,12 +150,9 @@ Item {
     readonly property bool hasActiveNotifications: Notifications.popupList.length > 0
 
     // Pin state for island mode — when pinned, island stays visible
-    property bool notchPinned: (Config.notch && Config.notch.pinnedOnStartup !== undefined) ? Config.notch.pinnedOnStartup : true
-    onNotchPinnedChanged: {
-        if (Config.notch && Config.notch.pinnedOnStartup !== notchPinned) {
-            Config.notch.pinnedOnStartup = notchPinned;
-        }
-    }
+    // Always derived from config so settings panel changes take effect immediately
+    // and the pin button toggle does not break the binding
+    readonly property bool notchPinned: (Config.notch && Config.notch.pinnedOnStartup !== undefined) ? Config.notch.pinnedOnStartup : true
 
     // Hover state with delay to prevent flickering
     property bool hoverActive: false
@@ -462,7 +459,11 @@ Item {
                     ColorAnimation { duration: Anim.standardSmall }
                 }
             }
-            onClicked: root.notchPinned = !root.notchPinned
+            onClicked: {
+                if (Config.notch) {
+                    Config.notch.pinnedOnStartup = !Config.notch.pinnedOnStartup;
+                }
+            }
             HoverHandler { cursorShape: Qt.PointingHandCursor }
         }
     }

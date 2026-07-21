@@ -12,7 +12,7 @@ Item {
     property var corner: RoundCorner.CornerEnum.TopLeft // Default to TopLeft
 
     property int size: 25
-    property color color: "#000000"
+    property color color: Colors.scrim
 
     onColorChanged: {
         canvas.requestPaint();

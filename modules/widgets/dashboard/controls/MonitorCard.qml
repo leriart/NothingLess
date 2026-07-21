@@ -26,6 +26,8 @@ StyledRect {
     property var detailedInfo: null
     property var availableModes: []
     property var resolutionList: []
+    property var upscaledResolutions: []
+    property var downscaledResolutions: []
     property var refreshMap: ({})
     property bool isFetchingModes: false
 
@@ -134,9 +136,105 @@ StyledRect {
             if (!map[key]) { map[key] = []; list.push(key); }
             if (map[key].indexOf(p.rate) === -1) map[key].push(p.rate);
         }
+
+        // Find native (largest) resolution to determine upscale targets
+        var nativeArea = 0;
+        for (var n = 0; n < list.length; n++) {
+            var nwh = list[n].split("x");
+            var area = parseInt(nwh[0]) * parseInt(nwh[1]);
+            if (area > nativeArea) nativeArea = area;
+        }
+
+        // Add common upscale targets beyond native resolution.
+        // Hyprland renders these via the "custom" mode keyword (GPU scaling).
+        var upscaled = [];
+        var upscaleTargets = [
+            [7680, 4320], [5120, 2880], [4096, 2304], [3840, 2160],
+            [3440, 1440], [3200, 1800], [2880, 1620], [2560, 1440],
+            [2304, 1296], [2048, 1152]
+        ];
+        for (var u = 0; u < upscaleTargets.length; u++) {
+            var uw = upscaleTargets[u][0], uh = upscaleTargets[u][1];
+            if (uw * uh > nativeArea) {
+                var ukey = uw + "x" + uh;
+                if (!map[ukey]) {
+                    map[ukey] = [60.0];
+                    list.push(ukey);
+                    upscaled.push(ukey);
+                }
+            }
+        }
+
+        // Add common downscale targets below native resolution.
+        // Useful when hyprctl availableModes is incomplete, or for
+        // arbitrary GPU-scaled resolutions not in the EDID mode list.
+        var downscaled = [];
+        var downscaleTargets = [
+            [1920, 1200], [1920, 1080], [1680, 1050], [1600, 900],
+            [1440, 900], [1366, 768], [1280, 1024], [1280, 800],
+            [1280, 720], [1152, 864], [1024, 768], [800, 600]
+        ];
+        for (var d = 0; d < downscaleTargets.length; d++) {
+            var dw = downscaleTargets[d][0], dh = downscaleTargets[d][1];
+            if (dw * dh < nativeArea) {
+                var dkey = dw + "x" + dh;
+                if (!map[dkey]) {
+                    map[dkey] = [60.0];
+                    list.push(dkey);
+                    downscaled.push(dkey); // custom mode (GPU-scaled down)
+                }
+            }
+        }
+
+        // Ensure the monitor's current resolution is always in the list
+        // (e.g. after applying an upscaled mode and re-fetching)
+        if (root.monitorWidth > 0 && root.monitorHeight > 0) {
+            var curKey = root.monitorWidth + "x" + root.monitorHeight;
+            var curArea = root.monitorWidth * root.monitorHeight;
+            if (!map[curKey]) {
+                map[curKey] = [root.monitorRefresh];
+                list.push(curKey);
+                if (curArea > nativeArea) {
+                    upscaled.push(curKey);
+                } else if (curArea < nativeArea) {
+                    downscaled.push(curKey);
+                }
+            } else if (map[curKey].indexOf(root.monitorRefresh) === -1) {
+                map[curKey].push(root.monitorRefresh);
+            }
+        }
+
+        // Sort by pixel area descending (largest first)
+        list.sort(function(a, b) {
+            var aw = a.split("x"), bw = b.split("x");
+            return (parseInt(bw[0]) * parseInt(bw[1])) - (parseInt(aw[0]) * parseInt(aw[1]));
+        });
+
         for (var k in map) map[k].sort(function(a, b){ return b - a; });
         root.refreshMap = map;
         root.resolutionList = list;
+        root.upscaledResolutions = upscaled;
+        root.downscaledResolutions = downscaled;
+    }
+
+    function isUpscaled(resKey) {
+        return root.upscaledResolutions.indexOf(resKey) !== -1;
+    }
+
+    function isDownscaled(resKey) {
+        return root.downscaledResolutions.indexOf(resKey) !== -1;
+    }
+
+    function isCustomMode(resKey) {
+        return isUpscaled(resKey) || isDownscaled(resKey);
+    }
+
+    function resolutionDisplayStrings() {
+        return root.resolutionList.map(function(r) {
+            if (root.isUpscaled(r)) return r + " (upscaled)";
+            if (root.isDownscaled(r)) return r + " (downscaled)";
+            return r;
+        });
     }
 
     function resolutionIndex() {
@@ -299,7 +397,7 @@ StyledRect {
                     x: toggleSwitch.checked ? parent.width - width - 3 : 3
                     y: (parent.height - height) / 2
                     width: 14; height: 14; radius: 7
-                    color: toggleSwitch.checked ? "#ffffff" : Colors.outline
+                    color: toggleSwitch.checked ? Colors.overPrimary : Colors.outline
                     Behavior on x {
                         enabled: Anim.animationsEnabled
                         NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve }
@@ -359,7 +457,13 @@ StyledRect {
                         var p = [];
                         if (root.detailedInfo && root.detailedInfo.make) p.push(root.detailedInfo.make);
                         if (root.detailedInfo && root.detailedInfo.model) p.push(root.detailedInfo.model);
-                        if (root.monitorWidth > 0) p.push(root.monitorWidth + "×" + root.monitorHeight + " @ " + Math.round(root.monitorRefresh) + "Hz");
+                        if (root.monitorWidth > 0) {
+                            var modeStr = root.monitorWidth + "×" + root.monitorHeight + " @ " + Math.round(root.monitorRefresh) + "Hz";
+                            var curRes = root.monitorWidth + "x" + root.monitorHeight;
+                            if (root.isUpscaled(curRes)) modeStr += " (upscaled)";
+                            else if (root.isDownscaled(curRes)) modeStr += " (downscaled)";
+                            p.push(modeStr);
+                        }
                         return p.join("  ·  ");
                     }
                     font.family: Config.theme.font
@@ -454,14 +558,17 @@ StyledRect {
                         NLCombo {
                             id: resCombo
                             Layout.fillWidth: true
-                            model: root.resolutionList
+                            model: root.resolutionDisplayStrings()
                             currentIndex: root.resolutionIndex()
                             onActivated: {
-                                var wh = root.resolutionList[index].split("x");
+                                var resKey = root.resolutionList[index];
+                                var wh = resKey.split("x");
                                 root.settingChanged("width", parseInt(wh[0]));
                                 root.settingChanged("height", parseInt(wh[1]));
+                                // Non-native resolutions need Hyprland's "custom" mode keyword
+                                root.settingChanged("customMode", root.isCustomMode(resKey));
                                 // Keep a sensible refresh rate for the new resolution
-                                var rates = root.refreshMap[root.resolutionList[index]] || [];
+                                var rates = root.refreshMap[resKey] || [];
                                 if (rates.length > 0) root.settingChanged("refreshRate", rates[0]);
                             }
                         }

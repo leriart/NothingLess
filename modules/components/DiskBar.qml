@@ -26,8 +26,8 @@ Item {
     implicitHeight: 40
 
     readonly property color barColor: {
-        if (usedPct >= 90) return "#f38ba8"
-        if (usedPct >= 75) return "#f5c47a"
+        if (usedPct >= 90) return Colors.error
+        if (usedPct >= 75) return Colors.yellow
         return Config.resolveColor("primary")
     }
 

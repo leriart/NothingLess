@@ -287,8 +287,8 @@ ColumnLayout {
                     SequentialAnimation on opacity {
                         running: parent.visible && Anim.animationsEnabled
                         loops: Animation.Infinite
-                        NumberAnimation { to: 0.0; duration: 600; easing.type: Easing.InOutQuad }
-                        NumberAnimation { to: 0.4; duration: 600; easing.type: Easing.InOutQuad }
+                        NumberAnimation { to: 0.0; duration: Anim.emphasizedNormal; easing.type: Anim.easing("emphasized").type; easing.bezierCurve: Anim.easing("emphasized").bezierCurve || [] }
+                        NumberAnimation { to: 0.4; duration: Anim.emphasizedNormal; easing.type: Anim.easing("emphasized").type; easing.bezierCurve: Anim.easing("emphasized").bezierCurve || [] }
                     }
                 }
 

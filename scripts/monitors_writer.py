@@ -88,19 +88,26 @@ def normalize_custom(m):
         "hdrSupported": bool(m.get("hdrSupported", False)),
         "hdr":         bool(m.get("hdr", False)),
         "modes":       m.get("modes", []),
+        # True when the resolution exceeds the monitor's native modes
+        # (rendered via Hyprland's "custom" mode keyword / GPU scaling)
+        "customMode":  bool(m.get("customMode", False)),
     }
 
 def conf_line(m):
     """Generate one monitor= line (nwg-displays format).
 
     Hyprland 0.55 syntax: monitor=NAME,MODE,POS,SCALE[,transform,T]
+    Custom/upscaled modes:    monitor=NAME,custom,MODE,POS,SCALE
     """
     n = m["name"]
     if not m["enabled"]:
         return f"monitor={n},disable"
     mode = f"{m['width']}x{m['height']}@{m['refreshRate']:.2f}".rstrip('0').rstrip('.')
     pos  = f"{m['x']}x{m['y']}"
-    line = f"monitor={n},{mode},{pos},{m['scale']}"
+    if m.get("customMode"):
+        line = f"monitor={n},custom,{mode},{pos},{m['scale']}"
+    else:
+        line = f"monitor={n},{mode},{pos},{m['scale']}"
     # Append transform if non-zero (0=normal, 1=90°, 2=180°, 3=270°, 4=flipped, etc.)
     transform = int(m.get("transform", 0) or 0)
     if transform:
@@ -113,6 +120,8 @@ def lua_block(m):
     if not m["enabled"]:
         return f'hl.monitor({{\n    output = "{n}",\n    disabled = true\n}})\n'
     mode = f"{m['width']}x{m['height']}@{m['refreshRate']:.2f}".rstrip('0').rstrip('.')
+    if m.get("customMode"):
+        mode = "custom," + mode
     pos  = f"{m['x']}x{m['y']}"
     parts = [
         f'    output = "{n}"',
@@ -193,6 +202,9 @@ def toml_entry(m):
         f'scale = {m["scale"]}',
         f"enabled = true",
     ]
+    # Custom mode (upscaled beyond native resolution)
+    if m.get("customMode"):
+        lines.append("custom = true")
     # Transform (rotation)
     transform = int(m.get("transform", 0) or 0)
     if transform:

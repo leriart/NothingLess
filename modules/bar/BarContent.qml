@@ -678,21 +678,11 @@ Item {
                             vertical: true
                             enableShadow: root.shadowsEnabled
                         }
-                        SysTray {
-                            visible: !Config.bar.hiddenIcons.includes("systray")
-                            bar: root
-                            enableShadow: root.shadowsEnabled
-                            startRadius: root.innerRadius
-                            endRadius: root.innerRadius
-                            Layout.preferredHeight: 36
-                            Layout.fillWidth: true
-                        }
                         TaskTray {
                             visible: !Config.bar.hiddenIcons.includes("tasktray")
                             bar: root
                             startRadius: root.innerRadius
                             endRadius: root.innerRadius
-                            Layout.preferredHeight: 36
                             Layout.fillWidth: true
                         }
                         ToolsButton {

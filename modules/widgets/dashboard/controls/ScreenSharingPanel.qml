@@ -83,8 +83,8 @@ Item {
                             running: MiraiService.daemonRunning && !MiraiService.lastError
                                 && (MiraiService.streaming || MiraiService.receiving)
                             loops: Animation.Infinite
-                            NumberAnimation { from: 1.0; to: 0.35; duration: 1000 }
-                            NumberAnimation { from: 0.35; to: 1.0; duration: 1000 }
+                            NumberAnimation { from: 1.0; to: 0.35; duration: Anim.standardLarge; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve || [] }
+                            NumberAnimation { from: 0.35; to: 1.0; duration: Anim.standardLarge; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve || [] }
                         }
                     }
 

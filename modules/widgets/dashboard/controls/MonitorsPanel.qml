@@ -19,9 +19,13 @@ Item {
     property string statusMsg: ""
 
     property string primaryMonitorName: ""
+    property var monitorProfiles: ({})
+    property string selectedProfile: ""
+    property string newProfileName: ""
 
     Component.onCompleted: {
         root.primaryMonitorName = StateService.get("monitors.primaryMonitor", "");
+        root.monitorProfiles = StateService.get("monitors.profiles", {});
         MonitorsWriter.listMonitors();
     }
 
@@ -30,6 +34,47 @@ Item {
             root.primaryMonitorName = name;
             root.hasChanges = true;
         }
+    }
+
+    function profileNames() {
+        return Object.keys(root.monitorProfiles).sort();
+    }
+
+    function saveProfile(name) {
+        var trimmed = (name || "").trim();
+        if (!trimmed) return;
+        var profiles = JSON.parse(JSON.stringify(root.monitorProfiles));
+        profiles[trimmed] = {
+            monitors: JSON.parse(JSON.stringify(root.monitorList)),
+            primaryMonitor: root.primaryMonitorName
+        };
+        root.monitorProfiles = profiles;
+        StateService.set("monitors.profiles", profiles);
+        root.selectedProfile = trimmed;
+        root.newProfileName = "";
+        root.statusMsg = "Profile saved: " + trimmed;
+        statusClearTimer.restart();
+    }
+
+    function loadProfile(name) {
+        var p = root.monitorProfiles[name];
+        if (!p || !p.monitors) return;
+        root.monitorList = JSON.parse(JSON.stringify(p.monitors));
+        root.primaryMonitorName = p.primaryMonitor || "";
+        root.selectedProfile = name;
+        root.hasChanges = true;
+        root.statusMsg = "Profile loaded: " + name + " (Apply to confirm)";
+        statusClearTimer.restart();
+    }
+
+    function deleteProfile(name) {
+        var profiles = JSON.parse(JSON.stringify(root.monitorProfiles));
+        delete profiles[name];
+        root.monitorProfiles = profiles;
+        StateService.set("monitors.profiles", profiles);
+        if (root.selectedProfile === name) root.selectedProfile = "";
+        root.statusMsg = "Profile deleted: " + name;
+        statusClearTimer.restart();
     }
 
     Connections {
@@ -150,6 +195,157 @@ Item {
                         anchors.centerIn: parent
                     }
                     onClicked: root.applyChanges()
+                }
+            }
+        }
+
+        // ── Profiles (nwg-displays style) ──
+        StyledRect {
+            Layout.fillWidth: true
+            Layout.preferredHeight: profileRow.implicitHeight + 20
+            variant: "pane"
+            radius: Styling.radius(0)
+            enableShadow: true
+
+            RowLayout {
+                id: profileRow
+                anchors.fill: parent; anchors.margins: 10; spacing: 8
+
+                Text {
+                    text: "Profiles"
+                    font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-1)
+                    font.weight: Font.Medium; color: Colors.overBackground
+                }
+
+                ComboBox {
+                    id: profileCombo
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 28
+                    model: root.profileNames()
+                    font.family: Config.theme.font
+                    font.pixelSize: Styling.fontSize(-1)
+                    currentIndex: {
+                        var names = root.profileNames();
+                        return names.indexOf(root.selectedProfile);
+                    }
+
+                    background: Rectangle {
+                        color: profileCombo.hovered ? Colors.surfaceContainerHigh : Colors.surfaceContainer
+                        radius: Styling.radius(-2)
+                        border.color: Colors.surfaceBright; border.width: 1
+                    }
+                    contentItem: Text {
+                        leftPadding: 8
+                        text: profileCombo.displayText || "Select profile..."
+                        font: profileCombo.font
+                        color: profileCombo.displayText ? Colors.overBackground : Colors.outline
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                    }
+                    indicator: Text {
+                        x: profileCombo.width - width - 8
+                        y: (profileCombo.height - height) / 2
+                        text: Icons.caretDown
+                        font.family: Icons.font; font.pixelSize: 10
+                        color: Colors.overSurfaceVariant
+                    }
+                    popup: Popup {
+                        y: profileCombo.height + 2
+                        width: profileCombo.width
+                        implicitHeight: Math.min(contentItem.implicitHeight + 12, 200)
+                        padding: 4
+                        background: Rectangle {
+                            color: Colors.surfaceContainer
+                            radius: Styling.radius(-2)
+                            border.color: Colors.surfaceBright; border.width: 1
+                        }
+                        contentItem: ListView {
+                            clip: true
+                            implicitHeight: contentHeight
+                            model: profileCombo.delegateModel
+                            currentIndex: profileCombo.currentIndex
+                        }
+                    }
+                    delegate: ItemDelegate {
+                        required property var modelData
+                        width: profileCombo.width - 8
+                        height: 28
+                        font.family: Config.theme.font
+                        font.pixelSize: Styling.fontSize(-1)
+                        leftPadding: 10
+                        contentItem: Text {
+                            text: modelData
+                            font: parent.font
+                            color: parent.highlighted ? Styling.srItem("primary") : Colors.overBackground
+                            elide: Text.ElideRight
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        background: Rectangle {
+                            color: parent.highlighted ? Qt.rgba(Colors.primary.r, Colors.primary.g, Colors.primary.b, 0.35)
+                                : (parent.hovered ? Qt.rgba(Colors.overBackground.r, Colors.overBackground.g, Colors.overBackground.b, 0.08) : "transparent")
+                            radius: Styling.radius(-4)
+                        }
+                    }
+
+                    onActivated: index => {
+                        var names = root.profileNames();
+                        if (index >= 0 && index < names.length) {
+                            root.loadProfile(names[index]);
+                        }
+                    }
+                }
+
+                Button {
+                    flat: true; hoverEnabled: true
+                    Layout.preferredHeight: 28
+                    enabled: root.selectedProfile !== ""
+                    background: StyledRect { variant: "common"; radius: Styling.radius(-4) }
+                    contentItem: Text {
+                        text: Icons.trash
+                        font.family: Icons.font; font.pixelSize: Styling.fontSize(-1)
+                        color: Colors.overBackground
+                        anchors.centerIn: parent
+                    }
+                    StyledToolTip { show: parent.hovered; tooltipText: "Delete selected profile" }
+                    onClicked: root.deleteProfile(root.selectedProfile)
+                }
+
+                TextField {
+                    id: profileNameField
+                    Layout.preferredWidth: 140
+                    Layout.preferredHeight: 28
+                    placeholderText: "Profile name..."
+                    text: root.newProfileName
+                    onTextChanged: root.newProfileName = text
+                    font.family: Config.theme.font
+                    font.pixelSize: Styling.fontSize(-1)
+                    color: Colors.overBackground
+                    background: Rectangle {
+                        color: profileNameField.activeFocus ? Colors.surfaceContainerHigh : Colors.surfaceContainer
+                        radius: Styling.radius(-2)
+                        border.color: profileNameField.activeFocus ? Colors.primary : Colors.surfaceBright
+                        border.width: 1
+                    }
+                    onAccepted: root.saveProfile(root.newProfileName)
+                }
+
+                Button {
+                    flat: true; hoverEnabled: true
+                    Layout.preferredHeight: 28
+                    enabled: root.newProfileName.trim() !== "" && root.monitorList.length > 0
+                    background: StyledRect {
+                        variant: root.newProfileName.trim() !== "" ? "primary" : "common"
+                        radius: Styling.radius(-4)
+                        opacity: root.newProfileName.trim() !== "" ? 1.0 : 0.5
+                    }
+                    contentItem: Text {
+                        text: Icons.accept + " Save"
+                        font.family: Config.theme.font; font.pixelSize: Styling.fontSize(-2)
+                        color: root.newProfileName.trim() !== "" ? Styling.srItem("primary") : Colors.overBackground
+                        anchors.centerIn: parent
+                    }
+                    StyledToolTip { show: parent.hovered; tooltipText: "Save current layout as profile" }
+                    onClicked: root.saveProfile(root.newProfileName)
                 }
             }
         }

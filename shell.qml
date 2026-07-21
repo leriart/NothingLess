@@ -215,7 +215,9 @@ ShellRoot {
     Connections {
         target: GlobalStates
         function onCompositorConfigChanged() {
-            compositorConfig.applyCompositorConfig();
+            if (Config.initialLoadComplete) {
+                compositorConfig.applyCompositorConfig();
+            }
         }
     }
 

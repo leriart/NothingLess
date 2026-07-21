@@ -25,11 +25,11 @@ Singleton {
     property bool fpsEnabled: true
 
     // ── Metric colours (set by MetricsConfigPanel) ──
-    property color metricColorCpu: "#ffffff"
-    property color metricColorGpu: "#ffffff"
-    property color metricColorFps: "#ffffff"
-    property color metricColorRam: "#ffffff"
-    property color metricColorDisk: "#ffffff"
+    property color metricColorCpu: Colors.overBackground
+    property color metricColorGpu: Colors.overBackground
+    property color metricColorFps: Colors.overBackground
+    property color metricColorRam: Colors.overBackground
+    property color metricColorDisk: Colors.overBackground
 
     // ── CPU metrics ──
     property real cpuUsage: 0.0

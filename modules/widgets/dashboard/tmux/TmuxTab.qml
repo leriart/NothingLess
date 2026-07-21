@@ -144,11 +144,9 @@ Item {
 
     function cancelDeleteModeFromExternal() {
         if (deleteMode) {
-            console.log("DEBUG: Canceling delete mode from external source (tab change)");
             cancelDeleteMode();
         }
         if (renameMode) {
-            console.log("DEBUG: Canceling rename mode from external source (tab change)");
             cancelRenameMode();
         }
     }
@@ -636,7 +634,6 @@ Item {
                                 }
                             }
                         } else {
-                            console.log("DEBUG: No action taken - selectedIndex:", root.selectedIndex, "count:", resultsList.count);
                         }
                     }
                 }
@@ -1818,7 +1815,6 @@ Item {
                             mouse.accepted = true;
                         } else if (root.expandedItemIndex >= 0) {
                             if (!isClickInsideActiveItem(mouse.y)) {
-                                console.log("DEBUG: Clicked outside expanded item - closing options");
                                 root.expandedItemIndex = -1;
                                 root.selectedOptionIndex = 0;
                                 root.keyboardNavigation = false;

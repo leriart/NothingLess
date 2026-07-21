@@ -75,7 +75,10 @@ Item {
                     height: Math.max(2, amp * root.maxHeight)
                     radius: width / 2
                     color: Qt.rgba(root.accentColor.r, root.accentColor.g, root.accentColor.b, 0.25 + amp * 0.65)
-                    Behavior on height { NumberAnimation { duration: 50; easing.type: Easing.OutCubic } }
+                    Behavior on height {
+                        enabled: Anim.animationsEnabled
+                        NumberAnimation { duration: Anim.standardSmall; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve || [] }
+                    }
                 }
             }
         }

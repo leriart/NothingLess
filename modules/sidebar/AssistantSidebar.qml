@@ -1318,8 +1318,8 @@ Item {
                                             SequentialAnimation on opacity {
                                                 loops: Animation.Infinite
                                                 running: parent.visible && Anim.animationsEnabled
-                                                NumberAnimation { to: 1.0; duration: 500; easing.type: Easing.InOutQuad }
-                                                NumberAnimation { to: 0.4; duration: 500; easing.type: Easing.InOutQuad }
+                                                NumberAnimation { to: 1.0; duration: Anim.standardNormal; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve || [] }
+                                                NumberAnimation { to: 0.4; duration: Anim.standardNormal; easing.type: Anim.easing("standard").type; easing.bezierCurve: Anim.easing("standard").bezierCurve || [] }
                                             }
                                         }
 
@@ -1347,13 +1347,15 @@ Item {
                                                 running: parent.visible && Anim.animationsEnabled
                                                 NumberAnimation {
                                                     from: 1.0; to: 1.18
-                                                    duration: 700
-                                                    easing.type: Easing.InOutQuad
+                                                    duration: Anim.standardLarge
+                                                    easing.type: Anim.easing("standard").type
+                                                    easing.bezierCurve: Anim.easing("standard").bezierCurve || []
                                                 }
                                                 NumberAnimation {
                                                     from: 1.18; to: 1.0
-                                                    duration: 700
-                                                    easing.type: Easing.InOutQuad
+                                                    duration: Anim.standardLarge
+                                                    easing.type: Anim.easing("standard").type
+                                                    easing.bezierCurve: Anim.easing("standard").bezierCurve || []
                                                 }
                                             }
                                         }
@@ -1515,7 +1517,7 @@ Item {
                                     target: chatView
                                     property: "contentY"
                                     duration: Anim.standardNormal
-                                    easing.type: Easing.OutCubic
+                                    easing.type: Anim.easing("standard").type
                                     easing.bezierCurve: Anim.easing("standard").bezierCurve
                                     // If the user grabs the scrollbar / wheel mid-
                                     // animation, kill it so the gesture feels direct.
@@ -2620,7 +2622,7 @@ Item {
                                 enabled: Anim.animationsEnabled
                                 NumberAnimation {
                                     duration: Anim.standardSmall
-                                    easing.type: Easing.OutCubic
+                                    easing.type: Anim.easing("standard").type
                                     easing.bezierCurve: Anim.easing("standard").bezierCurve
                                 }
                             }
